@@ -21,12 +21,16 @@ export default function Player() {
   const keys = useKeyboardControls()
   const { camera } = useThree()
   const status = useGame((s) => s.status)
+  const over = status === 'caught' || status === 'frozen'
 
-  // Drop pointer lock the moment the run ends — caught or frozen — so the mouse
-  // is free for the "try again" overlay.
+  // While paused, disable the controls so mouse-look freezes but the pointer
+  // stays captured — resuming with Space is then seamless. Once the run ends,
+  // fully release the pointer so the mouse is free for the "press R" screen
+  // (the controls also unmount below, removing the click-to-lock handler).
   useEffect(() => {
-    if (status !== 'playing') controls.current?.unlock()
-  }, [status])
+    if (controls.current) controls.current.enabled = status === 'playing'
+    if (over) document.exitPointerLock?.()
+  }, [status, over])
 
   // Reused each frame to avoid allocating vectors in the render loop.
   const scratch = useMemo(
@@ -69,5 +73,6 @@ export default function Player() {
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, -ARENA_HALF, ARENA_HALF)
   })
 
-  return <PointerLockControls ref={controls} />
+  // Unmount once the run is over so a stray click can't re-capture the mouse.
+  return over ? null : <PointerLockControls ref={controls} />
 }

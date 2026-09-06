@@ -7,7 +7,7 @@ import { useGame } from './store.js'
 // game-over screen doesn't cost you.
 //
 // Rendered inside <Canvas> for the frame loop, but draws nothing.
-const DRAIN_PER_SECOND = 1.5 // ~66s from full with no pickups
+const DRAIN_PER_SECOND = 10 // ~10s from full with no pickups — embers are the lifeline
 
 export default function Survival() {
   useFrame((_, rawDelta) => {
