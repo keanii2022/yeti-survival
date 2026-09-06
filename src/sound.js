@@ -13,6 +13,27 @@
 
 let engine = null
 
+const MUTE_KEY = 'yeti-survival:muted'
+
+// The persisted mute preference. localStorage can throw (privacy modes, disabled
+// storage), so every touch of it is guarded. Kept as module functions so the
+// HUD button can save the choice even before the audio engine has been built.
+export function readMutedPref() {
+  try {
+    return localStorage.getItem(MUTE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function writeMutedPref(muted) {
+  try {
+    localStorage.setItem(MUTE_KEY, muted ? '1' : '0')
+  } catch {
+    // storage unavailable — the toggle still works for this session
+  }
+}
+
 class Atmosphere {
   constructor() {
     const Ctx = window.AudioContext || window.webkitAudioContext
@@ -20,7 +41,15 @@ class Atmosphere {
 
     this.master = this.ctx.createGain()
     this.master.gain.value = 0 // silent until resume() fades it up
-    this.master.connect(this.ctx.destination)
+
+    // Final mute stage, downstream of everything: pause/resume/revive all drive
+    // `master`, so the manual mute lives on its own node where nothing else
+    // touches it. Starts at the persisted preference.
+    this.muted = readMutedPref()
+    this.out = this.ctx.createGain()
+    this.out.gain.value = this.muted ? 0 : 1
+    this.master.connect(this.out)
+    this.out.connect(this.ctx.destination)
 
     this._buildWind()
     this._buildDrone()
@@ -190,6 +219,13 @@ class Atmosphere {
 
   setPaused(paused) {
     this.master.gain.setTargetAtTime(paused ? 0 : 0.9, this.ctx.currentTime, 0.25)
+  }
+
+  // Manual mute toggle (the HUD speaker button). Independent of pause and of the
+  // resume fade-in. The caller persists the preference; this just applies it.
+  setMuted(muted) {
+    this.muted = muted
+    this.out.gain.setTargetAtTime(muted ? 0 : 1, this.ctx.currentTime, 0.08)
   }
 
   // level: 0 (safe) .. 1 (the yeti is on top of you). mode: the raw
