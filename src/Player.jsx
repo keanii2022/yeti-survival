@@ -11,7 +11,7 @@ import { useGame } from './store.js'
 const EYE_HEIGHT = 1.7
 const WALK_SPEED = 6 // metres / second
 const SPRINT_SPEED = 10
-const SPRINT_DRAIN = 26 // stamina/sec while sprinting — ~4s from a full bar
+const SPRINT_DRAIN = 20 // stamina/sec while sprinting — ~5s from a full bar
 const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
 
