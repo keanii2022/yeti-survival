@@ -57,10 +57,13 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
 ## GitHub / remote
 - This is portfolio work. The git history is meant to be read by employers, so
   keep it truthful and legible — real dates, honest messages, no "wip".
-- Git identity must match a verified GitHub email so every commit links to my
-  account. Use `keani.ga22@gmail.com`, never the machine's auto-generated
-  `<user>@<host>.local` address. Check with `git config user.email` before the
-  first push on any machine.
+- Git identity must link every commit to the `keanii2022` GitHub account.
+  Use name `Keani Antezana` and email
+  `99574780+keanii2022@users.noreply.github.com` (GitHub's noreply address for
+  that account). Do NOT use `keani.ga22@gmail.com` — it's verified on a
+  different, throwaway account (`keaniarmand`) and mis-attributes commits.
+  Never use the machine's auto-generated `<user>@<host>.local` address.
+  Check with `git config user.email` before the first push on any machine.
 - Remote is GitHub `origin`: https://github.com/keanii2022/yeti-survival
 - Push `main` to `origin` after each completed build step, so the public
   history stays in sync with local progress.
