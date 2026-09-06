@@ -15,11 +15,15 @@ import { ARENA_HALF } from './Player.jsx'
 // No pathfinding and no trees-as-cover yet; that's later in the build order.
 // These numbers are tuned by feel, not physics: the chase is a touch slower
 // than a walk (Player WALK_SPEED = 6) so backing away buys you a little time,
-// but a sprint (10) clearly pulls ahead.
+// but a sprint (10) clearly pulls ahead — until it gets within BURST_RADIUS,
+// where it lunges at CHASE_BURST_SPEED (7). That's faster than a walk and
+// independent of the player's stamina, so being cornered close is always deadly.
 const DETECT_RADIUS = 18
 const LOSE_RADIUS = 27
 const CATCH_RADIUS = 1.9
 const CHASE_SPEED = 5.4
+const CHASE_BURST_SPEED = 7
+const BURST_RADIUS = 6
 const WANDER_SPEED = 1.3
 const TURN_RATE = 2.6 // radians/sec the yeti can rotate toward its heading
 const SPAWN = [0, 0, -22] // dead ahead of the player spawn, out past detection range
@@ -147,7 +151,7 @@ export default function Yeti() {
 
     if (a.mode === 'chase') {
       dir.copy(toPlayer).normalize()
-      speed = CHASE_SPEED
+      speed = dist < BURST_RADIUS ? CHASE_BURST_SPEED : CHASE_SPEED
       moving = true
     } else {
       // Idle wander: amble toward a nearby point, refreshing it on arrival or

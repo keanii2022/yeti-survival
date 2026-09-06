@@ -7,6 +7,8 @@ export default function Hud({ locked }) {
   const status = useGame((s) => s.status)
   const score = useGame((s) => s.score)
   const warmth = useGame((s) => s.warmth)
+  const stamina = useGame((s) => s.stamina)
+  const sprintLocked = useGame((s) => s.sprintLocked)
   const itemsCollected = useGame((s) => s.itemsCollected)
   const itemsTotal = useGame((s) => s.itemsTotal)
 
@@ -18,6 +20,13 @@ export default function Hud({ locked }) {
   const warmthPct = Math.max(0, Math.min(100, warmth))
   const warmthColor =
     warmthPct < 25 ? '#ff5a4a' : warmthPct < 55 ? '#ffb347' : '#6fd3ff'
+
+  const staminaPct = Math.max(0, Math.min(100, stamina))
+  const staminaColor = sprintLocked
+    ? '#ff5a4a'
+    : staminaPct < 30
+      ? '#ffd27a'
+      : '#cfe9ff'
 
   return (
     <div className="hud">
@@ -35,6 +44,18 @@ export default function Hud({ locked }) {
               <div
                 className="gauge-fill"
                 style={{ width: `${warmthPct}%`, background: warmthColor }}
+              />
+            </div>
+          </div>
+
+          <div className="gauge stamina">
+            <span className="gauge-label">
+              {sprintLocked ? 'Winded' : 'Stamina'}
+            </span>
+            <div className="gauge-track">
+              <div
+                className="gauge-fill"
+                style={{ width: `${staminaPct}%`, background: staminaColor }}
               />
             </div>
           </div>

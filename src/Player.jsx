@@ -11,6 +11,8 @@ import { useGame } from './store.js'
 const EYE_HEIGHT = 1.7
 const WALK_SPEED = 6 // metres / second
 const SPRINT_SPEED = 10
+const SPRINT_DRAIN = 26 // stamina/sec while sprinting — ~4s from a full bar
+const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
 
 // Half-width of the walkable arena (a 60x60 square centred on the origin).
@@ -61,11 +63,21 @@ export default function Player() {
     if (held.right) move.add(right)
     if (held.left) move.sub(right)
 
-    if (move.lengthSq() > 0) {
-      const speed = held.sprint ? SPRINT_SPEED : WALK_SPEED
+    // Sprint only lands if you're moving, holding Shift, and not winded.
+    const game = useGame.getState()
+    const moving = move.lengthSq() > 0
+    const sprinting =
+      moving && held.sprint && !game.sprintLocked && game.stamina > 0
+
+    if (moving) {
+      const speed = sprinting ? SPRINT_SPEED : WALK_SPEED
       move.normalize().multiplyScalar(speed * Math.min(delta, MAX_STEP))
       camera.position.add(move)
     }
+
+    // Burn stamina while sprinting, regenerate it any other time.
+    const step = Math.min(delta, MAX_STEP)
+    game.tickStamina(sprinting, (sprinting ? SPRINT_DRAIN : STAMINA_REGEN) * step)
 
     // Keep the player pinned to eye height and inside the arena bounds.
     camera.position.y = EYE_HEIGHT

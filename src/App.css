@@ -91,6 +91,11 @@
   text-align: left;
 }
 
+/* Stamina gauge — tucked directly under the warmth gauge, same styling. */
+.gauge.stamina {
+  top: 4.25rem;
+}
+
 .gauge-label {
   display: block;
   font-size: 0.7rem;
