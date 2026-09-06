@@ -16,9 +16,10 @@ const START_STAMINA = 100
 // can show the "N embers x EMBER_SCORE" breakdown without reaching into Items.
 export const EMBER_SCORE = 100
 
-// Embers still buy back warmth, but well under the old 16 — a full clear tops up
-// ~6s of drain, not a near-refill. Warmth stays a real death clock (the blanket
-// in 6.13 is the actual warmth lever). 6.6 retunes this against its wave counts.
+// Embers still buy back warmth, but well under the old 16 — a full six-ember
+// clear tops up ~12s against the 5/s drain, not a near-refill. Warmth stays a
+// real death clock (the blanket in 6.13 is the actual warmth lever). 6.6
+// retunes this against its wave counts.
 export const WARMTH_PER_EMBER = 10
 
 // Once stamina bottoms out, sprint stays locked until it regenerates back past

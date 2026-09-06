@@ -11,7 +11,9 @@ import { useGame } from './store.js'
 const EYE_HEIGHT = 1.7
 const WALK_SPEED = 6 // metres / second
 const SPRINT_SPEED = 10
-const SPRINT_DRAIN = 20 // stamina/sec while sprinting — ~5s from a full bar
+const SPRINT_DRAIN = 16 // stamina/sec while sprinting — ~6s from a full bar, just
+// enough runway to break past the yeti's 27u lose-radius in one burst if you also
+// cut sideways; a straight-line sprint still runs dry well short of a clean escape.
 const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
 
