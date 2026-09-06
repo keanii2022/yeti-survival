@@ -48,6 +48,11 @@ export default function Items() {
   const spots = useEmberSpots()
   const groups = useRef([])
   const [collected, setCollected] = useState(() => spots.map(() => false))
+  // Synchronous guard against double-counting: `collected` (React state) doesn't
+  // update until the next render, so a slow walk over an ember keeps the frame
+  // loop seeing it as uncollected for several frames. This ref flips the instant
+  // the pickup lands, so collectItem() fires exactly once per ember.
+  const grabbed = useRef(new Set())
 
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
@@ -56,7 +61,7 @@ export default function Items() {
 
     let justGrabbed = -1
     for (let i = 0; i < spots.length; i++) {
-      if (collected[i]) continue
+      if (collected[i] || grabbed.current.has(i)) continue
 
       // Bob and spin so the embers catch the eye through the fog.
       const g = groups.current[i]
@@ -70,9 +75,10 @@ export default function Items() {
       if (dx * dx + dz * dz < PICKUP_RADIUS * PICKUP_RADIUS) justGrabbed = i
     }
 
+    // justGrabbed is always a fresh index — the loop skips anything in `grabbed`.
     if (justGrabbed >= 0) {
+      grabbed.current.add(justGrabbed)
       setCollected((c) => {
-        if (c[justGrabbed]) return c
         const next = c.slice()
         next[justGrabbed] = true
         return next
