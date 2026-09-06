@@ -52,18 +52,24 @@ function Peak({ position, radius, height, rotation }) {
 }
 
 // A ring of mountains wrapping the arena so the edge reads before you walk into
-// the invisible clamp at ARENA_HALF. Pure set dressing — no collision. A dense
-// front row sits just past the wall with overlapping bases so it looks like one
-// massif; a sparser, taller back row adds silhouette depth and half-sinks into
-// the fog so it looms instead of popping.
+// the invisible clamp at ARENA_HALF. Pure set dressing — no collision. Two
+// concentric rows of the same cone peak: a front row with heavily overlapping
+// bases, and an equally dense back row offset by half a step and set taller and
+// further out. The offset lands a back peak behind every front valley, so the
+// dips in the skyline stay (they're the look) but you never see sky or flat
+// ground straight through a gap. Both rows scale their count with the 6.10
+// arena so they don't tear open at the bigger radius.
 function Mountains() {
   const peaks = useMemo(() => {
     const rand = mulberry32(41530207)
     const placed = []
 
-    const ring = (count, baseR, jitterR, minH, maxH, minRad, maxRad) => {
+    // `phase` shifts the whole row round the circle; `spreadJitter` is the
+    // per-peak angular wobble, kept under the spacing so the row stays packed.
+    const ring = (count, baseR, jitterR, minH, maxH, minRad, maxRad, spreadJitter, phase = 0) => {
       for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2 + (rand() - 0.5) * 0.4
+        const angle =
+          (i / count) * Math.PI * 2 + phase + (rand() - 0.5) * spreadJitter
         const r = baseR + (rand() - 0.5) * jitterR
         placed.push({
           position: [Math.cos(angle) * r, 0, Math.sin(angle) * r],
@@ -74,10 +80,12 @@ function Mountains() {
       }
     }
 
-    // Front massif: bases just outside the clamp, overlapping into a wall.
-    ring(30, ARENA_HALF + 8, 6, 14, 24, 7, 12)
-    // Back range: fewer, bigger, further out and mostly fog-shrouded.
-    ring(16, ARENA_HALF + 24, 8, 26, 40, 10, 16)
+    const FRONT = 52
+    // Front massif: bases just past the clamp, heavily overlapping into a wall.
+    ring(FRONT, ARENA_HALF + 6, 5, 15, 25, 8, 13, 0.3)
+    // Back range: same count, offset half a step so a peak sits behind each
+    // front gap; taller and further out, half-sunk in the fog so it looms.
+    ring(FRONT, ARENA_HALF + 17, 8, 26, 42, 11, 17, 0.3, Math.PI / FRONT)
 
     return placed
   }, [])
@@ -85,9 +93,10 @@ function Mountains() {
   return peaks.map((p, i) => <Peak key={i} {...p} />)
 }
 
-// Scatter of landmark trees near the arena edge — gives the empty plane a
-// sense of scale and something to steer around while testing movement.
-function Trees({ count = 44, spread = 27 }) {
+// Scatter of landmark trees across the arena interior — gives the open plane a
+// sense of scale and something to steer around and navigate by. 6.10 widened
+// the spread with the arena; 6.8 adds the denser fill on top.
+function Trees({ count = 44, spread = 50 }) {
   const trees = useMemo(() => {
     const rand = mulberry32(20260905)
     const placed = []
@@ -128,9 +137,10 @@ export default function World() {
         shadow-mapSize={[2048, 2048]}
       />
 
-      {/* Snowy ground plane */}
+      {/* Snowy ground plane — sized to run well past the boundary ring so the
+          world doesn't visibly end behind the mountains at the new arena scale */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[200, 200]} />
+        <planeGeometry args={[320, 320]} />
         <meshStandardMaterial color="#eef4f8" roughness={1} metalness={0} />
       </mesh>
 

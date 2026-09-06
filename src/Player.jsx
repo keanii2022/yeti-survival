@@ -15,8 +15,11 @@ const SPRINT_DRAIN = 20 // stamina/sec while sprinting — ~5s from a full bar
 const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
 
-// Half-width of the walkable arena (a 60x60 square centred on the origin).
-export const ARENA_HALF = 30
+// Half-width of the walkable arena — a 120x120 square centred on the origin.
+// Step 6.10 grew this from 30: the old 60x60 pen was barely wider than the
+// yeti's LOSE_RADIUS, so a chase always ended at a wall. There's now room to
+// cut sideways into the fog and actually shake it.
+export const ARENA_HALF = 60
 
 export default function Player() {
   const controls = useRef()

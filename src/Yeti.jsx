@@ -21,6 +21,11 @@ import { ARENA_HALF } from './Player.jsx'
 // but a sprint (10) clearly pulls ahead — until it gets within BURST_RADIUS,
 // where it lunges at CHASE_BURST_SPEED (7). That's faster than a walk and
 // independent of the player's stamina, so being cornered close is always deadly.
+//
+// 6.10 grew the arena to 120x120 but left these two where they were on purpose:
+// a fixed-size sight range in a much larger pen is exactly what lets a chase be
+// broken by ducking into the fog. Wander points are still arena-wide, so the
+// yeti now genuinely leaves whole regions unpatrolled.
 const DETECT_RADIUS = 18
 const LOSE_RADIUS = 27
 const CATCH_RADIUS = 1.9

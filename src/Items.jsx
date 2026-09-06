@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGame, ITEM_TOTAL, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
-import { ARENA_HALF } from './Player.jsx'
 
 // Step 4: embers scattered across the arena. Walk over one to grab it — it adds
 // to your score and pushes warmth back up, so the risk of straying from spawn
@@ -9,6 +8,12 @@ import { ARENA_HALF } from './Player.jsx'
 // distance check against the camera each frame.
 const PICKUP_RADIUS = 2.2
 const HOVER_HEIGHT = 0.9
+
+// Embers stay in the same disc around spawn they occupied before 6.10 grew the
+// arena — matched to the old `ARENA_HALF - 3` reach so six embers are no harder
+// to run between than they were. 6.6 replaces this fixed scatter with
+// player-relative wave spawns and lifts the count.
+const EMBER_FIELD = 27
 
 // Same deterministic PRNG as the tree scatter — embers land in the same spots
 // on every reload so a run is learnable.
@@ -23,18 +28,19 @@ function mulberry32(seed) {
 }
 
 // Ring of placements: far enough out that you must leave the spawn to reach
-// them, inside the arena bounds, and clear of the yeti's post at [0, 0, -22].
+// them, but all within EMBER_FIELD of the origin so the warmth clock stays
+// survivable. The old carve-out around a fixed yeti post is gone — the yeti
+// spawns randomly since 6.2.
 function useEmberSpots() {
   return useMemo(() => {
     const rand = mulberry32(90210)
     const spots = []
     let guard = 0
     while (spots.length < ITEM_TOTAL && guard++ < 500) {
-      const x = (rand() * 2 - 1) * (ARENA_HALF - 4)
-      const z = (rand() * 2 - 1) * (ARENA_HALF - 4)
+      const x = (rand() * 2 - 1) * EMBER_FIELD
+      const z = (rand() * 2 - 1) * EMBER_FIELD
       const fromSpawn = Math.hypot(x, z)
-      if (fromSpawn < 10 || fromSpawn > ARENA_HALF - 3) continue
-      if (Math.hypot(x, z + 22) < 7) continue // keep clear of the yeti spawn
+      if (fromSpawn < 10 || fromSpawn > EMBER_FIELD) continue
       spots.push([x, HOVER_HEIGHT, z])
     }
     return spots
