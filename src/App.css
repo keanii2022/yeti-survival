@@ -3,3 +3,49 @@
   width: 100vw;
   height: 100svh;
 }
+
+/* HUD overlay — sits above the canvas but never eats pointer events, so a
+   click anywhere still reaches the canvas and engages pointer lock. */
+.hud {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: #eef4f8;
+  text-align: center;
+}
+
+.crosshair {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+
+.prompt {
+  padding: 2rem 3rem;
+  border-radius: 12px;
+  background: rgba(11, 14, 18, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.prompt h1 {
+  margin: 0 0 0.75rem;
+  font-size: 2rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.prompt p {
+  margin: 0.25rem 0;
+}
+
+.prompt .keys {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
