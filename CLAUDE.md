@@ -39,22 +39,32 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
 5. Atmosphere — snowfall particles, ambient/scary audio, proximity stingers.
 6. Polish / stretch — playtest-scoped after steps 1–5. One session and one commit
    per sub-step; playtest between each; no batching. Full detail in the README's
-   "Step 6" section; order of 6.6–6.9 is set by playtest, not fixed.
+   "Step 6" section; order within the 6.10–6.14 hide-and-seek group is set by
+   playtest, not fixed.
 
 ### Step 6 sub-steps
 
 - **6.1 Stamina bar** — sprint drains it, walk regens, empty = stuck at walk
   speed; yeti chase speed bursts 5.4 → 7 when it's close, regardless of stamina.
+  5.4 and 7 are level-1 values; 6.6 ramps both toward but never past sprint speed.
 - **6.2 Yeti spawn + wander randomization** — random spawn each run; wanders the
   whole arena instead of orbiting a fixed post.
 - **6.3 Visible arena boundary** — mountains / ridge ring so the edge reads; the
-  invisible clamp still does the containment.
+  invisible clamp still does the containment. Rescales with 6.10.
 - **6.4 Adaptive audio** — calm melodic bed while unseen, aggressive strings on
-  detection, easing off when the yeti loses you.
-- **6.5 Scoring rework** — score = time survived (headline) + a flat per-ember
-  bonus; embers still top up warmth. Groundwork for 6.6.
-- **6.6 Endless ember spawning** *(needs 6.5)* — drop the fixed seed and count of
-  six; keep a target number of embers spawning near the player but off-screen.
+  detection, easing off when the yeti loses you. 6.6 stacks a darker stem per
+  level.
+- **6.5 Scoring rework** — game-over screen leads with level reached, then time
+  survived, then a flat per-ember bonus; embers still top up warmth (only a
+  little). Groundwork for 6.6.
+- **6.6 Levels / waves** *(needs 6.5, 6.10, 6.11)* — replaces the fixed seed +
+  count of six. The run is a climb through ~10 levels; each = clear ~6–8
+  off-screen embers, then a ~12 s calm interlude, then the next. Embers are
+  mostly score, tiny warmth top-up. Escalation: L1–4 speed + detection radius
+  creep; L5+ speed caps just under sprint (≈9 vs 10) and the dial moves to
+  detection, faster chase commit, longer last-known search, faster shed checks,
+  tighter wander — past ~L5 you must break line of sight, not outrun. Clear 10 →
+  win screen; unlocks an endless "nightfall" mode.
 - **6.7 Green ember** *(needs 6.6)* — one at a time near the yeti, worth much
   more; sprint inside its radius boosts 10 → ~11; escape bonus for getting clear.
 - **6.8 Environment mood** — more trees (instanced past a few dozen); slow
@@ -63,6 +73,22 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
   collider, not pathfinding — the yeti stays dumb. Kinematic fallback: same
   radius push-out off nearby trees for both player and yeti. Crosses build
   steps; check in before committing.
+- **6.10 Bigger arena** — grow the play space so the yeti can genuinely lose you.
+  Still fixed and finite (not streaming / infinite — that's parked). Rescale the
+  6.3 ring and any distances tuned to the old size.
+- **6.11 Yeti search & investigate state** — on losing sight, the yeti searches
+  the player's last-known position before resetting to wander; "shake him off" =
+  break LOS + change direction + stay unseen ~4–6 s. Adds a reusable "investigate
+  a point" behaviour for 6.12 and 6.14. Still not pathfinding.
+- **6.12 Sheds** *(needs 6.11)* — enterable sheds: hidden from detection, slower
+  warmth drain. Yeti periodically checks the nearest one with a tell (footfalls /
+  breathing / door rattle) and a cooldown. Hiding trades safety for warmth + lost
+  ember time.
+- **6.13 Snacks + blanket** — rare consumables. Snack: press S to eat, locks
+  stamina at full for a window. Blanket: slower warmth drain for a window.
+- **6.14 Decoy** *(needs 6.11, pairs with 6.7)* — throwable; yeti diverts to
+  investigate for a few seconds, resetting a chase. Rare; spawns near the green
+  ember.
 
 ## Working conventions
 - Keep sessions scoped to one step above at a time.
