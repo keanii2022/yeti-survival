@@ -17,5 +17,12 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // react-three-fiber is mutation-based by design: every frame we write
+      // straight to camera.position, mesh.rotation, etc. inside useFrame. The
+      // react-hooks immutability rule flags those legitimate mutations, so we
+      // switch it off for this project.
+      'react-hooks/immutability': 'off',
+    },
   },
 ])
