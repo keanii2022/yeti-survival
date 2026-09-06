@@ -1,8 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useKeyboardControls } from './hooks/useKeyboardControls.js'
+import { useGame } from './store.js'
 
 // First-person controller: mouse look via PointerLockControls, WASD movement
 // on the ground plane. No physics yet — the player floats at a fixed eye
@@ -19,6 +20,13 @@ export default function Player() {
   const controls = useRef()
   const keys = useKeyboardControls()
   const { camera } = useThree()
+  const status = useGame((s) => s.status)
+
+  // Drop pointer lock the moment the yeti catches you, so the mouse is free for
+  // the "try again" overlay.
+  useEffect(() => {
+    if (status === 'caught') controls.current?.unlock()
+  }, [status])
 
   // Reused each frame to avoid allocating vectors in the render loop.
   const scratch = useMemo(
@@ -32,6 +40,7 @@ export default function Player() {
 
   useFrame((_, delta) => {
     if (!controls.current?.isLocked) return
+    if (useGame.getState().status !== 'playing') return
 
     const held = keys.current
     const { forward, right, move } = scratch
