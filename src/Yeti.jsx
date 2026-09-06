@@ -6,8 +6,11 @@ import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 
 // Step 3: one yeti with basic chase-detection AI.
+// Step 6.2: spawn point and idle wander are randomized per run.
 //
-// The yeti idles near its post, slowly wandering, until the player comes within
+// Each run the yeti spawns somewhere random in the arena, always far enough
+// from the player's start that no run begins already in a chase. It idles by
+// roaming the whole arena on random waypoints until the player comes within
 // DETECT_RADIUS. Then it locks on and walks straight at them until either it
 // loses them past LOSE_RADIUS (a bigger ring, so the state doesn't flicker at
 // the boundary) or it gets within CATCH_RADIUS — which ends the run.
@@ -24,9 +27,34 @@ const CATCH_RADIUS = 1.9
 const CHASE_SPEED = 5.4
 const CHASE_BURST_SPEED = 7
 const BURST_RADIUS = 6
-const WANDER_SPEED = 1.3
+const WANDER_SPEED = 1.6
 const TURN_RATE = 2.6 // radians/sec the yeti can rotate toward its heading
-const SPAWN = [0, 0, -22] // dead ahead of the player spawn, out past detection range
+
+const PLAYER_SPAWN = new THREE.Vector2(0, 8) // camera start (x, z) — see App.jsx
+const EDGE_MARGIN = 2 // keep spawns and waypoints off the arena wall
+const SPAWN_MIN_DIST = DETECT_RADIUS + 5 // no run starts inside detection range
+
+// A point somewhere inside the arena, at least EDGE_MARGIN off every wall.
+function randomArenaPoint(out) {
+  const limit = ARENA_HALF - EDGE_MARGIN
+  return out.set(
+    (Math.random() * 2 - 1) * limit,
+    0,
+    (Math.random() * 2 - 1) * limit,
+  )
+}
+
+// A fresh spawn each run: a random arena point kept clear of the player start.
+function randomSpawn() {
+  const p = new THREE.Vector3()
+  for (let i = 0; i < 40; i++) {
+    randomArenaPoint(p)
+    const dx = p.x - PLAYER_SPAWN.x
+    const dz = p.z - PLAYER_SPAWN.y
+    if (dx * dx + dz * dz > SPAWN_MIN_DIST * SPAWN_MIN_DIST) break
+  }
+  return [p.x, 0, p.z]
+}
 
 // A shaggy white brute, built from primitives to match the tree style. Stands
 // ~2.6m — taller than the player's 1.7m eye height, so it reads as looming.
@@ -93,11 +121,15 @@ export default function Yeti() {
   const group = useRef()
   const { camera } = useThree()
 
+  // Rolled once per mount; the scene remounts on every run (App keys on runId),
+  // so this re-randomizes each time.
+  const spawn = useMemo(() => randomSpawn(), [])
+
   // Per-frame state kept off React so the chase loop never triggers a re-render.
   const ai = useRef({
     mode: 'idle', // 'idle' | 'chase'
     heading: 0, // yaw the yeti is turning toward, radians
-    wander: new THREE.Vector3(SPAWN[0], 0, SPAWN[2]), // current idle target
+    wander: new THREE.Vector3(spawn[0], 0, spawn[2]), // current idle target
     wanderTimer: 0,
   })
   const eyeRef = useRef([null, null])
@@ -154,15 +186,14 @@ export default function Yeti() {
       speed = dist < BURST_RADIUS ? CHASE_BURST_SPEED : CHASE_SPEED
       moving = true
     } else {
-      // Idle wander: amble toward a nearby point, refreshing it on arrival or
-      // every few seconds so the yeti is never a total statue while you scout.
+      // Idle wander: amble toward a waypoint anywhere in the arena, refreshing
+      // it on arrival or every several seconds. Points are arena-wide now, so
+      // the yeti roams the whole map instead of orbiting its spawn.
       a.wanderTimer -= delta
       toWander.set(a.wander.x - g.position.x, 0, a.wander.z - g.position.z)
       if (a.wanderTimer <= 0 || toWander.length() < 0.6) {
-        const r = 6 + Math.random() * 6
-        const ang = Math.random() * Math.PI * 2
-        a.wander.set(SPAWN[0] + Math.cos(ang) * r, 0, SPAWN[2] + Math.sin(ang) * r)
-        a.wanderTimer = 2.5 + Math.random() * 2.5
+        randomArenaPoint(a.wander)
+        a.wanderTimer = 5 + Math.random() * 4
       } else {
         dir.copy(toWander).normalize()
         speed = WANDER_SPEED
@@ -193,7 +224,7 @@ export default function Yeti() {
   })
 
   return (
-    <group ref={group} position={SPAWN}>
+    <group ref={group} position={spawn}>
       <YetiModel eyeRef={eyeRef} />
     </group>
   )
