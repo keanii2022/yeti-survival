@@ -49,7 +49,7 @@ export default function App() {
       <Canvas
         key={runId}
         shadows
-        camera={{ position: [0, 1.7, 8], fov: 70, near: 0.1, far: 200 }}
+        camera={{ position: [0, 1.7, 8], fov: 70, near: 0.1, far: 320 }}
       >
         <World />
         <Snow />
