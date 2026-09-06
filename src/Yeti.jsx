@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
+import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 
 // Step 3: one yeti with basic chase-detection AI.
@@ -129,6 +130,10 @@ export default function Yeti() {
     // --- detection state machine (with hysteresis) ---
     if (a.mode === 'idle' && dist < DETECT_RADIUS) a.mode = 'chase'
     else if (a.mode === 'chase' && dist > LOSE_RADIUS) a.mode = 'idle'
+
+    // Publish the readout the audio engine / vignette poll each frame.
+    threat.distance = dist
+    threat.mode = a.mode
 
     // --- caught? ---
     if (dist < CATCH_RADIUS) {

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import World from './World.jsx'
+import Snow from './Snow.jsx'
 import Player from './Player.jsx'
 import Yeti from './Yeti.jsx'
 import Items from './Items.jsx'
 import Survival from './Survival.jsx'
+import Sound from './Sound.jsx'
 import Hud from './Hud.jsx'
 import { useGame } from './store.js'
 import './App.css'
@@ -50,10 +52,12 @@ export default function App() {
         camera={{ position: [0, 1.7, 8], fov: 70, near: 0.1, far: 200 }}
       >
         <World />
+        <Snow />
         <Player />
         <Yeti />
         <Items />
         <Survival />
+        <Sound />
       </Canvas>
       <Hud locked={locked} />
     </>

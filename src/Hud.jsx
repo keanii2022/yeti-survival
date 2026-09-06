@@ -21,6 +21,10 @@ export default function Hud({ locked }) {
 
   return (
     <div className="hud">
+      {/* Edges darken and redden as the yeti closes in — opacity is driven by
+          the `--threat` CSS var that Sound.jsx updates each frame. */}
+      <div className="vignette" />
+
       {locked && playing && <div className="crosshair" />}
 
       {showStats && (
