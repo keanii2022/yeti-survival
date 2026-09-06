@@ -11,9 +11,10 @@ import { useGame } from './store.js'
 const EYE_HEIGHT = 1.7
 const WALK_SPEED = 6 // metres / second
 const SPRINT_SPEED = 10
-const SPRINT_DRAIN = 16 // stamina/sec while sprinting — ~6s from a full bar, just
-// enough runway to break past the yeti's 27u lose-radius in one burst if you also
-// cut sideways; a straight-line sprint still runs dry well short of a clean escape.
+const SPRINT_DRAIN = 13 // stamina/sec while sprinting — ~7.5s from a full bar.
+// Eased from 16 in 6.6: enough runway to clear the yeti's ~24u lose-radius (L1)
+// and cut sideways into cover, but a flat-out straight sprint still runs dry
+// before a clean break.
 const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
 
@@ -28,7 +29,7 @@ export default function Player() {
   const keys = useKeyboardControls()
   const { camera } = useThree()
   const status = useGame((s) => s.status)
-  const over = status === 'caught' || status === 'frozen'
+  const over = status === 'caught' || status === 'frozen' || status === 'won'
 
   // While paused, disable the controls so mouse-look freezes but the pointer
   // stays captured — resuming with Space is then seamless. Once the run ends,

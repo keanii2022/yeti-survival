@@ -81,9 +81,10 @@ into a session, no commit spanning two items.
   - Embers are **mostly score**. The warmth top-up is small — small enough that
     playing greedy or getting forced into detours still freezes you. Warmth stays
     a real death clock; the blanket (6.13) is the actual warmth lever.
-  - Clear the target → ~12 s calm interlude (yeti pushed to far wander, music
-    eases to the light bed, "LEVEL N" card) → the next level spawns and the yeti
-    re-aggros.
+  - Clear the target → ~8 s calm interlude (warmth paused, yeti pushed to far
+    wander, music eases to the light bed, "LEVEL N" card) → the next level spawns
+    and the yeti re-aggros. Each wave spawns close and fanned in one direction —
+    a directed foray, not a search of the whole ring.
   - Escalation per level: L1–4, chase speed and detection radius creep up —
     running still works, the margin just shrinks. L5+, sustained chase speed
     holds just under sprint (≈9 vs 10; never at or above it) so you can't open a
@@ -91,8 +92,14 @@ into a session, no commit spanning two items.
     commit-to-chase, longer last-known-position search (6.11), more frequent and
     faster shed checks (6.12), and tighter wander around the player. Past ~L5,
     surviving means breaking line of sight and using cover, not out-footing him.
-  - ~10 levels to a "dawn breaks — you made it" win screen. Clearing all 10
-    unlocks an endless "nightfall" mode (no interludes, escalation keeps going).
+  - LEVEL_COUNT levels to a "dawn breaks — you made it" win screen — 8, after a
+    playtest walk from ~10 down to 6 (proved the loop) and back up to 8 (wanted
+    more climb). Clearing them unlocks "nightfall": the same climb replayed, every
+    level pinned NIGHTFALL_OFFSET rungs higher on the curve and capped at
+    LEVEL_COUNT, with its own win screen. (Playtest change from the original
+    "endless, no interludes" plan.) Nightfall still wants a proper pass —
+    progressive escalation paired with the player getting more agile / new
+    night-only consumables (water bottle, etc.) — but that's later, likely v3.
   - Audio: each level adds one darker stem on the 6.4 beds (drone → low strings →
     percussion pulse → dissonant lead); the interlude strips back to the light
     bed.
@@ -147,3 +154,7 @@ Explicit "not step 6" decisions:
 
 - Streaming / infinite terrain
 - Any yeti pathfinding or route-planning around obstacles
+- Nightfall rework (later, ~v3): let the yeti keep escalating past the base-game
+  peak instead of the current cap, paired with player counterplay that earns it
+  — more agility and night-only consumables (water bottle, etc.). Until that
+  exists as one design, nightfall stays the bounded capped replay it is now.

@@ -16,14 +16,14 @@ describe('Hud', () => {
     expect(screen.getByText('Click to look around')).toBeInTheDocument()
   })
 
-  it('shows the gauges, score and ember count once locked and playing', () => {
-    useGame.setState({ score: 400, itemsCollected: 3 })
+  it('shows the gauges, score and level / ember count once locked and playing', () => {
+    useGame.setState({ score: 400, itemsCollected: 3, level: 2, itemsTotal: 6 })
     render(<Hud locked={true} />)
 
     expect(screen.getByText('Warmth')).toBeInTheDocument()
     expect(screen.getByText('Stamina')).toBeInTheDocument()
     expect(screen.getByText('400')).toBeInTheDocument()
-    expect(screen.getByText('Embers 3/6')).toBeInTheDocument()
+    expect(screen.getByText(/Level 2 · Embers 3\/6/)).toBeInTheDocument()
   })
 
   it('hides the stats when the pointer is not locked', () => {
@@ -48,21 +48,55 @@ describe('Hud', () => {
   it('leads the game-over card with level, then time survived, then the ember score', () => {
     useGame.setState({
       status: 'caught',
-      level: 1,
+      level: 3,
       elapsed: 95.4,
       score: 400,
-      itemsCollected: 4,
+      embersTotal: 4,
     })
     render(<Hud locked={true} />)
 
     expect(
       screen.getByRole('heading', { name: 'The yeti caught you' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Level 1')).toBeInTheDocument()
+    expect(screen.getByText('Level 3')).toBeInTheDocument()
     expect(screen.getByText('1:35')).toBeInTheDocument()
-    expect(screen.getByText('Embers 4/6')).toBeInTheDocument()
     expect(screen.getByText('4 × 100')).toBeInTheDocument()
     expect(screen.getByText('400')).toBeInTheDocument()
+  })
+
+  it('shows the interlude level card while a level is being cleared', () => {
+    useGame.setState({ status: 'playing', level: 2, interlude: true })
+    render(<Hud locked={true} />)
+
+    expect(screen.getByRole('heading', { name: 'Level 3' })).toBeInTheDocument()
+    expect(screen.getByText(/Catch your breath/)).toBeInTheDocument()
+  })
+
+  it('shows the win screen once the run is won, with a nightfall prompt', () => {
+    useGame.setState({
+      status: 'won',
+      level: 8,
+      elapsed: 300,
+      score: 6000,
+      embersTotal: 60,
+    })
+    render(<Hud locked={true} />)
+
+    expect(screen.getByRole('heading', { name: 'Dawn breaks' })).toBeInTheDocument()
+    expect(screen.getByText(/8 levels cleared/)).toBeInTheDocument()
+    expect(screen.getByText('60 × 100')).toBeInTheDocument()
+    expect(screen.getByText(/Press N/)).toBeInTheDocument()
+  })
+
+  it('shows a distinct win screen for clearing nightfall, with no further N prompt', () => {
+    useGame.setState({ status: 'won', nightfall: true, level: 8, score: 9000, embersTotal: 90 })
+    render(<Hud locked={true} />)
+
+    expect(
+      screen.getByRole('heading', { name: 'The night is over' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Press N/)).not.toBeInTheDocument()
+    expect(screen.getByText('Press R to start over')).toBeInTheDocument()
   })
 
   it('shows the cold game-over card when frozen', () => {

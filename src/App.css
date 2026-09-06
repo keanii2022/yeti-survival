@@ -148,6 +148,40 @@
   color: #ff6a5a;
 }
 
+/* 6.6 between-levels title card — shown mid-run during the interlude, so it
+   stays light: no heavy backdrop, just the level number and a breath. */
+.prompt.levelcard {
+  background: rgba(11, 14, 18, 0.4);
+  animation: levelcard-in 0.4s ease-out;
+}
+
+.prompt.levelcard h1 {
+  font-size: 2.6rem;
+  color: #cfe9ff;
+}
+
+@keyframes levelcard-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt.levelcard {
+    animation: none;
+  }
+}
+
+/* Win screen — the one warm card in the game. */
+.prompt.won {
+  background: rgba(20, 28, 40, 0.66);
+}
+
+.prompt.won h1 {
+  color: #ffd27a;
+}
+
 .prompt .final {
   margin-top: 1rem;
   font-size: 1.4rem;

@@ -1,59 +1,71 @@
 import { create } from 'zustand'
+import { LEVEL_COUNT, levelTarget } from './levels.js'
 
-// Game state for step 4: a live run tracks warmth, score and how many embers
-// you've grabbed. A run ends one of two ways — the yeti catches you, or your
-// warmth hits zero — and the game-over screen reads `status` to say which.
+// Game state. A live run tracks warmth, stamina, score, and — since 6.6 — a
+// level. The run is a climb: clear each level's ember target, take a calm
+// interlude, then the next level spawns harder. It ends one of three ways — the
+// yeti catches you ('caught'), your warmth hits zero ('frozen'), or you clear
+// all LEVEL_COUNT levels ('won'). Winning unlocks 'nightfall': the same climb
+// again with every level pinned higher on the curve (see effectiveLevel), which
+// runs to its own 'won' screen.
 //
-// Step 6.5 reworks what the run is worth. The game-over screen leads with the
-// level reached, then the time survived, then a flat bonus per ember. Score is
-// now purely those ember bonuses (green-ember bonuses join in 6.7); level and
-// time survived are their own lines, groundwork for the 6.6 level climb.
+// 6.5 reworked what a run is worth: the game-over screen leads with the level
+// reached, then time survived, then a flat bonus per ember. `score` is the sum
+// of those ember bonuses; `embersTotal` is the run-long count behind it.
 
 const START_WARMTH = 100
 const START_STAMINA = 100
 
-// Flat points per ember — the whole of `score` for now. Kept here so the HUD
-// can show the "N embers x EMBER_SCORE" breakdown without reaching into Items.
+// Flat points per ember — the whole of `score` for now (green-ember bonuses
+// join in 6.7). Kept here so the HUD can show the "N embers x EMBER_SCORE"
+// breakdown without reaching into Items.
 export const EMBER_SCORE = 100
 
-// Embers still buy back warmth, but well under the old 16 — a full six-ember
-// clear tops up ~12s against the 5/s drain, not a near-refill. Warmth stays a
-// real death clock (the blanket in 6.13 is the actual warmth lever). 6.6
-// retunes this against its wave counts.
-export const WARMTH_PER_EMBER = 10
+// Embers still buy back warmth, but only a little. Eased from 10 in a playtest
+// pass — with 7–8 embers a level the bank was running a touch fat; at 8 apiece
+// a full clear roughly offsets the time it takes to grab them, no more. Warmth
+// stays a real death clock; the blanket (6.13) is the actual warmth lever.
+export const WARMTH_PER_EMBER = 8
 
 // Once stamina bottoms out, sprint stays locked until it regenerates back past
 // this threshold — so an empty bar is a real recovery window, not a one-frame dip.
 const SPRINT_UNLOCK = 30
 
-// How many embers are scattered in the arena. Items.jsx reads this so there's
-// one source of truth for the count.
-export const ITEM_TOTAL = 6
-
 export const useGame = create((set) => ({
-  // 'playing' while the run is live, 'paused' when the player hits Space, then
-  // 'caught' or 'frozen' once it's over. Every ticking system (warmth, the yeti,
-  // movement, scoring) gates on status === 'playing', so 'paused' freezes the
-  // whole simulation for free.
+  // 'playing' while the run is live (this covers the between-levels interlude
+  // too — see `interlude`), 'paused' on Space, then 'caught' / 'frozen' / 'won'
+  // once it's over. Every ticking system gates on status === 'playing'.
   status: 'playing',
 
-  // Bumped on every reset. App uses it as a React key on the <Canvas> so a new
-  // run rebuilds the scene from scratch — camera back to spawn, yeti back to its
-  // post, embers all restored — without any manual teardown.
+  // Bumped on every reset and on entering nightfall. App uses it as a React key
+  // on the <Canvas> so a fresh scene rebuilds from scratch.
   runId: 0,
 
   score: 0,
-  itemsCollected: 0,
-  itemsTotal: ITEM_TOTAL,
 
-  // The level reached this run. Fixed at 1 until 6.6 turns the run into a climb
-  // through ~10 levels; wired through the store and the game-over screen now so
-  // that step only has to advance it.
+  // 6.6: `itemsCollected` / `itemsTotal` are now per-LEVEL — embers grabbed in
+  // the current level, and that level's target (6–8, see levelTarget). The
+  // run-long count lives in `embersTotal`, which drives the score and the
+  // game-over tally.
+  itemsCollected: 0,
+  itemsTotal: levelTarget(1),
+  embersTotal: 0,
+
+  // The level being played (1..LEVEL_COUNT, then unbounded in nightfall).
   level: 1,
 
+  // True during the calm breather between clearing a level and the next wave.
+  // Warmth drain pauses, the yeti is pushed to a far wander, the HUD shows the
+  // "LEVEL N" card. Levels.jsx counts it down and calls endInterlude().
+  interlude: false,
+
+  // Set once LEVEL_COUNT is cleared and the player takes the harder replay.
+  // Same 10 levels, same interludes; effectiveLevel() just shifts each one up
+  // the curve.
+  nightfall: false,
+
   // Seconds survived — real playing time, ticked by Survival.jsx on the same
-  // gate as warmth drain (live run, pointer locked), so the start prompt and
-  // the game-over screen don't pad it.
+  // gate as warmth drain. The interlude keeps counting; only warmth pauses.
   elapsed: 0,
 
   // 0–100. Bleeds away while you're out in the cold; embers top it back up.
@@ -64,13 +76,58 @@ export const useGame = create((set) => ({
   stamina: START_STAMINA,
   sprintLocked: false,
 
+  // Grab an ember: score + counts, a small warmth top-up, and — when it's the
+  // one that clears the level — the transition. Clearing the final level wins
+  // the run (the first win, or the end of nightfall); any earlier level opens
+  // the interlude. Same in both modes.
   collectItem: (value, warmthBonus = 0) =>
     set((s) => {
       if (s.status !== 'playing') return {}
-      return {
+      const itemsCollected = s.itemsCollected + 1
+      const next = {
         score: s.score + value,
-        itemsCollected: s.itemsCollected + 1,
+        itemsCollected,
+        embersTotal: s.embersTotal + 1,
         warmth: Math.min(START_WARMTH, s.warmth + warmthBonus),
+      }
+      if (itemsCollected >= s.itemsTotal) {
+        if (s.level >= LEVEL_COUNT) next.status = 'won'
+        else next.interlude = true
+      }
+      return next
+    }),
+
+  // Called by Levels.jsx when the interlude timer runs out: advance to the next
+  // level and spawn its wave.
+  endInterlude: () =>
+    set((s) => {
+      if (!s.interlude) return {}
+      const level = s.level + 1
+      return {
+        interlude: false,
+        level,
+        itemsTotal: levelTarget(level),
+        itemsCollected: 0,
+      }
+    }),
+
+  // From the win screen: take the harder replay. Back to level 1 with the
+  // nightfall flag on, score and clock carried over, warmth and stamina fresh.
+  // Remounts the scene (runId) so the yeti and the first wave re-roll.
+  startNightfall: () =>
+    set((s) => {
+      if (s.status !== 'won') return {}
+      return {
+        status: 'playing',
+        runId: s.runId + 1,
+        nightfall: true,
+        level: 1,
+        itemsTotal: levelTarget(1),
+        itemsCollected: 0,
+        interlude: false,
+        warmth: START_WARMTH,
+        stamina: START_STAMINA,
+        sprintLocked: false,
       }
     }),
 
@@ -117,7 +174,11 @@ export const useGame = create((set) => ({
       runId: s.runId + 1,
       score: 0,
       itemsCollected: 0,
+      itemsTotal: levelTarget(1),
+      embersTotal: 0,
       level: 1,
+      interlude: false,
+      nightfall: false,
       elapsed: 0,
       warmth: START_WARMTH,
       stamina: START_STAMINA,

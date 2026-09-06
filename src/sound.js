@@ -55,12 +55,15 @@ class Atmosphere {
     this._buildDrone()
     this._buildCalm()
     this._buildStrings()
+    this._buildDark()
 
     this.threat = 0 // 0..1, smoothed toward the level passed to update()
     this.beatPhase = 0
     this.chase = 0 // 0..1, rises fast on detection, falls slowly on loss
     this.calmPhase = 0
     this.calmNext = 2.5
+    this.dark = 0 // 0..1, the 6.6 per-level darkness, smoothed
+    this.pulsePhase = 0
     this.awake = false
   }
 
@@ -208,6 +211,43 @@ class Atmosphere {
     this.stringsGain = gate
   }
 
+  // Step 6.6: the per-level darkness. One bed that swells the deeper you get and
+  // is stripped back out during the interlude — a sub-bass sine under a pair of
+  // low saws a semitone apart (a slow beating dissonance) through a lowpass. On
+  // top, update() taps a slow percussion pulse once it's built up. `darkGain`
+  // is driven from the game level by update()'s `drive` argument.
+  _buildDark() {
+    const { ctx } = this
+    const gate = ctx.createGain()
+    gate.gain.value = 0
+    gate.connect(this.master)
+
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 130
+    lp.Q.value = 0.8
+    lp.connect(gate)
+
+    const sub = ctx.createOscillator()
+    sub.type = 'sine'
+    sub.frequency.value = 30.87 // B0
+    const subG = ctx.createGain()
+    subG.gain.value = 0.5
+    sub.connect(subG).connect(lp)
+    sub.start()
+    ;[41.2, 43.65].forEach((f) => {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.value = f
+      const og = ctx.createGain()
+      og.gain.value = 0.16
+      o.connect(og).connect(lp)
+      o.start()
+    })
+
+    this.darkGain = gate
+  }
+
   // Call from a user gesture (the click that grabs pointer-lock counts).
   resume() {
     if (this.ctx.state === 'suspended') this.ctx.resume()
@@ -230,8 +270,9 @@ class Atmosphere {
 
   // level: 0 (safe) .. 1 (the yeti is on top of you). mode: the raw
   // 'idle' | 'chase' readout, which cross-fades the calm bed and the strings.
-  // Called every frame.
-  update(delta, level, mode) {
+  // drive: 0..1 per-level darkness (6.6) — 0 during the interlude, climbing with
+  // the game level otherwise. Called every frame.
+  update(delta, level, mode, drive = 0) {
     this.threat += (level - this.threat) * Math.min(delta * 3, 1)
 
     // Chase envelope: snap up when the yeti locks on, ease down slowly when it
@@ -245,6 +286,22 @@ class Atmosphere {
     this.droneGain.gain.setTargetAtTime(0.14 * this.threat, t, 0.2)
     this.calmGain.gain.setTargetAtTime(0.6 * (1 - this.chase), t, 0.5)
     this.stringsGain.gain.setTargetAtTime(0.5 * this.chase, t, 0.4)
+
+    // 6.6 darkness bed: ease toward `drive`, a little slower than the strings so
+    // the interlude strip-back is a fade, not a cut.
+    this.dark += (drive - this.dark) * Math.min(delta * 1.5, 1)
+    this.darkGain.gain.setTargetAtTime(0.34 * this.dark, t, 0.6)
+    // A slow low pulse rides on top once the bed is well established and the
+    // yeti's actually a factor.
+    if (this.dark > 0.45 && this.threat > 0.02) {
+      this.pulsePhase += delta
+      if (this.pulsePhase >= 1.05) {
+        this.pulsePhase = 0
+        this._thump(0.14 * this.dark)
+      }
+    } else {
+      this.pulsePhase = 0
+    }
 
     // Sparse calm motif, only while the calm bed is the layer you can hear.
     if (this.chase < 0.5) {
@@ -349,6 +406,7 @@ class Atmosphere {
     this.droneGain.gain.setTargetAtTime(0, t, 0.3)
     this.calmGain.gain.setTargetAtTime(0, t, 0.3)
     this.stringsGain.gain.setTargetAtTime(0, t, 0.4)
+    this.darkGain.gain.setTargetAtTime(0, t, 0.4)
     this.windGain.gain.setTargetAtTime(0.03, t, 0.4)
 
     const o = ctx.createOscillator()
@@ -373,10 +431,38 @@ class Atmosphere {
     this.beatPhase = 0
     this.chase = 0
     this.calmPhase = 0
+    this.dark = 0
+    this.pulsePhase = 0
     this.droneGain.gain.setTargetAtTime(0, t, 0.1)
     this.stringsGain.gain.setTargetAtTime(0, t, 0.1)
+    this.darkGain.gain.setTargetAtTime(0, t, 0.1)
     this.calmGain.gain.setTargetAtTime(0.6, t, 0.8)
     this.windGain.gain.setTargetAtTime(0.11, t, 0.6)
+  }
+
+  // 6.6 win screen: strip the tension out and lift a warm rising triad over the
+  // calm bed. No boom — this is the one time the game lets up.
+  win() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    this.droneGain.gain.setTargetAtTime(0, t, 0.4)
+    this.stringsGain.gain.setTargetAtTime(0, t, 0.4)
+    this.darkGain.gain.setTargetAtTime(0, t, 0.6)
+    this.calmGain.gain.setTargetAtTime(0.5, t, 1.2)
+    this.windGain.gain.setTargetAtTime(0.06, t, 1)
+    ;[261.63, 329.63, 392, 523.25].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      const g = ctx.createGain()
+      const at = t + i * 0.18
+      g.gain.setValueAtTime(0.0001, at)
+      g.gain.exponentialRampToValueAtTime(0.2, at + 0.08)
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 1.9)
+      o.connect(g).connect(this.master)
+      o.start(at)
+      o.stop(at + 2)
+    })
   }
 }
 
