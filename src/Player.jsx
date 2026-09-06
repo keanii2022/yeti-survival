@@ -22,10 +22,10 @@ export default function Player() {
   const { camera } = useThree()
   const status = useGame((s) => s.status)
 
-  // Drop pointer lock the moment the yeti catches you, so the mouse is free for
-  // the "try again" overlay.
+  // Drop pointer lock the moment the run ends — caught or frozen — so the mouse
+  // is free for the "try again" overlay.
   useEffect(() => {
-    if (status === 'caught') controls.current?.unlock()
+    if (status !== 'playing') controls.current?.unlock()
   }, [status])
 
   // Reused each frame to avoid allocating vectors in the render loop.

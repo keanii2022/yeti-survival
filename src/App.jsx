@@ -3,15 +3,15 @@ import { Canvas } from '@react-three/fiber'
 import World from './World.jsx'
 import Player from './Player.jsx'
 import Yeti from './Yeti.jsx'
+import Items from './Items.jsx'
+import Survival from './Survival.jsx'
 import Hud from './Hud.jsx'
 import { useGame } from './store.js'
 import './App.css'
 
 export default function App() {
   const [locked, setLocked] = useState(false)
-  const status = useGame((s) => s.status)
   const runId = useGame((s) => s.runId)
-  const reset = useGame((s) => s.reset)
 
   // Track pointer-lock state at the document level so the HUD can react to it
   // without reaching into the controls instance.
@@ -33,8 +33,10 @@ export default function App() {
         <World />
         <Player />
         <Yeti />
+        <Items />
+        <Survival />
       </Canvas>
-      <Hud locked={locked} status={status} onReset={reset} />
+      <Hud locked={locked} />
     </>
   )
 }

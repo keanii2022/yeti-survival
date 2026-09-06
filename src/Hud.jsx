@@ -1,24 +1,62 @@
-// Flat DOM overlay drawn on top of the canvas. Shows the "click to play"
-// prompt while unlocked, a crosshair once you're in control, and a "caught"
-// screen when the yeti reaches you.
-export default function Hud({ locked, status, onReset }) {
-  const caught = status === 'caught'
+import { useGame } from './store.js'
+
+// Flat DOM overlay drawn on top of the canvas: warmth meter and score while a
+// run is live, the "click to play" prompt while unlocked, and a game-over card
+// — for the yeti or for the cold — once the run ends.
+export default function Hud({ locked }) {
+  const status = useGame((s) => s.status)
+  const score = useGame((s) => s.score)
+  const warmth = useGame((s) => s.warmth)
+  const itemsCollected = useGame((s) => s.itemsCollected)
+  const itemsTotal = useGame((s) => s.itemsTotal)
+  const reset = useGame((s) => s.reset)
+
+  const over = status !== 'playing'
+  const inRun = locked && !over
+
+  const warmthPct = Math.max(0, Math.min(100, warmth))
+  const warmthColor =
+    warmthPct < 25 ? '#ff5a4a' : warmthPct < 55 ? '#ffb347' : '#6fd3ff'
 
   return (
     <div className="hud">
-      {locked && !caught && <div className="crosshair" />}
+      {inRun && <div className="crosshair" />}
 
-      {!locked && !caught && (
+      {inRun && (
+        <>
+          <div className="gauge">
+            <span className="gauge-label">Warmth</span>
+            <div className="gauge-track">
+              <div
+                className="gauge-fill"
+                style={{ width: `${warmthPct}%`, background: warmthColor }}
+              />
+            </div>
+          </div>
+
+          <div className="score">
+            <div className="score-value">{score}</div>
+            <div className="score-sub">
+              Embers {itemsCollected}/{itemsTotal}
+            </div>
+          </div>
+        </>
+      )}
+
+      {!locked && !over && (
         <div className="prompt">
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>
           <p className="keys">WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; Esc release</p>
+          <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
         </div>
       )}
 
-      {caught && (
-        <div className="prompt caught" onClick={onReset}>
-          <h1>The yeti caught you</h1>
+      {over && (
+        <div className="prompt caught" onClick={reset}>
+          <h1>{status === 'caught' ? 'The yeti caught you' : 'You froze to death'}</h1>
+          <p className="final">Final score {score}</p>
+          <p className="keys">Embers collected {itemsCollected}/{itemsTotal}</p>
           <p>Click to try again</p>
         </div>
       )}

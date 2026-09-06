@@ -61,3 +61,65 @@
 .prompt.caught h1 {
   color: #ff6a5a;
 }
+
+.prompt .final {
+  margin-top: 1rem;
+  font-size: 1.4rem;
+  letter-spacing: 0.06em;
+}
+
+/* Warmth gauge — top-left corner. */
+.gauge {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  width: 220px;
+  text-align: left;
+}
+
+.gauge-label {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-bottom: 0.35rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.gauge-track {
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(11, 14, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+
+.gauge-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.15s linear, background 0.4s linear;
+}
+
+/* Score + ember count — top-right corner. */
+.score {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  text-align: right;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.score-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-sub {
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
