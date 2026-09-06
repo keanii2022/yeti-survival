@@ -1,4 +1,5 @@
 import { useGame, EMBER_SCORE } from './store.js'
+import MuteToggle from './MuteToggle.jsx'
 
 // Whole seconds -> "M:SS" for the game-over readout.
 function formatTime(seconds) {
@@ -26,6 +27,9 @@ export default function Hud({ locked }) {
   const paused = status === 'paused'
   const over = status === 'caught' || status === 'frozen'
   const showStats = locked && (playing || paused)
+  // The mute button is only reachable when the pointer isn't captured — i.e.
+  // any time you're not mid-run: start screen, pause, game-over.
+  const showMute = !(locked && playing)
 
   const warmthPct = Math.max(0, Math.min(100, warmth))
   const warmthColor =
@@ -45,6 +49,8 @@ export default function Hud({ locked }) {
       <div className="vignette" />
 
       {locked && playing && <div className="crosshair" />}
+
+      {showMute && <MuteToggle />}
 
       {showStats && (
         <>

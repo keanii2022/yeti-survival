@@ -108,6 +108,33 @@
   opacity: 1;
 }
 
+/* Mute button — bottom-left, only shown when you're not mid-run. The HUD itself
+   is pointer-events:none, so this re-enables them just for the button. */
+.mute-toggle {
+  position: absolute;
+  left: 1.25rem;
+  bottom: 1.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  line-height: 1;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(11, 14, 18, 0.55);
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(2px);
+  transition: background 0.15s linear;
+}
+
+.mute-toggle:hover {
+  background: rgba(11, 14, 18, 0.82);
+}
+
 /* Warmth gauge — top-left corner. */
 .gauge {
   position: absolute;
