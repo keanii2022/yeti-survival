@@ -1,7 +1,59 @@
+import { useMemo } from 'react'
 import { Sky } from '@react-three/drei'
 
-// Step 1: an empty snowy world — ground, sky, lighting, fog.
-// No player, no yeti, no items yet.
+// Small deterministic PRNG so the tree scatter is the same on every reload.
+function mulberry32(seed) {
+  return function () {
+    seed |= 0
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+// A single snow-dusted pine, built from primitives.
+function PineTree({ position, scale }) {
+  return (
+    <group position={position} scale={scale}>
+      <mesh position={[0, 0.6, 0]} castShadow>
+        <cylinderGeometry args={[0.16, 0.22, 1.2, 6]} />
+        <meshStandardMaterial color="#5b4636" roughness={1} />
+      </mesh>
+      <mesh position={[0, 2, 0]} castShadow>
+        <coneGeometry args={[1.1, 2.6, 7]} />
+        <meshStandardMaterial color="#2f4a3d" roughness={1} />
+      </mesh>
+      <mesh position={[0, 3, 0]} castShadow>
+        <coneGeometry args={[0.7, 1.4, 7]} />
+        <meshStandardMaterial color="#eef4f8" roughness={1} />
+      </mesh>
+    </group>
+  )
+}
+
+// Scatter of landmark trees near the arena edge — gives the empty plane a
+// sense of scale and something to steer around while testing movement.
+function Trees({ count = 44, spread = 27 }) {
+  const trees = useMemo(() => {
+    const rand = mulberry32(20260905)
+    const placed = []
+    while (placed.length < count) {
+      const x = (rand() * 2 - 1) * spread
+      const z = (rand() * 2 - 1) * spread
+      if (Math.hypot(x, z) < 7) continue // keep the spawn area clear
+      placed.push({
+        position: [x, 0, z],
+        scale: 0.8 + rand() * 0.9,
+      })
+    }
+    return placed
+  }, [count, spread])
+
+  return trees.map((t, i) => <PineTree key={i} {...t} />)
+}
+
+// The snowy world: ground, sky, lighting, fog, and landmark trees.
 export default function World() {
   return (
     <>
@@ -28,6 +80,8 @@ export default function World() {
         <planeGeometry args={[200, 200]} />
         <meshStandardMaterial color="#eef4f8" roughness={1} metalness={0} />
       </mesh>
+
+      <Trees />
     </>
   )
 }
