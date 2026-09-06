@@ -23,6 +23,18 @@ npm run dev
 Open the printed localhost URL. Click to capture the mouse — **WASD** move,
 **Shift** sprint, **Esc** release.
 
+## Tests
+
+```bash
+npm test          # run once
+npm run test:watch
+```
+
+[Vitest](https://vitest.dev) + Testing Library. The 3D scene is left to
+playtesting; the suite covers the parts that break quietly — the game-state
+store (warmth, stamina lockout, scoring, the two ways a run ends), the keyboard
+input hook, and the HUD's state-driven rendering.
+
 ## Build progress
 
 - [x] Snowy arena — ground, sky, fog, lighting
