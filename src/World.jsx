@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Sky } from '@react-three/drei'
+import { ARENA_HALF } from './Player.jsx'
 
 // Small deterministic PRNG so the tree scatter is the same on every reload.
 function mulberry32(seed) {
@@ -30,6 +31,58 @@ function PineTree({ position, scale }) {
       </mesh>
     </group>
   )
+}
+
+// A single snow-capped peak: a broad rock cone with a smaller white cone on top.
+// Low segment counts keep the far-off ring cheap; it's never seen up close.
+function Peak({ position, radius, height, rotation }) {
+  const capHeight = height * 0.32
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      <mesh position={[0, height / 2, 0]}>
+        <coneGeometry args={[radius, height, 6]} />
+        <meshStandardMaterial color="#8a94a0" roughness={1} />
+      </mesh>
+      <mesh position={[0, height - capHeight / 2, 0]}>
+        <coneGeometry args={[radius * 0.42, capHeight, 6]} />
+        <meshStandardMaterial color="#eef4f8" roughness={1} />
+      </mesh>
+    </group>
+  )
+}
+
+// A ring of mountains wrapping the arena so the edge reads before you walk into
+// the invisible clamp at ARENA_HALF. Pure set dressing — no collision. A dense
+// front row sits just past the wall with overlapping bases so it looks like one
+// massif; a sparser, taller back row adds silhouette depth and half-sinks into
+// the fog so it looms instead of popping.
+function Mountains() {
+  const peaks = useMemo(() => {
+    const rand = mulberry32(41530207)
+    const placed = []
+
+    const ring = (count, baseR, jitterR, minH, maxH, minRad, maxRad) => {
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + (rand() - 0.5) * 0.4
+        const r = baseR + (rand() - 0.5) * jitterR
+        placed.push({
+          position: [Math.cos(angle) * r, 0, Math.sin(angle) * r],
+          radius: minRad + rand() * (maxRad - minRad),
+          height: minH + rand() * (maxH - minH),
+          rotation: rand() * Math.PI * 2,
+        })
+      }
+    }
+
+    // Front massif: bases just outside the clamp, overlapping into a wall.
+    ring(30, ARENA_HALF + 8, 6, 14, 24, 7, 12)
+    // Back range: fewer, bigger, further out and mostly fog-shrouded.
+    ring(16, ARENA_HALF + 24, 8, 26, 40, 10, 16)
+
+    return placed
+  }, [])
+
+  return peaks.map((p, i) => <Peak key={i} {...p} />)
 }
 
 // Scatter of landmark trees near the arena edge — gives the empty plane a
@@ -81,6 +134,7 @@ export default function World() {
         <meshStandardMaterial color="#eef4f8" roughness={1} metalness={0} />
       </mesh>
 
+      <Mountains />
       <Trees />
     </>
   )
