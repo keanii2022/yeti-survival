@@ -53,3 +53,15 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
   changes are staged.
 - Never commit without asking first if a change touches more than one build step
   from the Build order section above.
+
+## GitHub / remote
+- This is portfolio work. The git history is meant to be read by employers, so
+  keep it truthful and legible — real dates, honest messages, no "wip".
+- Git identity must match a verified GitHub email so every commit links to my
+  account. Use `keani.ga22@gmail.com`, never the machine's auto-generated
+  `<user>@<host>.local` address. Check with `git config user.email` before the
+  first push on any machine.
+- Remote is GitHub `origin`: https://github.com/keanii2022/yeti-survival
+- Push `main` to `origin` after each completed build step, so the public
+  history stays in sync with local progress.
+- Never force-push `main` once it's on GitHub without asking first.
