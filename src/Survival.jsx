@@ -8,7 +8,12 @@ import { useGame } from './store.js'
 // doesn't drain warmth or pad your time.
 //
 // Rendered inside <Canvas> for the frame loop, but draws nothing.
-const DRAIN_PER_SECOND = 10 // ~10s from full with no pickups — embers are the lifeline
+//
+// ~20s from full with no pickups, ~32s if you clear every ember. Was 10/s (a
+// 10s clock) when the arena was 60x60; 6.10 doubled every distance, so a run
+// that short couldn't cross the map once. 6.6's tuning pass retunes this
+// against the wave counts.
+const DRAIN_PER_SECOND = 5
 
 export default function Survival() {
   useFrame((_, rawDelta) => {
