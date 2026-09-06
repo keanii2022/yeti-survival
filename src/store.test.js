@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { useGame, ITEM_TOTAL } from './store.js'
+import { useGame, ITEM_TOTAL, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
 
 // The store is the game's rulebook: warmth, stamina, score, and the two ways a
 // run ends. It's plain functions over plain state, so it's the cheapest thing
@@ -52,6 +52,38 @@ describe('tickWarmth', () => {
     useGame.setState({ status: 'paused', warmth: 40 })
     get().tickWarmth(10)
     expect(get().warmth).toBe(40)
+  })
+})
+
+describe('tickTime', () => {
+  it('accumulates real seconds onto the run clock', () => {
+    get().tickTime(0.5)
+    get().tickTime(0.25)
+    expect(get().elapsed).toBeCloseTo(0.75)
+  })
+
+  it('does nothing once the run is over or paused', () => {
+    useGame.setState({ status: 'caught', elapsed: 12 })
+    get().tickTime(1)
+    expect(get().elapsed).toBe(12)
+
+    useGame.setState({ status: 'paused' })
+    get().tickTime(1)
+    expect(get().elapsed).toBe(12)
+  })
+})
+
+describe('scoring constants', () => {
+  it('exposes a flat ember score and a warmth top-up well under the old 16', () => {
+    expect(EMBER_SCORE).toBe(100)
+    expect(WARMTH_PER_EMBER).toBeLessThan(16)
+  })
+
+  it('collectItem builds score purely from the ember bonus', () => {
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+    expect(get().score).toBe(2 * EMBER_SCORE)
+    expect(get().itemsCollected).toBe(2)
   })
 })
 
@@ -120,6 +152,8 @@ describe('reset', () => {
       status: 'caught',
       score: 700,
       itemsCollected: 5,
+      level: 4,
+      elapsed: 182.5,
       warmth: 3,
       stamina: 0,
       sprintLocked: true,
@@ -132,6 +166,8 @@ describe('reset', () => {
       status: 'playing',
       score: 0,
       itemsCollected: 0,
+      level: 1,
+      elapsed: 0,
       warmth: 100,
       stamina: 100,
       sprintLocked: false,

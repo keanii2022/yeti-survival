@@ -3,9 +3,23 @@ import { create } from 'zustand'
 // Game state for step 4: a live run tracks warmth, score and how many embers
 // you've grabbed. A run ends one of two ways — the yeti catches you, or your
 // warmth hits zero — and the game-over screen reads `status` to say which.
+//
+// Step 6.5 reworks what the run is worth. The game-over screen leads with the
+// level reached, then the time survived, then a flat bonus per ember. Score is
+// now purely those ember bonuses (green-ember bonuses join in 6.7); level and
+// time survived are their own lines, groundwork for the 6.6 level climb.
 
 const START_WARMTH = 100
 const START_STAMINA = 100
+
+// Flat points per ember — the whole of `score` for now. Kept here so the HUD
+// can show the "N embers x EMBER_SCORE" breakdown without reaching into Items.
+export const EMBER_SCORE = 100
+
+// Embers still buy back warmth, but well under the old 16 — a full clear tops up
+// ~6s of drain, not a near-refill. Warmth stays a real death clock (the blanket
+// in 6.13 is the actual warmth lever). 6.6 retunes this against its wave counts.
+export const WARMTH_PER_EMBER = 10
 
 // Once stamina bottoms out, sprint stays locked until it regenerates back past
 // this threshold — so an empty bar is a real recovery window, not a one-frame dip.
@@ -31,6 +45,16 @@ export const useGame = create((set) => ({
   itemsCollected: 0,
   itemsTotal: ITEM_TOTAL,
 
+  // The level reached this run. Fixed at 1 until 6.6 turns the run into a climb
+  // through ~10 levels; wired through the store and the game-over screen now so
+  // that step only has to advance it.
+  level: 1,
+
+  // Seconds survived — real playing time, ticked by Survival.jsx on the same
+  // gate as warmth drain (live run, pointer locked), so the start prompt and
+  // the game-over screen don't pad it.
+  elapsed: 0,
+
   // 0–100. Bleeds away while you're out in the cold; embers top it back up.
   warmth: START_WARMTH,
 
@@ -48,6 +72,11 @@ export const useGame = create((set) => ({
         warmth: Math.min(START_WARMTH, s.warmth + warmthBonus),
       }
     }),
+
+  // Called every frame while you're in control. Adds real seconds onto the run
+  // clock the game-over screen reads back.
+  tickTime: (delta) =>
+    set((s) => (s.status === 'playing' ? { elapsed: s.elapsed + delta } : {})),
 
   // Called every frame while you're in control. Drains warmth by `amount` and
   // ends the run the moment it runs out.
@@ -87,6 +116,8 @@ export const useGame = create((set) => ({
       runId: s.runId + 1,
       score: 0,
       itemsCollected: 0,
+      level: 1,
+      elapsed: 0,
       warmth: START_WARMTH,
       stamina: START_STAMINA,
       sprintLocked: false,

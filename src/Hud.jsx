@@ -1,4 +1,12 @@
-import { useGame } from './store.js'
+import { useGame, EMBER_SCORE } from './store.js'
+
+// Whole seconds -> "M:SS" for the game-over readout.
+function formatTime(seconds) {
+  const total = Math.max(0, Math.floor(seconds))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 // Flat DOM overlay drawn on top of the canvas: warmth meter and score while a
 // run is live, the "click to play" prompt while unlocked, a pause card, and a
@@ -6,6 +14,8 @@ import { useGame } from './store.js'
 export default function Hud({ locked }) {
   const status = useGame((s) => s.status)
   const score = useGame((s) => s.score)
+  const level = useGame((s) => s.level)
+  const elapsed = useGame((s) => s.elapsed)
   const warmth = useGame((s) => s.warmth)
   const stamina = useGame((s) => s.stamina)
   const sprintLocked = useGame((s) => s.sprintLocked)
@@ -90,8 +100,25 @@ export default function Hud({ locked }) {
       {over && (
         <div className="prompt caught">
           <h1>{status === 'caught' ? 'The yeti caught you' : 'You froze to death'}</h1>
-          <p className="final">Final score {score}</p>
-          <p className="keys">Embers collected {itemsCollected}/{itemsTotal}</p>
+          <p className="final">Level {level}</p>
+          <div className="tally">
+            <p>
+              <span>Survived</span>
+              <span>{formatTime(elapsed)}</span>
+            </p>
+            <p>
+              <span>
+                Embers {itemsCollected}/{itemsTotal}
+              </span>
+              <span>
+                {itemsCollected} &times; {EMBER_SCORE}
+              </span>
+            </p>
+            <p className="tally-total">
+              <span>Score</span>
+              <span>{score}</span>
+            </p>
+          </div>
           <p>Press R to try again</p>
         </div>
       )}
