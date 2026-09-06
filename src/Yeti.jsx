@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
+import { levelParams, effectiveLevel } from './levels.js'
 import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
@@ -31,27 +32,22 @@ import { createProbe, beginProbe, stepProbe } from './investigate.js'
 // where it lunges at CHASE_BURST_SPEED (7). That's faster than a walk and
 // independent of the player's stamina, so being cornered close is always deadly.
 //
-// 6.10 grew the arena to 120x120 but left these two where they were on purpose:
-// a fixed-size sight range in a much larger pen is exactly what lets a chase be
-// broken by ducking into the fog. Wander points are still arena-wide, so the
-// yeti now genuinely leaves whole regions unpatrolled.
-const DETECT_RADIUS = 18
-const LOSE_RADIUS = 24 // break past this to drop the chase; still 6u of hysteresis
-// Once you've broken a chase the yeti is only searching, not tracking — it has
-// to get well inside detection range to re-spot you, so a shaken chase stays
-// shaken unless it nearly walks into you.
-const REACQUIRE_RADIUS = 14
+// 6.10 grew the arena to 120x120; a fixed-size sight range in a much larger pen
+// is what lets a chase be broken by ducking into the fog. 6.6 turns the sight
+// range, the chase speeds, the commit delay, the search time and the wander
+// leash into a per-level curve — see levels.js. Only the numbers that don't
+// escalate stay here.
 const CATCH_RADIUS = 1.9
-const CHASE_SPEED = 5.4
-const CHASE_BURST_SPEED = 7
-const BURST_RADIUS = 6
+const BURST_RADIUS = 6 // inside this the chase switches to the lunge speed
 const WANDER_SPEED = 1.6
+const INTERLUDE_WANDER_SPEED = 3.2 // a touch quicker so he clears out visibly
+const INTERLUDE_MIN_DIST = 52 // how far off the player his interlude waypoint sits
 const TURN_RATE = 2.6 // radians/sec the yeti can rotate toward its heading
 
-// Seconds the yeti hunts your last-known spot before it gives up and wanders
-// off. Floor of the "stay unseen ~4-6 s to shake him" window from the build
-// plan; the stalk to that spot stacks on top. 6.6 scales this up with the level.
-const SEARCH_TIME = 4
+// Detection range at level 1 — the ring randomSpawn() places the yeti outside.
+// Deeper levels only widen it (levelParams.detectRadius), so a level-1 spawn is
+// always a safe starting distance.
+const DETECT_RADIUS = levelParams(1).detectRadius
 
 const PLAYER_SPAWN = new THREE.Vector2(0, 8) // camera start (x, z) — see App.jsx
 const EDGE_MARGIN = 2 // keep spawns and waypoints off the arena wall
@@ -70,6 +66,31 @@ function randomArenaPoint(out) {
     0,
     (Math.random() * 2 - 1) * limit,
   )
+}
+
+// Pick the next idle waypoint. 6.6: the wander leash tightens with the level —
+// at L1 `radius` spans the whole arena and this is just randomArenaPoint; deep
+// levels pull the point to within `radius` of the player so the yeti lurks
+// close. During the interlude it's forced the other way: a point well clear of
+// the player so he visibly backs off while you catch your breath.
+function pickWander(out, px, pz, radius, interlude) {
+  const limit = ARENA_HALF - EDGE_MARGIN
+  for (let i = 0; i < 24; i++) {
+    if (interlude || radius >= 120) {
+      randomArenaPoint(out)
+    } else {
+      const ang = Math.random() * Math.PI * 2
+      const r = radius * Math.sqrt(Math.random())
+      out.set(
+        THREE.MathUtils.clamp(px + Math.cos(ang) * r, -limit, limit),
+        0,
+        THREE.MathUtils.clamp(pz + Math.sin(ang) * r, -limit, limit),
+      )
+    }
+    const far = (out.x - px) ** 2 + (out.z - pz) ** 2 >= INTERLUDE_MIN_DIST ** 2
+    if (!interlude || far) return out
+  }
+  return out
 }
 
 // A fresh spawn each run: a random arena point in the ring SPAWN_MIN_DIST..
@@ -161,6 +182,9 @@ export default function Yeti() {
     heading: 0, // yaw the yeti is turning toward, radians
     wander: new THREE.Vector3(spawn[0], 0, spawn[2]), // current idle target
     wanderTimer: 0,
+    spotTimer: 0, // seconds the player's been inside detection range (commit delay)
+    curveLevel: 0, // effective level the params below were built for
+    params: levelParams(1), // per-level curve, refreshed when the level changes
     lastKnown: new THREE.Vector3(), // where the player was last seen (for 'search')
     probe: createProbe(), // drives the walk-to-a-spot-and-look-around motion
   })
@@ -187,6 +211,17 @@ export default function Yeti() {
     const a = ai.current
     const { toPlayer, toWander, dir } = scratch
 
+    // Refresh the per-level curve when the level advances (levels.js). Nightfall
+    // shifts the whole run up the curve — effectiveLevel folds that in. Cached
+    // on `a` so the frame loop still allocates nothing on a steady level.
+    const { interlude, level, nightfall } = useGame.getState()
+    const curveLevel = effectiveLevel(level, nightfall)
+    if (curveLevel !== a.curveLevel) {
+      a.curveLevel = curveLevel
+      a.params = levelParams(curveLevel)
+    }
+    const P = a.params
+
     // Horizontal vector from yeti to player.
     toPlayer.set(
       camera.position.x - g.position.x,
@@ -199,13 +234,33 @@ export default function Yeti() {
     // Keep the last-known fix current for as long as it can actually see you.
     if (a.mode === 'chase') a.lastKnown.set(camera.position.x, 0, camera.position.z)
 
-    if (a.mode === 'idle' && dist < DETECT_RADIUS) {
-      a.mode = 'chase'
-    } else if (a.mode === 'chase' && dist > LOSE_RADIUS) {
+    if (interlude) {
+      // Calm breather: drop everything and back off to a far wander. No
+      // re-aggro until the next level spawns.
+      if (a.mode !== 'idle') {
+        a.mode = 'idle'
+        a.probe.active = false
+        a.wanderTimer = 0
+      }
+      a.spotTimer = 0
+    } else if (a.mode === 'idle') {
+      // Commit delay: the player has to sit inside detection range for
+      // P.commitDelay seconds before the chase locks on — long enough at L1 to
+      // dart across his sightline, gone by the deep levels.
+      if (dist < P.detectRadius) {
+        a.spotTimer += delta
+        if (a.spotTimer >= P.commitDelay) {
+          a.mode = 'chase'
+          a.spotTimer = 0
+        }
+      } else {
+        a.spotTimer = 0
+      }
+    } else if (a.mode === 'chase' && dist > P.loseRadius) {
       // Lost sight — don't reset yet. Go hunt where they were last seen.
-      beginProbe(a.probe, a.lastKnown.x, a.lastKnown.z, SEARCH_TIME)
+      beginProbe(a.probe, a.lastKnown.x, a.lastKnown.z, P.searchTime)
       a.mode = 'search'
-    } else if (a.mode === 'search' && dist < REACQUIRE_RADIUS) {
+    } else if (a.mode === 'search' && dist < P.reacquireRadius) {
       a.probe.active = false // reacquired — straight back to the chase
       a.mode = 'chase'
     }
@@ -214,8 +269,8 @@ export default function Yeti() {
     threat.distance = dist
     threat.mode = a.mode
 
-    // --- caught? ---
-    if (dist < CATCH_RADIUS) {
+    // --- caught? --- (never mid-interlude; the yeti isn't hunting then)
+    if (!interlude && dist < CATCH_RADIUS) {
       useGame.getState().catchPlayer()
       return
     }
@@ -226,7 +281,7 @@ export default function Yeti() {
 
     if (a.mode === 'chase') {
       dir.copy(toPlayer).normalize()
-      speed = dist < BURST_RADIUS ? CHASE_BURST_SPEED : CHASE_SPEED
+      speed = dist < BURST_RADIUS ? P.burstSpeed : P.chaseSpeed
       moving = true
     } else if (a.mode === 'search') {
       // Stalk to the last-known spot, cast around it, then give up — see
@@ -244,17 +299,18 @@ export default function Yeti() {
         }
       }
     } else {
-      // Idle wander: amble toward a waypoint anywhere in the arena, refreshing
-      // it on arrival or every several seconds. Points are arena-wide now, so
-      // the yeti roams the whole map instead of orbiting its spawn.
+      // Idle wander: amble toward a waypoint, refreshing it on arrival or every
+      // several seconds. The leash tightens with the level (pickWander /
+      // P.wanderRadius) — arena-wide at L1, lurking close by the deep levels —
+      // and the interlude forces it wide the other way, well off the player.
       a.wanderTimer -= delta
       toWander.set(a.wander.x - g.position.x, 0, a.wander.z - g.position.z)
       if (a.wanderTimer <= 0 || toWander.length() < 0.6) {
-        randomArenaPoint(a.wander)
+        pickWander(a.wander, camera.position.x, camera.position.z, P.wanderRadius, interlude)
         a.wanderTimer = 5 + Math.random() * 4
       } else {
         dir.copy(toWander).normalize()
-        speed = WANDER_SPEED
+        speed = interlude ? INTERLUDE_WANDER_SPEED : WANDER_SPEED
         moving = true
       }
     }

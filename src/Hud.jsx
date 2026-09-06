@@ -44,10 +44,14 @@ export default function Hud({ locked }) {
   const sprintLocked = useGame((s) => s.sprintLocked)
   const itemsCollected = useGame((s) => s.itemsCollected)
   const itemsTotal = useGame((s) => s.itemsTotal)
+  const embersTotal = useGame((s) => s.embersTotal)
+  const interlude = useGame((s) => s.interlude)
+  const nightfall = useGame((s) => s.nightfall)
 
   const playing = status === 'playing'
   const paused = status === 'paused'
   const over = status === 'caught' || status === 'frozen'
+  const won = status === 'won'
   const showStats = locked && (playing || paused)
   // The mute button is only reachable when the pointer isn't captured — i.e.
   // any time you're not mid-run: start screen, pause, game-over.
@@ -108,13 +112,55 @@ export default function Hud({ locked }) {
           <div className="score">
             <div className="score-value">{score}</div>
             <div className="score-sub">
-              Embers {itemsCollected}/{itemsTotal}
+              {nightfall ? `Nightfall ${level}` : `Level ${level}`} · Embers{' '}
+              {itemsCollected}/{itemsTotal}
             </div>
           </div>
         </>
       )}
 
-      {!locked && !over && !paused && (
+      {locked && playing && interlude && (
+        <div className="prompt levelcard">
+          <h1>
+            {nightfall ? `Nightfall ${level + 1}` : `Level ${level + 1}`}
+          </h1>
+          <p>Catch your breath — the next wave is coming.</p>
+        </div>
+      )}
+
+      {won && (
+        <div className="prompt won">
+          <h1>{nightfall ? 'The night is over' : 'Dawn breaks'}</h1>
+          <p className="final">
+            {nightfall
+              ? `You cleared the nightfall — all ${level} again`
+              : `You made it out — ${level} levels cleared`}
+          </p>
+          <div className="tally">
+            <p>
+              <span>Survived</span>
+              <span>{formatTime(elapsed)}</span>
+            </p>
+            <p>
+              <span>Embers</span>
+              <span>
+                {embersTotal} &times; {EMBER_SCORE}
+              </span>
+            </p>
+            <p className="tally-total">
+              <span>Score</span>
+              <span>{score}</span>
+            </p>
+          </div>
+          <p>
+            {nightfall
+              ? 'Press R to start over'
+              : 'Press N for the nightfall — the same ten, harder · R to start over'}
+          </p>
+        </div>
+      )}
+
+      {!locked && !over && !paused && !won && (
         <div className="prompt">
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>
@@ -135,18 +181,16 @@ export default function Hud({ locked }) {
       {over && (
         <div className="prompt caught">
           <h1>{status === 'caught' ? 'The yeti caught you' : 'You froze to death'}</h1>
-          <p className="final">Level {level}</p>
+          <p className="final">{nightfall ? `Nightfall — level ${level}` : `Level ${level}`}</p>
           <div className="tally">
             <p>
               <span>Survived</span>
               <span>{formatTime(elapsed)}</span>
             </p>
             <p>
+              <span>Embers</span>
               <span>
-                Embers {itemsCollected}/{itemsTotal}
-              </span>
-              <span>
-                {itemsCollected} &times; {EMBER_SCORE}
+                {embersTotal} &times; {EMBER_SCORE}
               </span>
             </p>
             <p className="tally-total">

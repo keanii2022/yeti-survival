@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { threat } from './threat.js'
 import { getAtmosphere } from './sound.js'
+import { effectiveLevel } from './levels.js'
 
 // Step 5: wires the synthesised atmosphere (see sound.js) to the game.
 // Step 6.4: also forwards the raw threat.mode so the engine can cross-fade the
@@ -66,7 +67,7 @@ export default function Sound() {
     const eng = getAtmosphere()
     if (!eng) return
     const delta = Math.min(rawDelta, 0.1)
-    const { status, itemsCollected } = useGame.getState()
+    const { status, embersTotal, level, interlude, nightfall } = useGame.getState()
 
     // --- state-change one-shots ---
     if (status !== prevStatus.current) {
@@ -75,6 +76,11 @@ export default function Sound() {
       else if (status === 'caught' || status === 'frozen') {
         eng.update(0, 0, 'idle')
         eng.gameOver(status)
+        document.documentElement.style.setProperty('--threat', '0')
+        document.documentElement.style.setProperty('--danger', '0')
+      } else if (status === 'won') {
+        eng.update(0, 0, 'idle')
+        eng.win()
         document.documentElement.style.setProperty('--threat', '0')
         document.documentElement.style.setProperty('--danger', '0')
       }
@@ -87,8 +93,10 @@ export default function Sound() {
     if (threat.mode === 'chase' && prevMode.current !== 'chase') eng.stinger()
     prevMode.current = threat.mode
 
-    if (itemsCollected > prevItems.current) eng.pickup()
-    prevItems.current = itemsCollected
+    // Ember chime — off the run-long count so it still fires after the per-level
+    // counter resets between waves.
+    if (embersTotal > prevItems.current) eng.pickup()
+    prevItems.current = embersTotal
 
     // --- threat level → heartbeat / drone / vignette ---
     // During a chase the level tracks how close he actually is (0.7 at the edge
@@ -96,13 +104,18 @@ export default function Sound() {
     // tell you where he is when you can't look back. 'search' (6.11): he lost
     // you but is still hunting your trail — the bed stays up a notch while the
     // chase strings pull out, so the drop is audible the moment he breaks off.
-    let level = 0
-    if (threat.mode === 'chase') level = clamp(1 - threat.distance / 30, 0.7, 1)
-    else if (threat.mode === 'search') level = 0.5
-    else if (threat.distance < NEAR) level = clamp((NEAR - threat.distance) / 24, 0, 0.8)
+    let threatLevel = 0
+    if (threat.mode === 'chase') threatLevel = clamp(1 - threat.distance / 30, 0.7, 1)
+    else if (threat.mode === 'search') threatLevel = 0.5
+    else if (threat.distance < NEAR) threatLevel = clamp((NEAR - threat.distance) / 24, 0, 0.8)
 
-    eng.update(delta, level, threat.mode)
-    document.documentElement.style.setProperty('--threat', level.toFixed(3))
+    // 6.6 darkness drive: climbs with the effective level (nightfall starts it
+    // high), snaps to 0 for the interlude so the bed strips back to the light
+    // layer.
+    const drive = interlude ? 0 : clamp((effectiveLevel(level, nightfall) - 1) / 6, 0, 1)
+
+    eng.update(delta, threatLevel, threat.mode, drive)
+    document.documentElement.style.setProperty('--threat', threatLevel.toFixed(3))
 
     // Separate "he's lunging" readout: only mid-chase and only in the last few
     // metres. The HUD frame pulses on this, distinct from the steady vignette.

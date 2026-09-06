@@ -9,18 +9,21 @@ import { useGame } from './store.js'
 //
 // Rendered inside <Canvas> for the frame loop, but draws nothing.
 //
-// ~20s from full with no pickups, ~32s if you clear every ember. Was 10/s (a
-// 10s clock) when the arena was 60x60; 6.10 doubled every distance, so a run
-// that short couldn't cross the map once. 6.6's tuning pass retunes this
-// against the wave counts.
-const DRAIN_PER_SECOND = 5
+// ~25s from full with no pickups. Was 10/s (a 10s clock) at 60x60; 6.10 doubled
+// every distance and 6.6 eased it twice (5 → 4.5 → 4) — the level waves want
+// real time to go and find, and getting stuck searching shouldn't be an instant
+// freeze. The interlude (warmth paused) is the other half of the breathing room.
+const DRAIN_PER_SECOND = 4
 
 export default function Survival() {
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
     if (!document.pointerLockElement) return
     const delta = Math.min(rawDelta, 0.1)
+    // The run clock keeps counting through the 6.6 interlude, but warmth doesn't
+    // drain during the breather — that's what makes it a breather.
     useGame.getState().tickTime(delta)
+    if (useGame.getState().interlude) return
     useGame.getState().tickWarmth(DRAIN_PER_SECOND * delta)
   })
 

@@ -5,6 +5,7 @@ import Snow from './Snow.jsx'
 import Player from './Player.jsx'
 import Yeti from './Yeti.jsx'
 import Items from './Items.jsx'
+import Levels from './Levels.jsx'
 import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
 import Hud from './Hud.jsx'
@@ -35,7 +36,10 @@ export default function App() {
         else if (status === 'paused') resume()
       } else if (e.code === 'KeyR') {
         const { status, reset } = useGame.getState()
-        if (status === 'caught' || status === 'frozen') reset()
+        if (status === 'caught' || status === 'frozen' || status === 'won') reset()
+      } else if (e.code === 'KeyN') {
+        const { status, nightfall, startNightfall } = useGame.getState()
+        if (status === 'won' && !nightfall) startNightfall()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -56,6 +60,7 @@ export default function App() {
         <Player />
         <Yeti />
         <Items />
+        <Levels />
         <Survival />
         <Sound />
       </Canvas>

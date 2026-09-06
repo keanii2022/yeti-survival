@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { useGame, ITEM_TOTAL, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
+import { useGame, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
+import { LEVEL_COUNT, levelTarget } from './levels.js'
 
 // The store is the game's rulebook: warmth, stamina, score, and the two ways a
 // run ends. It's plain functions over plain state, so it's the cheapest thing
@@ -152,7 +153,11 @@ describe('reset', () => {
       status: 'caught',
       score: 700,
       itemsCollected: 5,
+      itemsTotal: 8,
+      embersTotal: 40,
       level: 4,
+      interlude: true,
+      nightfall: true,
       elapsed: 182.5,
       warmth: 3,
       stamina: 0,
@@ -166,7 +171,11 @@ describe('reset', () => {
       status: 'playing',
       score: 0,
       itemsCollected: 0,
+      itemsTotal: levelTarget(1),
+      embersTotal: 0,
       level: 1,
+      interlude: false,
+      nightfall: false,
       elapsed: 0,
       warmth: 100,
       stamina: 100,
@@ -176,8 +185,90 @@ describe('reset', () => {
   })
 })
 
-describe('ITEM_TOTAL', () => {
-  it('is the single source of truth the store reports as itemsTotal', () => {
-    expect(get().itemsTotal).toBe(ITEM_TOTAL)
+describe('levels (6.6)', () => {
+  it('reports level 1 and its ember target on a fresh run', () => {
+    expect(get().level).toBe(1)
+    expect(get().itemsTotal).toBe(levelTarget(1))
+  })
+
+  it('opens the interlude once the level target is cleared', () => {
+    useGame.setState({ itemsCollected: levelTarget(1) - 1 })
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+
+    expect(get().interlude).toBe(true)
+    expect(get().level).toBe(1) // not advanced yet — endInterlude does that
+    expect(get().status).toBe('playing')
+  })
+
+  it('endInterlude advances the level, resets the per-level count, sets the new target', () => {
+    useGame.setState({ interlude: true, level: 2, itemsCollected: 6, itemsTotal: 6 })
+    get().endInterlude()
+
+    expect(get().interlude).toBe(false)
+    expect(get().level).toBe(3)
+    expect(get().itemsCollected).toBe(0)
+    expect(get().itemsTotal).toBe(levelTarget(3))
+  })
+
+  it('keeps embersTotal and score climbing across a level boundary', () => {
+    useGame.setState({ itemsCollected: levelTarget(1) - 1, embersTotal: 5, score: 500 })
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+    expect(get().embersTotal).toBe(6)
+    expect(get().score).toBe(600)
+  })
+
+  it('clearing the last level wins the run instead of opening an interlude', () => {
+    useGame.setState({
+      level: LEVEL_COUNT,
+      itemsCollected: levelTarget(LEVEL_COUNT) - 1,
+      itemsTotal: levelTarget(LEVEL_COUNT),
+    })
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+
+    expect(get().status).toBe('won')
+    expect(get().interlude).toBe(false)
+  })
+
+  it('nightfall runs the same climb structure — interlude on early levels, win on the last', () => {
+    useGame.setState({
+      nightfall: true,
+      level: 3,
+      itemsCollected: levelTarget(3) - 1,
+      itemsTotal: levelTarget(3),
+    })
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+    expect(get().interlude).toBe(true)
+    expect(get().status).toBe('playing')
+
+    useGame.setState({
+      interlude: false,
+      level: LEVEL_COUNT,
+      itemsCollected: levelTarget(LEVEL_COUNT) - 1,
+      itemsTotal: levelTarget(LEVEL_COUNT),
+    })
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+    expect(get().status).toBe('won')
+  })
+
+  it('startNightfall only fires from a non-nightfall win and carries score forward', () => {
+    useGame.setState({ status: 'caught', score: 900 })
+    get().startNightfall()
+    expect(get().status).toBe('caught') // no-op — not a win
+
+    useGame.setState({ status: 'won', level: LEVEL_COUNT, score: 900, warmth: 4, embersTotal: 60 })
+    const before = get().runId
+    get().startNightfall()
+
+    expect(get()).toMatchObject({
+      status: 'playing',
+      nightfall: true,
+      level: 1,
+      itemsTotal: levelTarget(1),
+      itemsCollected: 0,
+      score: 900,
+      embersTotal: 60,
+      warmth: 100,
+      runId: before + 1,
+    })
   })
 })

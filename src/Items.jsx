@@ -1,71 +1,107 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useGame, ITEM_TOTAL, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
+import * as THREE from 'three'
+import { useGame, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
+import { levelTarget } from './levels.js'
+import { ARENA_HALF } from './Player.jsx'
 
-// Step 4: embers scattered across the arena. Walk over one to grab it — it adds
-// to your score and pushes warmth back up, so the risk of straying from spawn
-// (and toward the yeti) is what keeps you alive. No physics; pickup is a plain
-// distance check against the camera each frame.
+// Embers to collect. Walk over one to grab it — score, plus a small warmth
+// top-up, so straying from safety toward the yeti is the price of staying warm.
+// No physics; pickup is a plain distance check against the camera each frame.
 const PICKUP_RADIUS = 2.2
 const HOVER_HEIGHT = 0.9
 
-// Embers stay in the same disc around spawn they occupied before 6.10 grew the
-// arena — matched to the old `ARENA_HALF - 3` reach so six embers are no harder
-// to run between than they were. 6.6 replaces this fixed scatter with
-// player-relative wave spawns and lifts the count.
-const EMBER_FIELD = 27
+// Step 6.6: the fixed, deterministic scatter of six is gone. Each level spawns
+// its own wave of `levelTarget(level)` embers, and — from the playtest — they
+// sit close and loosely in ONE direction rather than ringing the whole player.
+// A level is a directed foray you can actually finish before you freeze, not a
+// spiral search of the fog.
+// The wave spans a broad wedge you have to work across — close enough that you
+// commit to a heading, far enough (and spaced enough) that clearing it is a
+// real forage, not a one-arc sweep. A straggler left in the fog is caught by
+// the beacon falloff in the frame loop, so the field can be wide without the
+// "found 7, can't find the 8th" freeze.
+const SPAWN_MIN = 15
+const SPAWN_MAX = 38
+const WAVE_ARC = 2.2 // radians (~126°) the embers fan across their heading
+const MIN_GAP_SQ = 36 // keep embers at least 6u apart
 
-// Same deterministic PRNG as the tree scatter — embers land in the same spots
-// on every reload so a run is learnable.
-function mulberry32(seed) {
-  return function () {
-    seed |= 0
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
+// One wave: N embers around (camera x,z), fanned across WAVE_ARC of a heading
+// that points roughly toward the arena middle (which also keeps them off the
+// walls). Best-effort — after `guard` tries the remaining slots fill on bounds
+// alone so a level always has its full count.
+function makeWave(camera, level) {
+  const n = levelTarget(level)
+  const cx = camera.position.x
+  const cz = camera.position.z
 
-// Ring of placements: far enough out that you must leave the spawn to reach
-// them, but all within EMBER_FIELD of the origin so the warmth clock stays
-// survivable. The old carve-out around a fixed yeti post is gone — the yeti
-// spawns randomly since 6.2.
-function useEmberSpots() {
-  return useMemo(() => {
-    const rand = mulberry32(90210)
-    const spots = []
-    let guard = 0
-    while (spots.length < ITEM_TOTAL && guard++ < 500) {
-      const x = (rand() * 2 - 1) * EMBER_FIELD
-      const z = (rand() * 2 - 1) * EMBER_FIELD
-      const fromSpawn = Math.hypot(x, z)
-      if (fromSpawn < 10 || fromSpawn > EMBER_FIELD) continue
-      spots.push([x, HOVER_HEIGHT, z])
+  const fwd = new THREE.Vector3()
+  camera.getWorldDirection(fwd)
+  fwd.y = 0
+  if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1)
+  fwd.normalize()
+
+  // Heading yaw uses the atan2(x, z) convention the yeti's movement code does.
+  const towardCentre = Math.atan2(-cx, -cz)
+  const heading = towardCentre + (Math.random() - 0.5) * Math.PI
+
+  const edge = ARENA_HALF - 3
+  const spots = []
+  let guard = 0
+  while (spots.length < n) {
+    const strict = guard++ < 200
+    const ang = heading + (Math.random() - 0.5) * WAVE_ARC
+    const rad = SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN)
+    const x = cx + Math.sin(ang) * rad
+    const z = cz + Math.cos(ang) * rad
+    if (Math.abs(x) > edge || Math.abs(z) > edge) continue
+    if (strict) {
+      // nothing materialising dead ahead at close range
+      const inv = 1 / Math.hypot(x - cx, z - cz)
+      const dot = (x - cx) * inv * fwd.x + (z - cz) * inv * fwd.z
+      if (dot > 0.7 && rad < 20) continue
+      // keep them spread, not stacked
+      if (spots.some((p) => (p[0] - x) ** 2 + (p[2] - z) ** 2 < MIN_GAP_SQ)) continue
     }
-    return spots
-  }, [])
+    spots.push([x, HOVER_HEIGHT, z])
+  }
+  return spots
 }
 
-export default function Items() {
+// One level's wave. Remounted (via `key={level}` on the parent) whenever the
+// level advances, so the spot roll and the collected flags reset with a plain
+// useState initializer — no effect, no stale state to clear.
+function EmberWave({ level }) {
   const { camera } = useThree()
-  const spots = useEmberSpots()
   const groups = useRef([])
+  const lights = useRef([])
+  const orbs = useRef([])
+  const [spots] = useState(() => makeWave(camera, level))
   const [collected, setCollected] = useState(() => spots.map(() => false))
-  // Synchronous guard against double-counting: `collected` (React state) doesn't
-  // update until the next render, so a slow walk over an ember keeps the frame
-  // loop seeing it as uncollected for several frames. This ref flips the instant
-  // the pickup lands, so collectItem() fires exactly once per ember.
+  // Synchronous guard against double-counting: `collected` (React state) lags a
+  // frame, so a slow walk over an ember keeps the loop seeing it as uncollected
+  // for several frames. This ref flips the instant the pickup lands.
   const grabbed = useRef(new Set())
 
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
+    if (useGame.getState().interlude) return // wave already cleared; next one waits
     const delta = Math.min(rawDelta, 0.1)
     const t = performance.now() * 0.002
+
+    // How many embers are still out there — the last one gets an extra beacon.
+    let remaining = 0
+    for (let i = 0; i < spots.length; i++) {
+      if (!collected[i] && !grabbed.current.has(i)) remaining++
+    }
 
     let justGrabbed = -1
     for (let i = 0; i < spots.length; i++) {
       if (collected[i] || grabbed.current.has(i)) continue
+
+      const dx = camera.position.x - spots[i][0]
+      const dz = camera.position.z - spots[i][2]
+      const dist2 = dx * dx + dz * dz
 
       // Bob and spin so the embers catch the eye through the fog.
       const g = groups.current[i]
@@ -74,9 +110,21 @@ export default function Items() {
         g.position.y = HOVER_HEIGHT + Math.sin(t + i * 1.7) * 0.14
       }
 
-      const dx = camera.position.x - spots[i][0]
-      const dz = camera.position.z - spots[i][2]
-      if (dx * dx + dz * dz < PICKUP_RADIUS * PICKUP_RADIUS) justGrabbed = i
+      // Beacon falloff: the further an ember is from you, the harder it glows,
+      // so a straggler left in the fog still reads instead of getting lost.
+      // The final ember of a wave is boosted further — that's the one that was
+      // freezing people on the bigger levels.
+      let boost = Math.min(1, Math.max(0, (Math.sqrt(dist2) - 10) / 18))
+      if (remaining === 1) boost = Math.min(1, boost + 0.4)
+      const light = lights.current[i]
+      if (light) {
+        light.intensity = 9 + boost * 11
+        light.distance = 13 + boost * 7
+      }
+      const orb = orbs.current[i]
+      if (orb) orb.material.opacity = 0.14 + boost * 0.24
+
+      if (dist2 < PICKUP_RADIUS * PICKUP_RADIUS) justGrabbed = i
     }
 
     // justGrabbed is always a fresh index — the loop skips anything in `grabbed`.
@@ -99,18 +147,42 @@ export default function Items() {
         position={[p[0], HOVER_HEIGHT, p[2]]}
       >
         <mesh castShadow>
-          <icosahedronGeometry args={[0.3, 0]} />
+          <icosahedronGeometry args={[0.4, 0]} />
           <meshStandardMaterial
             color="#ffce8a"
             emissive="#ff7a1a"
-            emissiveIntensity={1.5}
+            emissiveIntensity={2.4}
             roughness={0.35}
             flatShading
           />
         </mesh>
-        {/* Warm pool of light on the snow — no shadow, kept cheap. */}
-        <pointLight color="#ff9a3c" intensity={5} distance={7} decay={2} />
+        {/* Soft additive orb so the ember reads as a glow through the fog from
+            range, not just a speck once the point light falls off. Opacity is
+            driven per-frame by the beacon falloff above. */}
+        <mesh ref={(el) => (orbs.current[i] = el)}>
+          <sphereGeometry args={[0.95, 12, 12]} />
+          <meshBasicMaterial
+            color="#ff9a3c"
+            transparent
+            opacity={0.14}
+            depthWrite={false}
+          />
+        </mesh>
+        {/* Warm pool of light on the snow — no shadow, kept cheap. Intensity and
+            reach are driven per-frame so a distant / last ember beacons. */}
+        <pointLight
+          ref={(el) => (lights.current[i] = el)}
+          color="#ff9a3c"
+          intensity={9}
+          distance={13}
+          decay={2}
+        />
       </group>
     ),
   )
+}
+
+export default function Items() {
+  const level = useGame((s) => s.level)
+  return <EmberWave key={level} level={level} />
 }
