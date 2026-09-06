@@ -11,7 +11,10 @@ const START_WARMTH = 100
 export const ITEM_TOTAL = 6
 
 export const useGame = create((set) => ({
-  // 'playing' while the run is live, then 'caught' or 'frozen' once it's over.
+  // 'playing' while the run is live, 'paused' when the player hits Space, then
+  // 'caught' or 'frozen' once it's over. Every ticking system (warmth, the yeti,
+  // movement, scoring) gates on status === 'playing', so 'paused' freezes the
+  // whole simulation for free.
   status: 'playing',
 
   // Bumped on every reset. App uses it as a React key on the <Canvas> so a new
@@ -45,6 +48,9 @@ export const useGame = create((set) => ({
       if (warmth <= 0) return { warmth: 0, status: 'frozen' }
       return { warmth }
     }),
+
+  pause: () => set((s) => (s.status === 'playing' ? { status: 'paused' } : {})),
+  resume: () => set((s) => (s.status === 'paused' ? { status: 'playing' } : {})),
 
   catchPlayer: () =>
     set((s) => (s.status === 'playing' ? { status: 'caught' } : {})),

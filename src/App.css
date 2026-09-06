@@ -50,11 +50,9 @@
   opacity: 0.7;
 }
 
-/* Caught screen — unlike the idle prompt this one is interactive, so it opts
-   back into pointer events and takes the click to restart. */
+/* Caught screen — restart is on the R key, so this stays a passive overlay
+   like the idle prompt; only the backdrop colour changes. */
 .prompt.caught {
-  pointer-events: auto;
-  cursor: pointer;
   background: rgba(40, 10, 10, 0.62);
 }
 

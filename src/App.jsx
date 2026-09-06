@@ -21,6 +21,25 @@ export default function App() {
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [])
 
+  // Global keys that aren't movement: Space toggles pause, R restarts once the
+  // run is over. Handled here rather than in the pointer-lock controller so they
+  // work whether or not the mouse is currently captured.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        const { status, pause, resume } = useGame.getState()
+        if (status === 'playing') pause()
+        else if (status === 'paused') resume()
+      } else if (e.code === 'KeyR') {
+        const { status, reset } = useGame.getState()
+        if (status === 'caught' || status === 'frozen') reset()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <>
       {/* Keyed on runId: a reset remounts the whole scene, snapping the camera
