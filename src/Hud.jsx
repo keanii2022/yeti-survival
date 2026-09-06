@@ -1,5 +1,27 @@
+import { useEffect, useRef, useState } from 'react'
 import { useGame, EMBER_SCORE } from './store.js'
+import { threat } from './threat.js'
 import MuteToggle from './MuteToggle.jsx'
+
+// A glanceable read on the yeti's attention so you don't have to swing the
+// camera around mid-chase to check whether you've shaken it. Samples the shared
+// threat readout (written in the frame loop, off React) and only re-renders when
+// the state actually flips — chase -> search -> gone.
+function ChaseState() {
+  const [mode, setMode] = useState('idle')
+  const raf = useRef()
+  useEffect(() => {
+    const tick = () => {
+      setMode(threat.mode) // React bails the render when the value is unchanged
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [])
+  if (mode === 'chase') return <div className="pursuit chasing">he sees you</div>
+  if (mode === 'search') return <div className="pursuit searching">he&rsquo;s searching</div>
+  return null
+}
 
 // Whole seconds -> "M:SS" for the game-over readout.
 function formatTime(seconds) {
@@ -48,7 +70,14 @@ export default function Hud({ locked }) {
           the `--threat` CSS var that Sound.jsx updates each frame. */}
       <div className="vignette" />
 
+      {/* Throbs on top of the vignette when the yeti is in pounce range mid-
+          chase — a distinct "he's on you" cue you catch in your periphery.
+          Driven by `--danger`. */}
+      <div className="lunge" />
+
       {locked && playing && <div className="crosshair" />}
+
+      {locked && playing && <ChaseState />}
 
       {showMute && <MuteToggle />}
 

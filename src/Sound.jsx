@@ -20,6 +20,10 @@ import { getAtmosphere } from './sound.js'
 
 // Past this range the yeti is inaudible; the pre-chase ramp starts here.
 const NEAR = 30
+// Inside this range mid-chase he's within lunging distance — drives the pulsing
+// red HUD frame (see .lunge in App.css). Matches the yeti's BURST_RADIUS with a
+// hair of lead-in.
+const LUNGE_RANGE = 7
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 
@@ -49,8 +53,13 @@ export default function Sound() {
     prevStatus.current = 'playing'
     prevItems.current = 0
     getAtmosphere()?.revive()
-    document.documentElement.style.setProperty('--threat', '0')
-    return () => document.documentElement.style.setProperty('--threat', '0')
+    const root = document.documentElement.style
+    root.setProperty('--threat', '0')
+    root.setProperty('--danger', '0')
+    return () => {
+      root.setProperty('--threat', '0')
+      root.setProperty('--danger', '0')
+    }
   }, [])
 
   useFrame((_, rawDelta) => {
@@ -67,6 +76,7 @@ export default function Sound() {
         eng.update(0, 0, 'idle')
         eng.gameOver(status)
         document.documentElement.style.setProperty('--threat', '0')
+        document.documentElement.style.setProperty('--danger', '0')
       }
       prevStatus.current = status
     }
@@ -81,12 +91,26 @@ export default function Sound() {
     prevItems.current = itemsCollected
 
     // --- threat level → heartbeat / drone / vignette ---
+    // During a chase the level tracks how close he actually is (0.7 at the edge
+    // of the chase → 1 breathing down your neck) so the heartbeat and vignette
+    // tell you where he is when you can't look back. 'search' (6.11): he lost
+    // you but is still hunting your trail — the bed stays up a notch while the
+    // chase strings pull out, so the drop is audible the moment he breaks off.
     let level = 0
-    if (threat.mode === 'chase') level = 1
+    if (threat.mode === 'chase') level = clamp(1 - threat.distance / 30, 0.7, 1)
+    else if (threat.mode === 'search') level = 0.5
     else if (threat.distance < NEAR) level = clamp((NEAR - threat.distance) / 24, 0, 0.8)
 
     eng.update(delta, level, threat.mode)
     document.documentElement.style.setProperty('--threat', level.toFixed(3))
+
+    // Separate "he's lunging" readout: only mid-chase and only in the last few
+    // metres. The HUD frame pulses on this, distinct from the steady vignette.
+    const danger =
+      threat.mode === 'chase'
+        ? clamp((LUNGE_RANGE - threat.distance) / LUNGE_RANGE, 0, 1)
+        : 0
+    document.documentElement.style.setProperty('--danger', danger.toFixed(3))
   })
 
   return null
