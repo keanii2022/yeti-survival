@@ -5,6 +5,11 @@ import { create } from 'zustand'
 // warmth hits zero — and the game-over screen reads `status` to say which.
 
 const START_WARMTH = 100
+const START_STAMINA = 100
+
+// Once stamina bottoms out, sprint stays locked until it regenerates back past
+// this threshold — so an empty bar is a real recovery window, not a one-frame dip.
+const SPRINT_UNLOCK = 30
 
 // How many embers are scattered in the arena. Items.jsx reads this so there's
 // one source of truth for the count.
@@ -29,6 +34,11 @@ export const useGame = create((set) => ({
   // 0–100. Bleeds away while you're out in the cold; embers top it back up.
   warmth: START_WARMTH,
 
+  // 0–100. Sprinting burns it; walking or standing still refills it. Hit 0 and
+  // `sprintLocked` pins you to walk speed until it climbs back past SPRINT_UNLOCK.
+  stamina: START_STAMINA,
+  sprintLocked: false,
+
   collectItem: (value, warmthBonus = 0) =>
     set((s) => {
       if (s.status !== 'playing') return {}
@@ -49,6 +59,22 @@ export const useGame = create((set) => ({
       return { warmth }
     }),
 
+  // Called every frame by the player controller. `draining` is true only when
+  // the player is actually sprinting this frame; otherwise the bar regenerates.
+  tickStamina: (draining, amount) =>
+    set((s) => {
+      if (s.status !== 'playing') return {}
+      const stamina = Math.max(
+        0,
+        Math.min(START_STAMINA, s.stamina + (draining ? -amount : amount)),
+      )
+      let sprintLocked = s.sprintLocked
+      if (stamina <= 0) sprintLocked = true
+      else if (stamina >= SPRINT_UNLOCK) sprintLocked = false
+      if (stamina === s.stamina && sprintLocked === s.sprintLocked) return {}
+      return { stamina, sprintLocked }
+    }),
+
   pause: () => set((s) => (s.status === 'playing' ? { status: 'paused' } : {})),
   resume: () => set((s) => (s.status === 'paused' ? { status: 'playing' } : {})),
 
@@ -62,5 +88,7 @@ export const useGame = create((set) => ({
       score: 0,
       itemsCollected: 0,
       warmth: START_WARMTH,
+      stamina: START_STAMINA,
+      sprintLocked: false,
     })),
 }))
