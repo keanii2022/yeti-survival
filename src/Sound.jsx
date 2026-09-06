@@ -5,11 +5,14 @@ import { threat } from './threat.js'
 import { getAtmosphere } from './sound.js'
 
 // Step 5: wires the synthesised atmosphere (see sound.js) to the game.
+// Step 6.4: also forwards the raw threat.mode so the engine can cross-fade the
+// calm bed and the chase strings.
 //
 //  - resumes the AudioContext on the first user gesture
 //  - every frame, turns the Yeti's distance into a 0..1 threat level that drives
-//    the heartbeat + dread drone, and mirrors it onto a `--threat` CSS var so
-//    the HUD vignette pulses in time
+//    the heartbeat + dread drone, passes threat.mode for the calm/strings
+//    cross-fade, and mirrors the level onto a `--threat` CSS var so the HUD
+//    vignette pulses in time
 //  - fires one-shots on the state changes that matter: lock-on stinger, ember
 //    chime, game-over boom, pause/resume ducking
 //
@@ -61,7 +64,7 @@ export default function Sound() {
       if (status === 'paused') eng.setPaused(true)
       else if (status === 'playing') eng.setPaused(false)
       else if (status === 'caught' || status === 'frozen') {
-        eng.update(0, 0)
+        eng.update(0, 0, 'idle')
         eng.gameOver(status)
         document.documentElement.style.setProperty('--threat', '0')
       }
@@ -82,7 +85,7 @@ export default function Sound() {
     if (threat.mode === 'chase') level = 1
     else if (threat.distance < NEAR) level = clamp((NEAR - threat.distance) / 24, 0, 0.8)
 
-    eng.update(delta, level)
+    eng.update(delta, level, threat.mode)
     document.documentElement.style.setProperty('--threat', level.toFixed(3))
   })
 

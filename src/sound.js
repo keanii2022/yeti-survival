@@ -5,6 +5,11 @@
 // lock-on stinger and the pickup/death cues are all synthesised at runtime.
 // One shared engine, created lazily and only made audible after the first user
 // gesture (browsers keep an AudioContext suspended until then).
+//
+// Step 6.4 adds two mode-driven layers on top of that: a calm pentatonic bed
+// that plays while the yeti hasn't seen you, and a dissonant tremolo string
+// cluster that swells in on detection and eases off slowly when it loses you.
+// Both are cross-faded by update() from the `threat.mode` readout.
 
 let engine = null
 
@@ -19,9 +24,14 @@ class Atmosphere {
 
     this._buildWind()
     this._buildDrone()
+    this._buildCalm()
+    this._buildStrings()
 
     this.threat = 0 // 0..1, smoothed toward the level passed to update()
     this.beatPhase = 0
+    this.chase = 0 // 0..1, rises fast on detection, falls slowly on loss
+    this.calmPhase = 0
+    this.calmNext = 2.5
     this.awake = false
   }
 
@@ -85,6 +95,90 @@ class Atmosphere {
     this.droneGain = gain
   }
 
+  // The "you're safe" bed: a sustained open pad plus a sparse pentatonic motif
+  // scheduled by update(). Always sounding; the calmGain gate fades it out
+  // under the strings the instant a chase starts and back in once it eases off.
+  _buildCalm() {
+    const { ctx } = this
+    const gain = ctx.createGain()
+    gain.gain.value = 0
+    gain.connect(this.master)
+
+    // Open-fifth pad (F2 / C3 / A3), gently detuned so it breathes.
+    ;[87.31, 130.81, 220].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.detune.value = (i - 1) * 4
+      const og = ctx.createGain()
+      og.gain.value = 0.14
+      o.connect(og).connect(gain)
+      o.start()
+    })
+
+    this.calmGain = gain
+    this.calmScale = [174.61, 196, 220, 261.63, 293.66, 349.23] // F major pentatonic
+  }
+
+  // One soft bell-ish note from the calm scale, sometimes doubled a fifth up.
+  _calmNote() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const root = this.calmScale[Math.floor(Math.random() * this.calmScale.length)]
+    const voices = Math.random() < 0.4 ? [root, root * 1.5] : [root]
+    voices.forEach((f) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(0.0001, t)
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.3)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6)
+      o.connect(g).connect(this.calmGain)
+      o.start(t)
+      o.stop(t + 2.7)
+    })
+  }
+
+  // The chase layer: a dissonant sawtooth cluster (root / minor-third / tritone
+  // / fifth / minor-seventh) through a lowpass and a fast tremolo, for the
+  // bowed-panic feel. Silent until update() opens stringsGain on detection, and
+  // closed slowly on a loss so the tension bleeds off instead of snapping away.
+  _buildStrings() {
+    const { ctx } = this
+    const gate = ctx.createGain()
+    gate.gain.value = 0
+    gate.connect(this.master)
+
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 1400
+    lp.Q.value = 1
+
+    const trem = ctx.createGain()
+    trem.gain.value = 0.8
+    const tremLfo = ctx.createOscillator()
+    tremLfo.frequency.value = 7
+    const tremAmt = ctx.createGain()
+    tremAmt.gain.value = 0.3
+    tremLfo.connect(tremAmt).connect(trem.gain)
+    tremLfo.start()
+
+    lp.connect(trem).connect(gate)
+    ;[130.81, 155.56, 185, 196, 233.08].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.value = f
+      o.detune.value = (i - 2) * 6
+      const og = ctx.createGain()
+      og.gain.value = 0.13
+      o.connect(og).connect(lp)
+      o.start()
+    })
+
+    this.stringsGain = gate
+  }
+
   // Call from a user gesture (the click that grabs pointer-lock counts).
   resume() {
     if (this.ctx.state === 'suspended') this.ctx.resume()
@@ -98,12 +192,35 @@ class Atmosphere {
     this.master.gain.setTargetAtTime(paused ? 0 : 0.9, this.ctx.currentTime, 0.25)
   }
 
-  // level: 0 (safe) .. 1 (the yeti is on top of you). Called every frame.
-  update(delta, level) {
+  // level: 0 (safe) .. 1 (the yeti is on top of you). mode: the raw
+  // 'idle' | 'chase' readout, which cross-fades the calm bed and the strings.
+  // Called every frame.
+  update(delta, level, mode) {
     this.threat += (level - this.threat) * Math.min(delta * 3, 1)
+
+    // Chase envelope: snap up when the yeti locks on, ease down slowly when it
+    // loses you so the strings recede rather than cut.
+    const target = mode === 'chase' ? 1 : 0
+    const k = target > this.chase ? delta * 3 : delta * 0.5
+    this.chase += (target - this.chase) * Math.min(k, 1)
+
     const t = this.ctx.currentTime
 
     this.droneGain.gain.setTargetAtTime(0.14 * this.threat, t, 0.2)
+    this.calmGain.gain.setTargetAtTime(0.6 * (1 - this.chase), t, 0.5)
+    this.stringsGain.gain.setTargetAtTime(0.5 * this.chase, t, 0.4)
+
+    // Sparse calm motif, only while the calm bed is the layer you can hear.
+    if (this.chase < 0.5) {
+      this.calmPhase += delta
+      if (this.calmPhase >= this.calmNext) {
+        this.calmPhase = 0
+        this.calmNext = 2 + Math.random() * 2.5
+        this._calmNote()
+      }
+    } else {
+      this.calmPhase = 0
+    }
 
     if (this.threat > 0.04) {
       // Beat interval: ~1.5s at the edge of awareness → ~0.33s in your face.
@@ -194,6 +311,8 @@ class Atmosphere {
     const { ctx } = this
     const t = ctx.currentTime
     this.droneGain.gain.setTargetAtTime(0, t, 0.3)
+    this.calmGain.gain.setTargetAtTime(0, t, 0.3)
+    this.stringsGain.gain.setTargetAtTime(0, t, 0.4)
     this.windGain.gain.setTargetAtTime(0.03, t, 0.4)
 
     const o = ctx.createOscillator()
@@ -216,7 +335,11 @@ class Atmosphere {
     const t = this.ctx.currentTime
     this.threat = 0
     this.beatPhase = 0
+    this.chase = 0
+    this.calmPhase = 0
     this.droneGain.gain.setTargetAtTime(0, t, 0.1)
+    this.stringsGain.gain.setTargetAtTime(0, t, 0.1)
+    this.calmGain.gain.setTargetAtTime(0.6, t, 0.8)
     this.windGain.gain.setTargetAtTime(0.11, t, 0.6)
   }
 }
