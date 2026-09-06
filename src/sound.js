@@ -1,0 +1,236 @@
+// Procedural atmosphere audio, built on the Web Audio API.
+//
+// The project stack lists howler.js, but howler plays sound *files* and this
+// game ships no audio assets — so the wind bed, the proximity heartbeat, the
+// lock-on stinger and the pickup/death cues are all synthesised at runtime.
+// One shared engine, created lazily and only made audible after the first user
+// gesture (browsers keep an AudioContext suspended until then).
+
+let engine = null
+
+class Atmosphere {
+  constructor() {
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    this.ctx = new Ctx()
+
+    this.master = this.ctx.createGain()
+    this.master.gain.value = 0 // silent until resume() fades it up
+    this.master.connect(this.ctx.destination)
+
+    this._buildWind()
+    this._buildDrone()
+
+    this.threat = 0 // 0..1, smoothed toward the level passed to update()
+    this.beatPhase = 0
+    this.awake = false
+  }
+
+  _noiseBuffer(seconds) {
+    const { ctx } = this
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+    return buf
+  }
+
+  // Looping filtered noise with two slow LFOs so it gusts instead of hissing.
+  _buildWind() {
+    const { ctx } = this
+    const src = ctx.createBufferSource()
+    src.buffer = this._noiseBuffer(4)
+    src.loop = true
+
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 460
+    lp.Q.value = 0.6
+
+    const gain = ctx.createGain()
+    gain.gain.value = 0.11
+
+    const cutLfo = ctx.createOscillator()
+    cutLfo.frequency.value = 0.08
+    const cutLfoAmt = ctx.createGain()
+    cutLfoAmt.gain.value = 260
+    cutLfo.connect(cutLfoAmt).connect(lp.frequency)
+
+    const volLfo = ctx.createOscillator()
+    volLfo.frequency.value = 0.13
+    const volLfoAmt = ctx.createGain()
+    volLfoAmt.gain.value = 0.05
+    volLfo.connect(volLfoAmt).connect(gain.gain)
+
+    src.connect(lp).connect(gain).connect(this.master)
+    src.start()
+    cutLfo.start()
+    volLfo.start()
+
+    this.windGain = gain
+  }
+
+  // Low detuned sines that swell in as the threat rises — the dread bed under
+  // the heartbeat. Held silent until update() opens the gate.
+  _buildDrone() {
+    const { ctx } = this
+    const gain = ctx.createGain()
+    gain.gain.value = 0
+    gain.connect(this.master)
+    ;[55, 55.5, 82.5].forEach((f) => {
+      const o = ctx.createOscillator()
+      o.type = 'sine'
+      o.frequency.value = f
+      o.connect(gain)
+      o.start()
+    })
+    this.droneGain = gain
+  }
+
+  // Call from a user gesture (the click that grabs pointer-lock counts).
+  resume() {
+    if (this.ctx.state === 'suspended') this.ctx.resume()
+    if (!this.awake) {
+      this.awake = true
+      this.master.gain.setTargetAtTime(0.9, this.ctx.currentTime, 1.4)
+    }
+  }
+
+  setPaused(paused) {
+    this.master.gain.setTargetAtTime(paused ? 0 : 0.9, this.ctx.currentTime, 0.25)
+  }
+
+  // level: 0 (safe) .. 1 (the yeti is on top of you). Called every frame.
+  update(delta, level) {
+    this.threat += (level - this.threat) * Math.min(delta * 3, 1)
+    const t = this.ctx.currentTime
+
+    this.droneGain.gain.setTargetAtTime(0.14 * this.threat, t, 0.2)
+
+    if (this.threat > 0.04) {
+      // Beat interval: ~1.5s at the edge of awareness → ~0.33s in your face.
+      const interval = 1.5 - 1.17 * this.threat
+      this.beatPhase += delta
+      if (this.beatPhase >= interval) {
+        this.beatPhase = 0
+        this._thump(0.22 + 0.6 * this.threat)
+      }
+    } else {
+      this.beatPhase = 0
+    }
+  }
+
+  _thump(vol) {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(72, t)
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.16)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.015)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32)
+    o.connect(g).connect(this.master)
+    o.start(t)
+    o.stop(t + 0.36)
+  }
+
+  // Lock-on hit: a noise swell plus a dissonant sawtooth cluster.
+  stinger() {
+    const { ctx } = this
+    const t = ctx.currentTime
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(1)
+    const nf = ctx.createBiquadFilter()
+    nf.type = 'bandpass'
+    nf.frequency.setValueAtTime(280, t)
+    nf.frequency.exponentialRampToValueAtTime(1900, t + 0.5)
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.5, t + 0.06)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.9)
+    n.connect(nf).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + 1)
+
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.4, t + 0.03)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1)
+    g.connect(this.master)
+    ;[110, 116.5, 155, 233].forEach((f) => {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.value = f
+      const og = ctx.createGain()
+      og.gain.value = 0.24
+      o.connect(og).connect(g)
+      o.start(t)
+      o.stop(t + 1.15)
+    })
+  }
+
+  // Soft two-note chime when an ember is grabbed.
+  pickup() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5)
+    g.connect(this.master)
+    ;[660, 990].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.connect(g)
+      o.start(t + i * 0.06)
+      o.stop(t + 0.5)
+    })
+  }
+
+  // One heavy descending boom on game over; the yeti kill also gets the stinger.
+  gameOver(kind) {
+    const { ctx } = this
+    const t = ctx.currentTime
+    this.droneGain.gain.setTargetAtTime(0, t, 0.3)
+    this.windGain.gain.setTargetAtTime(0.03, t, 0.4)
+
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(kind === 'caught' ? 140 : 90, t)
+    o.frequency.exponentialRampToValueAtTime(28, t + 1.6)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.6, t + 0.05)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2)
+    o.connect(g).connect(this.master)
+    o.start(t)
+    o.stop(t + 2.1)
+
+    if (kind === 'caught') this.stinger()
+  }
+
+  // Bring the ambience back after a restart (gameOver ducked it).
+  revive() {
+    const t = this.ctx.currentTime
+    this.threat = 0
+    this.beatPhase = 0
+    this.droneGain.gain.setTargetAtTime(0, t, 0.1)
+    this.windGain.gain.setTargetAtTime(0.11, t, 0.6)
+  }
+}
+
+// Lazily built. The first call usually comes from a gesture handler; if it comes
+// from the render loop first, the context is created suspended and stays inert
+// until resume().
+export function getAtmosphere() {
+  if (!engine) {
+    try {
+      engine = new Atmosphere()
+    } catch {
+      engine = null
+    }
+  }
+  return engine
+}

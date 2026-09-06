@@ -17,6 +17,22 @@
   text-align: center;
 }
 
+/* Proximity vignette — a red-black frame that fades in as the yeti nears.
+   --threat (0..1) is set on <html> by Sound.jsx every frame. */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: calc(var(--threat, 0) * 0.9);
+  transition: opacity 0.25s linear;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0) 30%,
+    rgba(90, 6, 6, 0.4) 68%,
+    rgba(30, 0, 0, 0.82) 100%
+  );
+}
+
 .crosshair {
   position: absolute;
   width: 6px;
