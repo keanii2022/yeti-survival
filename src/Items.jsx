@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useGame, ITEM_TOTAL } from './store.js'
+import { useGame, ITEM_TOTAL, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
 import { ARENA_HALF } from './Player.jsx'
 
 // Step 4: embers scattered across the arena. Walk over one to grab it — it adds
@@ -8,8 +8,6 @@ import { ARENA_HALF } from './Player.jsx'
 // (and toward the yeti) is what keeps you alive. No physics; pickup is a plain
 // distance check against the camera each frame.
 const PICKUP_RADIUS = 2.2
-const ITEM_SCORE = 100
-const WARMTH_PER_ITEM = 16
 const HOVER_HEIGHT = 0.9
 
 // Same deterministic PRNG as the tree scatter — embers land in the same spots
@@ -83,7 +81,7 @@ export default function Items() {
         next[justGrabbed] = true
         return next
       })
-      useGame.getState().collectItem(ITEM_SCORE, WARMTH_PER_ITEM)
+      useGame.getState().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
     }
   })
 

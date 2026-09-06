@@ -45,15 +45,24 @@ describe('Hud', () => {
     expect(screen.getByRole('heading', { name: 'Paused' })).toBeInTheDocument()
   })
 
-  it('shows the yeti game-over card with the final score when caught', () => {
-    useGame.setState({ status: 'caught', score: 950, itemsCollected: 4 })
+  it('leads the game-over card with level, then time survived, then the ember score', () => {
+    useGame.setState({
+      status: 'caught',
+      level: 1,
+      elapsed: 95.4,
+      score: 400,
+      itemsCollected: 4,
+    })
     render(<Hud locked={true} />)
 
     expect(
       screen.getByRole('heading', { name: 'The yeti caught you' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Final score 950')).toBeInTheDocument()
-    expect(screen.getByText('Embers collected 4/6')).toBeInTheDocument()
+    expect(screen.getByText('Level 1')).toBeInTheDocument()
+    expect(screen.getByText('1:35')).toBeInTheDocument()
+    expect(screen.getByText('Embers 4/6')).toBeInTheDocument()
+    expect(screen.getByText('4 × 100')).toBeInTheDocument()
+    expect(screen.getByText('400')).toBeInTheDocument()
   })
 
   it('shows the cold game-over card when frozen', () => {
