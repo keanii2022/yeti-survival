@@ -37,6 +37,8 @@ export default function Sound() {
   const prevEscapes = useRef(0)
   const shedTellPhase = useRef(0) // countdown between shed-tell knocks
   const prevSheltered = useRef(false)
+  const prevSnack = useRef(false)
+  const prevBlanket = useRef(false)
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -64,6 +66,8 @@ export default function Sound() {
     prevEscapes.current = 0
     shedTellPhase.current = 0
     prevSheltered.current = false
+    prevSnack.current = false
+    prevBlanket.current = false
     getAtmosphere()?.revive()
     const root = document.documentElement.style
     root.setProperty('--threat', '0')
@@ -78,8 +82,17 @@ export default function Sound() {
     const eng = getAtmosphere()
     if (!eng) return
     const delta = Math.min(rawDelta, 0.1)
-    const { status, embersTotal, greenCount, escapes, level, interlude, nightfall } =
-      useGame.getState()
+    const {
+      status,
+      embersTotal,
+      greenCount,
+      escapes,
+      level,
+      interlude,
+      nightfall,
+      snackActive,
+      blanketActive,
+    } = useGame.getState()
 
     // --- state-change one-shots ---
     if (status !== prevStatus.current) {
@@ -118,6 +131,15 @@ export default function Sound() {
     prevGreen.current = greenCount
     if (escapes > prevEscapes.current) eng.escape()
     prevEscapes.current = escapes
+
+    // Consumables (6.13): a cue when you trigger one and a softer one when it
+    // wears off, so the effect isn't something you only know from the bar.
+    if (snackActive && !prevSnack.current) eng.snackEat()
+    else if (!snackActive && prevSnack.current) eng.effectEnd()
+    prevSnack.current = snackActive
+    if (blanketActive && !prevBlanket.current) eng.blanketWrap()
+    else if (!blanketActive && prevBlanket.current) eng.effectEnd()
+    prevBlanket.current = blanketActive
 
     // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
     // muffles for as long as you're inside — the "cold's eased" cue for the

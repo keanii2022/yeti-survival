@@ -37,6 +37,15 @@ export const WARMTH_PER_EMBER = 8
 // this threshold — so an empty bar is a real recovery window, not a one-frame dip.
 const SPRINT_UNLOCK = 30
 
+// Step 6.13: the two rare consumables (Consumables.jsx scatters them like embers,
+// only far rarer). Both are carried, then triggered by hand — E for the snack,
+// Q for the blanket (App.jsx). The snack pins stamina at full so you can sprint
+// flat-out through the window; the blanket cuts the warmth drain hard (see
+// BLANKET_DRAIN_FACTOR in Survival.jsx). Windows are short — one grab is a
+// single get-out-of-trouble play, not a standing buff.
+export const SNACK_SECONDS = 8
+export const BLANKET_SECONDS = 12
+
 export const useGame = create((set) => ({
   // 'playing' while the run is live (this covers the between-levels interlude
   // too — see `interlude`), 'paused' on Space, then 'caught' / 'frozen' / 'won'
@@ -88,6 +97,15 @@ export const useGame = create((set) => ({
   stamina: START_STAMINA,
   sprintLocked: false,
 
+  // 6.13 consumables. `hasSnack` / `hasBlanket`: one of each is carried at most.
+  // `snackActive` pins stamina at full (see tickStamina); `blanketActive` slows
+  // the warmth drain (see Survival.jsx). Consumables.jsx counts the windows down
+  // and calls endSnack / endBlanket.
+  hasSnack: false,
+  hasBlanket: false,
+  snackActive: false,
+  blanketActive: false,
+
   // Grab an ember: score + counts, a small warmth top-up, and — when it's the
   // one that clears the level — the transition. Clearing the final level wins
   // the run (the first win, or the end of nightfall); any earlier level opens
@@ -128,6 +146,42 @@ export const useGame = create((set) => ({
         : { score: s.score + GREEN_ESCAPE_BONUS, escapes: s.escapes + 1 },
     ),
 
+  // Walk over a snack or a blanket (Consumables.jsx): pocket it, unless you're
+  // already carrying that kind — you can't stack two, so the second sits and
+  // waits until the first is spent.
+  grabConsumable: (kind) =>
+    set((s) => {
+      if (s.status !== 'playing') return {}
+      if (kind === 'snack' && !s.hasSnack) return { hasSnack: true }
+      if (kind === 'blanket' && !s.hasBlanket) return { hasBlanket: true }
+      return {}
+    }),
+
+  // Eat the snack (E): stamina jumps to full and stays pinned there for the
+  // window — sprint is free and unlockable the whole time. No-op without one.
+  useSnack: () =>
+    set((s) =>
+      s.status !== 'playing' || !s.hasSnack
+        ? {}
+        : {
+            hasSnack: false,
+            snackActive: true,
+            stamina: START_STAMINA,
+            sprintLocked: false,
+          },
+    ),
+  endSnack: () => set((s) => (s.snackActive ? { snackActive: false } : {})),
+
+  // Wrap the blanket (Q): warmth drains much slower for the window. No-op
+  // without one.
+  useBlanket: () =>
+    set((s) =>
+      s.status !== 'playing' || !s.hasBlanket
+        ? {}
+        : { hasBlanket: false, blanketActive: true },
+    ),
+  endBlanket: () => set((s) => (s.blanketActive ? { blanketActive: false } : {})),
+
   // Called by Levels.jsx when the interlude timer runs out: advance to the next
   // level and spawn its wave.
   endInterlude: () =>
@@ -159,6 +213,10 @@ export const useGame = create((set) => ({
         warmth: START_WARMTH,
         stamina: START_STAMINA,
         sprintLocked: false,
+        hasSnack: false,
+        hasBlanket: false,
+        snackActive: false,
+        blanketActive: false,
       }
     }),
 
@@ -182,6 +240,13 @@ export const useGame = create((set) => ({
   tickStamina: (draining, amount) =>
     set((s) => {
       if (s.status !== 'playing') return {}
+      // 6.13: while a snack is working, the bar is welded to full and sprint
+      // never locks — the whole point of eating one.
+      if (s.snackActive) {
+        return s.stamina === START_STAMINA && !s.sprintLocked
+          ? {}
+          : { stamina: START_STAMINA, sprintLocked: false }
+      }
       const stamina = Math.max(
         0,
         Math.min(START_STAMINA, s.stamina + (draining ? -amount : amount)),
@@ -216,5 +281,9 @@ export const useGame = create((set) => ({
       warmth: START_WARMTH,
       stamina: START_STAMINA,
       sprintLocked: false,
+      hasSnack: false,
+      hasBlanket: false,
+      snackActive: false,
+      blanketActive: false,
     })),
 }))

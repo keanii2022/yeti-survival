@@ -20,6 +20,10 @@ const DRAIN_PER_SECOND = 4
 // time, it doesn't stop the clock, so camping a shed still freezes you eventually.
 const SHED_DRAIN_FACTOR = 0.45
 
+// 6.13: the blanket's window. Warmth still ticks — a blanket buys a long detour
+// or a shed camp, it doesn't stop the clock either. Stacks with the shed factor.
+const BLANKET_DRAIN_FACTOR = 0.3
+
 export default function Survival() {
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
@@ -29,7 +33,9 @@ export default function Survival() {
     // drain during the breather — that's what makes it a breather.
     useGame.getState().tickTime(delta)
     if (useGame.getState().interlude) return
-    const rate = shelter.inside ? DRAIN_PER_SECOND * SHED_DRAIN_FACTOR : DRAIN_PER_SECOND
+    let rate = DRAIN_PER_SECOND
+    if (shelter.inside) rate *= SHED_DRAIN_FACTOR
+    if (useGame.getState().blanketActive) rate *= BLANKET_DRAIN_FACTOR
     useGame.getState().tickWarmth(rate * delta)
   })
 

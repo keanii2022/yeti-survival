@@ -5,6 +5,8 @@ import {
   WARMTH_PER_EMBER,
   GREEN_EMBER_SCORE,
   GREEN_ESCAPE_BONUS,
+  SNACK_SECONDS,
+  BLANKET_SECONDS,
 } from './store.js'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
 
@@ -165,6 +167,90 @@ describe('green ember (6.7)', () => {
   })
 })
 
+describe('consumables (6.13)', () => {
+  it('exposes short, positive effect windows', () => {
+    expect(SNACK_SECONDS).toBeGreaterThan(0)
+    expect(SNACK_SECONDS).toBeLessThan(20)
+    expect(BLANKET_SECONDS).toBeGreaterThan(0)
+    expect(BLANKET_SECONDS).toBeLessThan(20)
+  })
+
+  it('grabConsumable pockets one of each kind, never two', () => {
+    get().grabConsumable('snack')
+    expect(get().hasSnack).toBe(true)
+    get().grabConsumable('snack') // already carrying — no change, no error
+    expect(get().hasSnack).toBe(true)
+
+    get().grabConsumable('blanket')
+    expect(get().hasBlanket).toBe(true)
+  })
+
+  it('grabConsumable is a no-op once the run is over', () => {
+    useGame.setState({ status: 'frozen' })
+    get().grabConsumable('snack')
+    expect(get().hasSnack).toBe(false)
+  })
+
+  it('useSnack spends the snack, pins stamina full, and clears the sprint lock', () => {
+    useGame.setState({ hasSnack: true, stamina: 10, sprintLocked: true })
+    get().useSnack()
+
+    expect(get().hasSnack).toBe(false)
+    expect(get().snackActive).toBe(true)
+    expect(get().stamina).toBe(100)
+    expect(get().sprintLocked).toBe(false)
+  })
+
+  it('useSnack is a no-op without a snack in hand', () => {
+    get().useSnack()
+    expect(get().snackActive).toBe(false)
+  })
+
+  it('tickStamina holds the bar at full while a snack is active, whatever the drain', () => {
+    useGame.setState({ snackActive: true, stamina: 100 })
+    get().tickStamina(true, 999) // a full frame of "sprinting"
+    expect(get().stamina).toBe(100)
+    expect(get().sprintLocked).toBe(false)
+  })
+
+  it('endSnack lifts the effect so normal stamina drain resumes', () => {
+    useGame.setState({ snackActive: true })
+    get().endSnack()
+    expect(get().snackActive).toBe(false)
+
+    useGame.setState({ stamina: 50 })
+    get().tickStamina(true, 10)
+    expect(get().stamina).toBe(40)
+  })
+
+  it('useBlanket spends the blanket and arms the slower-drain flag', () => {
+    useGame.setState({ hasBlanket: true })
+    get().useBlanket()
+
+    expect(get().hasBlanket).toBe(false)
+    expect(get().blanketActive).toBe(true)
+
+    get().endBlanket()
+    expect(get().blanketActive).toBe(false)
+  })
+
+  it('reset clears every consumable flag', () => {
+    useGame.setState({
+      hasSnack: true,
+      hasBlanket: true,
+      snackActive: true,
+      blanketActive: true,
+    })
+    get().reset()
+    expect(get()).toMatchObject({
+      hasSnack: false,
+      hasBlanket: false,
+      snackActive: false,
+      blanketActive: false,
+    })
+  })
+})
+
 describe('run status transitions', () => {
   it('pause only works from "playing", resume only from "paused"', () => {
     get().pause()
@@ -204,6 +290,10 @@ describe('reset', () => {
       warmth: 3,
       stamina: 0,
       sprintLocked: true,
+      hasSnack: true,
+      hasBlanket: true,
+      snackActive: true,
+      blanketActive: true,
     })
     const before = get().runId
 
@@ -224,6 +314,10 @@ describe('reset', () => {
       warmth: 100,
       stamina: 100,
       sprintLocked: false,
+      hasSnack: false,
+      hasBlanket: false,
+      snackActive: false,
+      blanketActive: false,
       runId: before + 1,
     })
   })
