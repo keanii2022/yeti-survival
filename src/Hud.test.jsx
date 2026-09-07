@@ -99,6 +99,33 @@ describe('Hud', () => {
     expect(screen.getByText('Press R to start over')).toBeInTheDocument()
   })
 
+  it('offers a tap-to-restart button on the game-over card on touch', () => {
+    useGame.setState({ status: 'caught', level: 2 })
+    render(<Hud locked={false} isTouch={true} />)
+
+    expect(
+      screen.getByRole('button', { name: 'Try again' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Press R to try again')).not.toBeInTheDocument()
+  })
+
+  it('keeps the keyboard prompt (no button) on the game-over card on desktop', () => {
+    useGame.setState({ status: 'caught', level: 2 })
+    render(<Hud locked={true} />)
+
+    expect(screen.getByText('Press R to try again')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('gives the win screen Nightfall + Start over buttons on touch', () => {
+    useGame.setState({ status: 'won', level: 8, score: 6000, embersTotal: 60 })
+    render(<Hud locked={false} isTouch={true} />)
+
+    expect(screen.getByRole('button', { name: 'Nightfall' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start over' })).toBeInTheDocument()
+    expect(screen.queryByText(/Press N/)).not.toBeInTheDocument()
+  })
+
   it('shows the cold game-over card when frozen', () => {
     useGame.setState({ status: 'frozen', score: 120 })
     render(<Hud locked={true} />)
