@@ -399,6 +399,46 @@ class Atmosphere {
     })
   }
 
+  // Green ember (6.7): a brighter, richer arpeggiated major triad — clearly a
+  // bigger prize than the plain two-note ember chime.
+  greenPickup() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.24, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8)
+    g.connect(this.master)
+    ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.connect(g)
+      o.start(t + i * 0.05)
+      o.stop(t + 0.8)
+    })
+  }
+
+  // Clean getaway (6.7): a short rising three-note flourish when the green ember
+  // makes it clear of the yeti's range.
+  escape() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.2, t + 0.03)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1)
+    g.connect(this.master)
+    ;[392, 587.33, 880].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.connect(g)
+      o.start(t + i * 0.11)
+      o.stop(t + 1.1)
+    })
+  }
+
   // One heavy descending boom on game over; the yeti kill also gets the stinger.
   gameOver(kind) {
     const { ctx } = this

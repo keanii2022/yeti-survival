@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { useGame, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
+import {
+  useGame,
+  EMBER_SCORE,
+  WARMTH_PER_EMBER,
+  GREEN_EMBER_SCORE,
+  GREEN_ESCAPE_BONUS,
+} from './store.js'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
 
 // The store is the game's rulebook: warmth, stamina, score, and the two ways a
@@ -125,6 +131,40 @@ describe('tickStamina', () => {
   })
 })
 
+describe('green ember (6.7)', () => {
+  it('exposes bonuses well above a plain ember', () => {
+    expect(GREEN_EMBER_SCORE).toBeGreaterThan(EMBER_SCORE)
+    expect(GREEN_ESCAPE_BONUS).toBeGreaterThan(0)
+  })
+
+  it('collectGreenEmber adds the score and counts one, without touching the wave', () => {
+    useGame.setState({ warmth: 50 })
+    get().collectGreenEmber()
+
+    expect(get().score).toBe(GREEN_EMBER_SCORE)
+    expect(get().greenCount).toBe(1)
+    // not part of a level's target, and no warmth lever
+    expect(get().itemsCollected).toBe(0)
+    expect(get().embersTotal).toBe(0)
+    expect(get().warmth).toBe(50)
+  })
+
+  it('greenEscape adds the getaway bonus and counts one', () => {
+    get().greenEscape()
+    expect(get().score).toBe(GREEN_ESCAPE_BONUS)
+    expect(get().escapes).toBe(1)
+  })
+
+  it('both are no-ops once the run is over', () => {
+    useGame.setState({ status: 'caught' })
+    get().collectGreenEmber()
+    get().greenEscape()
+    expect(get().score).toBe(0)
+    expect(get().greenCount).toBe(0)
+    expect(get().escapes).toBe(0)
+  })
+})
+
 describe('run status transitions', () => {
   it('pause only works from "playing", resume only from "paused"', () => {
     get().pause()
@@ -155,6 +195,8 @@ describe('reset', () => {
       itemsCollected: 5,
       itemsTotal: 8,
       embersTotal: 40,
+      greenCount: 3,
+      escapes: 2,
       level: 4,
       interlude: true,
       nightfall: true,
@@ -173,6 +215,8 @@ describe('reset', () => {
       itemsCollected: 0,
       itemsTotal: levelTarget(1),
       embersTotal: 0,
+      greenCount: 0,
+      escapes: 0,
       level: 1,
       interlude: false,
       nightfall: false,

@@ -5,6 +5,7 @@ import Snow from './Snow.jsx'
 import Player from './Player.jsx'
 import Yeti from './Yeti.jsx'
 import Items from './Items.jsx'
+import GreenEmber from './GreenEmber.jsx'
 import Levels from './Levels.jsx'
 import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
@@ -60,6 +61,7 @@ export default function App() {
         <Player />
         <Yeti />
         <Items />
+        <GreenEmber />
         <Levels />
         <Survival />
         <Sound />

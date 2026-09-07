@@ -114,6 +114,29 @@
   }
 }
 
+/* Adrenaline readout (6.7) — sits just above the chase-state line, green to
+   match the ember. Shown only while the boost sprint is actually available. */
+.adrenaline {
+  position: absolute;
+  left: 50%;
+  bottom: 26%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  color: #57e08a;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  animation: pursuit-pulse 0.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adrenaline {
+    animation: none;
+  }
+}
+
 .prompt {
   padding: 2rem 3rem;
   border-radius: 12px;

@@ -32,6 +32,8 @@ export default function Sound() {
   const prevMode = useRef('idle')
   const prevStatus = useRef('playing')
   const prevItems = useRef(0)
+  const prevGreen = useRef(0)
+  const prevEscapes = useRef(0)
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -50,9 +52,13 @@ export default function Sound() {
   useEffect(() => {
     threat.distance = Infinity
     threat.mode = 'idle'
+    threat.yetiX = 0
+    threat.yetiZ = 0
     prevMode.current = 'idle'
     prevStatus.current = 'playing'
     prevItems.current = 0
+    prevGreen.current = 0
+    prevEscapes.current = 0
     getAtmosphere()?.revive()
     const root = document.documentElement.style
     root.setProperty('--threat', '0')
@@ -67,7 +73,8 @@ export default function Sound() {
     const eng = getAtmosphere()
     if (!eng) return
     const delta = Math.min(rawDelta, 0.1)
-    const { status, embersTotal, level, interlude, nightfall } = useGame.getState()
+    const { status, embersTotal, greenCount, escapes, level, interlude, nightfall } =
+      useGame.getState()
 
     // --- state-change one-shots ---
     if (status !== prevStatus.current) {
@@ -97,6 +104,13 @@ export default function Sound() {
     // counter resets between waves.
     if (embersTotal > prevItems.current) eng.pickup()
     prevItems.current = embersTotal
+
+    // Green-ember cues (6.7): a richer chime on the grab, a rising flourish when
+    // it clears the yeti's range.
+    if (greenCount > prevGreen.current) eng.greenPickup()
+    prevGreen.current = greenCount
+    if (escapes > prevEscapes.current) eng.escape()
+    prevEscapes.current = escapes
 
     // --- threat level → heartbeat / drone / vignette ---
     // During a chase the level tracks how close he actually is (0.7 at the edge
