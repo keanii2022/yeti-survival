@@ -4,6 +4,9 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Served from https://keanii2022.github.io/yeti-survival/ — assets must
+  // resolve under that sub-path. Local dev stays at "/".
+  base: '/yeti-survival/',
   plugins: [react()],
   test: {
     // Component and hook tests need a DOM; the pure store tests don't care.
