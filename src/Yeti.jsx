@@ -9,6 +9,7 @@ import { createProbe, beginProbe, stepProbe } from './investigate.js'
 import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
+import { qualityFor } from './quality.js'
 import {
   generateSheds,
   resolveShedCollision,
@@ -199,6 +200,7 @@ function YetiModel({ eyeRef }) {
 export default function Yeti() {
   const group = useRef()
   const { camera } = useThree()
+  const isTouch = useGame((s) => s.isTouch)
 
   // Rolled once per mount; the scene remounts on every run (App keys on runId),
   // so this re-randomizes each time.
@@ -206,8 +208,11 @@ export default function Yeti() {
 
   // Trunk / shed colliders for this run — the same fixed-seed lists World.jsx
   // renders. Defined before the AI ref so the shed-check bookkeeping can size
-  // itself to the shed count.
-  const trees = useMemo(() => generateTrees(), [])
+  // itself to the shed count. 9.5: touch collides against the thinned stand.
+  const trees = useMemo(
+    () => generateTrees(qualityFor(isTouch).treeCount),
+    [isTouch],
+  )
   const sheds = useMemo(() => generateSheds(), [])
 
   // Per-frame state kept off React so the chase loop never triggers a re-render.

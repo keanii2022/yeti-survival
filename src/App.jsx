@@ -17,12 +17,17 @@ import Hud from './Hud.jsx'
 import TouchControls from './TouchControls.jsx'
 import { useGame } from './store.js'
 import { detectCoarsePointer } from './touch.js'
+import { qualityFor } from './quality.js'
 import './App.css'
 
 export default function App() {
   const [locked, setLocked] = useState(false)
   const runId = useGame((s) => s.runId)
   const isTouch = useGame((s) => s.isTouch)
+  // Step 9.5: on a touch device the whole scene renders on a lighter budget —
+  // clamped DPR, cheaper shadows, thinner tree stand and snow. Desktop reads
+  // the same values it always had.
+  const quality = qualityFor(isTouch)
 
   // Step 9.1: decide once whether this is a touch device. matchMedia catches
   // phones up front; the one-shot touchstart listener is the fallback for
@@ -80,7 +85,8 @@ export default function App() {
           back to the spawn and the yeti back to its post. */}
       <Canvas
         key={runId}
-        shadows
+        shadows={quality.shadows}
+        dpr={[1, quality.maxDpr]}
         camera={{ position: [0, 1.7, 8], fov: 70, near: 0.1, far: 320 }}
       >
         <World />

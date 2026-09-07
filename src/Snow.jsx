@@ -2,12 +2,14 @@ import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
+import { qualityFor } from './quality.js'
 
 // Step 5 atmosphere: a flurry of falling flakes that always surrounds the
 // player. It's one THREE.Points cloud living in a box centred on the camera —
 // flakes that fall out the bottom (or drift past an edge as you walk) are
 // wrapped back in, so a fixed pool of points covers the whole arena for cheap.
-const COUNT = 1500
+// 9.5 thins the pool on touch — the per-flake sway runs on the CPU, so the
+// count is a direct frame-time cost on a phone.
 const BOX = 42 // width/depth of the flurry box, metres
 const TOP = 22 // flakes recycle to this height
 const FALL = 3.0 // base descent, m/s
@@ -29,6 +31,7 @@ function mulberry32(seed) {
 export default function Snow() {
   const points = useRef()
   const { camera } = useThree()
+  const COUNT = qualityFor(useGame((s) => s.isTouch)).snowCount
 
   // Initial scatter plus a per-flake fall-speed multiplier for a bit of variety.
   const { positions, speeds } = useMemo(() => {
@@ -42,7 +45,7 @@ export default function Snow() {
       speeds[i] = 0.6 + rand() * 0.9
     }
     return { positions, speeds }
-  }, [])
+  }, [COUNT])
 
   // Soft round flake — a radial-gradient sprite beats hard little squares.
   const sprite = useMemo(() => {
