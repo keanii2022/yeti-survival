@@ -265,9 +265,12 @@ export default function Yeti() {
       a.mode = 'chase'
     }
 
-    // Publish the readout the audio engine / vignette poll each frame.
+    // Publish the readout the audio engine / vignette poll each frame. 6.7 adds
+    // the yeti's position so the green ember can spawn close to it.
     threat.distance = dist
     threat.mode = a.mode
+    threat.yetiX = g.position.x
+    threat.yetiZ = g.position.z
 
     // --- caught? --- (never mid-interlude; the yeti isn't hunting then)
     if (!interlude && dist < CATCH_RADIUS) {

@@ -4,6 +4,7 @@ import { PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useKeyboardControls } from './hooks/useKeyboardControls.js'
 import { useGame } from './store.js'
+import { greenEmber } from './greenEmber.js'
 
 // First-person controller: mouse look via PointerLockControls, WASD movement
 // on the ground plane. No physics yet — the player floats at a fixed eye
@@ -11,6 +12,10 @@ import { useGame } from './store.js'
 const EYE_HEIGHT = 1.7
 const WALK_SPEED = 6 // metres / second
 const SPRINT_SPEED = 10
+// 6.7: sprinting inside the green ember's radius (or the escape window just
+// after grabbing it) runs at this instead — a hair over the yeti's hardest
+// close-range lunge, so the risky grab-and-run is survivable.
+const ADRENALINE_SPEED = 11
 const SPRINT_DRAIN = 13 // stamina/sec while sprinting — ~7.5s from a full bar.
 // Eased from 16 in 6.6: enough runway to clear the yeti's ~24u lose-radius (L1)
 // and cut sideways into cover, but a flat-out straight sprint still runs dry
@@ -76,7 +81,8 @@ export default function Player() {
       moving && held.sprint && !game.sprintLocked && game.stamina > 0
 
     if (moving) {
-      const speed = sprinting ? SPRINT_SPEED : WALK_SPEED
+      const sprintSpeed = greenEmber.boost ? ADRENALINE_SPEED : SPRINT_SPEED
+      const speed = sprinting ? sprintSpeed : WALK_SPEED
       move.normalize().multiplyScalar(speed * Math.min(delta, MAX_STEP))
       camera.position.add(move)
     }

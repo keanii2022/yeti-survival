@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useGame, EMBER_SCORE } from './store.js'
+import {
+  useGame,
+  EMBER_SCORE,
+  GREEN_EMBER_SCORE,
+  GREEN_ESCAPE_BONUS,
+} from './store.js'
 import { threat } from './threat.js'
+import { greenEmber } from './greenEmber.js'
 import MuteToggle from './MuteToggle.jsx'
 
 // A glanceable read on the yeti's attention so you don't have to swing the
@@ -21,6 +27,23 @@ function ChaseState() {
   if (mode === 'chase') return <div className="pursuit chasing">he sees you</div>
   if (mode === 'search') return <div className="pursuit searching">he&rsquo;s searching</div>
   return null
+}
+
+// 6.7: flashes while the green ember's adrenaline sprint is available — inside
+// its radius, or the escape window right after grabbing it. Same rAF-polled,
+// render-only-on-change shape as ChaseState.
+function AdrenalineCue() {
+  const [on, setOn] = useState(false)
+  const raf = useRef()
+  useEffect(() => {
+    const tick = () => {
+      setOn(greenEmber.boost)
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [])
+  return on ? <div className="adrenaline">adrenaline</div> : null
 }
 
 // Whole seconds -> "M:SS" for the game-over readout.
@@ -45,6 +68,8 @@ export default function Hud({ locked }) {
   const itemsCollected = useGame((s) => s.itemsCollected)
   const itemsTotal = useGame((s) => s.itemsTotal)
   const embersTotal = useGame((s) => s.embersTotal)
+  const greenCount = useGame((s) => s.greenCount)
+  const escapes = useGame((s) => s.escapes)
   const interlude = useGame((s) => s.interlude)
   const nightfall = useGame((s) => s.nightfall)
 
@@ -82,6 +107,8 @@ export default function Hud({ locked }) {
       {locked && playing && <div className="crosshair" />}
 
       {locked && playing && <ChaseState />}
+
+      {locked && playing && <AdrenalineCue />}
 
       {showMute && <MuteToggle />}
 
@@ -147,6 +174,22 @@ export default function Hud({ locked }) {
                 {embersTotal} &times; {EMBER_SCORE}
               </span>
             </p>
+            {greenCount > 0 && (
+              <p>
+                <span>Green embers</span>
+                <span>
+                  {greenCount} &times; {GREEN_EMBER_SCORE}
+                </span>
+              </p>
+            )}
+            {escapes > 0 && (
+              <p>
+                <span>Clean getaways</span>
+                <span>
+                  {escapes} &times; {GREEN_ESCAPE_BONUS}
+                </span>
+              </p>
+            )}
             <p className="tally-total">
               <span>Score</span>
               <span>{score}</span>
@@ -193,6 +236,22 @@ export default function Hud({ locked }) {
                 {embersTotal} &times; {EMBER_SCORE}
               </span>
             </p>
+            {greenCount > 0 && (
+              <p>
+                <span>Green embers</span>
+                <span>
+                  {greenCount} &times; {GREEN_EMBER_SCORE}
+                </span>
+              </p>
+            )}
+            {escapes > 0 && (
+              <p>
+                <span>Clean getaways</span>
+                <span>
+                  {escapes} &times; {GREEN_ESCAPE_BONUS}
+                </span>
+              </p>
+            )}
             <p className="tally-total">
               <span>Score</span>
               <span>{score}</span>

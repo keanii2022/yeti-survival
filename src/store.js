@@ -16,10 +16,16 @@ import { LEVEL_COUNT, levelTarget } from './levels.js'
 const START_WARMTH = 100
 const START_STAMINA = 100
 
-// Flat points per ember — the whole of `score` for now (green-ember bonuses
-// join in 6.7). Kept here so the HUD can show the "N embers x EMBER_SCORE"
-// breakdown without reaching into Items.
+// Flat points per ember. Kept here so the HUD can show the "N embers x
+// EMBER_SCORE" breakdown without reaching into Items.
 export const EMBER_SCORE = 100
+
+// Step 6.7: the green ember. One at a time, spawns next to the yeti, so grabbing
+// it means diving into danger — hence it's worth 5x a normal ember, and clearing
+// the yeti's range with it in hand pays a further bonus. Neither counts toward a
+// level's ember target; they're pure score on top of the climb.
+export const GREEN_EMBER_SCORE = 500
+export const GREEN_ESCAPE_BONUS = 250
 
 // Embers still buy back warmth, but only a little. Eased from 10 in a playtest
 // pass — with 7–8 embers a level the bank was running a touch fat; at 8 apiece
@@ -50,6 +56,12 @@ export const useGame = create((set) => ({
   itemsCollected: 0,
   itemsTotal: levelTarget(1),
   embersTotal: 0,
+
+  // 6.7 green-ember tallies — run-long counts the game-over ledger reads back.
+  // `greenCount` is how many green embers were grabbed; `escapes` how many of
+  // those turned into a clean getaway past the yeti.
+  greenCount: 0,
+  escapes: 0,
 
   // The level being played (1..LEVEL_COUNT, then unbounded in nightfall).
   level: 1,
@@ -96,6 +108,25 @@ export const useGame = create((set) => ({
       }
       return next
     }),
+
+  // Grab the green ember (6.7): a big flat score bump. Doesn't touch the level
+  // count, the ember target, or warmth — it's a risk play for points, not a
+  // warmth lever. GreenEmber.jsx then opens a short escape window.
+  collectGreenEmber: () =>
+    set((s) =>
+      s.status !== 'playing'
+        ? {}
+        : { score: s.score + GREEN_EMBER_SCORE, greenCount: s.greenCount + 1 },
+    ),
+
+  // Cleared the yeti's range with the green ember in hand before the escape
+  // window closed — pay the getaway bonus.
+  greenEscape: () =>
+    set((s) =>
+      s.status !== 'playing'
+        ? {}
+        : { score: s.score + GREEN_ESCAPE_BONUS, escapes: s.escapes + 1 },
+    ),
 
   // Called by Levels.jsx when the interlude timer runs out: advance to the next
   // level and spawn its wave.
@@ -176,6 +207,8 @@ export const useGame = create((set) => ({
       itemsCollected: 0,
       itemsTotal: levelTarget(1),
       embersTotal: 0,
+      greenCount: 0,
+      escapes: 0,
       level: 1,
       interlude: false,
       nightfall: false,
