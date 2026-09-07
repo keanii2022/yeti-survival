@@ -41,6 +41,15 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
    per sub-step; playtest between each; no batching. Full detail in the README's
    "Step 6" section; order within the 6.10–6.14 hide-and-seek group is set by
    playtest, not fixed.
+7. Chase-fair + toolkit — fix the linear chase (yeti turn-rate cap → look-behind
+   mirror → footprints), then the inventory / consumables system, control-map
+   cleanup, and world mechanics (frozen pond, campfire, shed extension, weather
+   events). Same one-session / one-commit / one-playtest / no-batching rule.
+   Full detail in the README's "Step 7" section.
+8. AI escalation & replay — distracted feeding, roar / stun, two yetis (Hunter +
+   Guardian), daily seed, per-level modifiers, nightfall rework. Needs Step 7
+   shipped and fully playtested first. Full detail in the README's "Step 8"
+   section.
 
 ### Step 6 sub-steps
 
@@ -84,8 +93,9 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
   warmth drain. Yeti periodically checks the nearest one with a tell (footfalls /
   breathing / door rattle) and a cooldown. Hiding trades safety for warmth + lost
   ember time.
-- **6.13 Snacks + blanket** — rare consumables. Snack: press S to eat, locks
-  stamina at full for a window. Blanket: slower warmth drain for a window.
+- **6.13 Snacks + blanket** — rare consumables. Snack: press E to eat, locks
+  stamina at full for a window. Blanket: press Q to wrap up, slower warmth drain
+  for a window.
 - **6.14 Decoy** *(needs 6.11, pairs with 6.7)* — throwable; yeti diverts to
   investigate for a few seconds, resetting a chase. Rare; spawns near the green
   ember.

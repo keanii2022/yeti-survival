@@ -1,9 +1,9 @@
 # Yeti Survival — v2 / Post-Step-6 Backlog
 
-**Status:** brainstorm, not committed scope. v1 = Steps 1–5. Step 6 (6.1–6.14) is the
-current polish pass and stays exactly as written in the README. Everything in this doc is
-*after* that — call it **Step 7**. Some items here (2 yetis, weather) are explicitly out of
-v1 per CLAUDE.md; this is where they live until v1 + Step 6 are done.
+**Status:** folded into the README as **Step 7** (chase-fair, inventory, controls, world)
+and **Step 8** (AI escalation & replay) on 2026-09-07. This doc is kept as the reasoning
+trail — why each call was made, what was refined, what was rejected. The README sections
+are the live scope; edit those, not this.
 
 ---
 
