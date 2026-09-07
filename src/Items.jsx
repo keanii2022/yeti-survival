@@ -8,7 +8,7 @@ import { ARENA_HALF } from './Player.jsx'
 // Embers to collect. Walk over one to grab it — score, plus a small warmth
 // top-up, so straying from safety toward the yeti is the price of staying warm.
 // No physics; pickup is a plain distance check against the camera each frame.
-const PICKUP_RADIUS = 2.2
+const PICKUP_RADIUS = 2.6
 const HOVER_HEIGHT = 0.9
 
 // Step 6.6: the fixed, deterministic scatter of six is gone. Each level spawns
@@ -115,7 +115,7 @@ function EmberWave({ level }) {
       // The final ember of a wave is boosted further — that's the one that was
       // freezing people on the bigger levels.
       let boost = Math.min(1, Math.max(0, (Math.sqrt(dist2) - 10) / 18))
-      if (remaining === 1) boost = Math.min(1, boost + 0.4)
+      if (remaining === 1) boost = Math.min(1, boost + 0.55)
       const light = lights.current[i]
       if (light) {
         light.intensity = 9 + boost * 11
@@ -147,7 +147,7 @@ function EmberWave({ level }) {
         position={[p[0], HOVER_HEIGHT, p[2]]}
       >
         <mesh castShadow>
-          <icosahedronGeometry args={[0.4, 0]} />
+          <icosahedronGeometry args={[0.52, 0]} />
           <meshStandardMaterial
             color="#ffce8a"
             emissive="#ff7a1a"
@@ -160,7 +160,7 @@ function EmberWave({ level }) {
             range, not just a speck once the point light falls off. Opacity is
             driven per-frame by the beacon falloff above. */}
         <mesh ref={(el) => (orbs.current[i] = el)}>
-          <sphereGeometry args={[0.95, 12, 12]} />
+          <sphereGeometry args={[1.15, 12, 12]} />
           <meshBasicMaterial
             color="#ff9a3c"
             transparent
