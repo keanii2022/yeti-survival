@@ -754,3 +754,188 @@
     transform: scaleY(0);
   }
 }
+
+/* --- 9.4 responsive HUD + full-bleed threat wash --- */
+
+/* On touch there's a dedicated on-screen L button (9.3), so the bottom-left
+   "L look back" chip is dead weight — and it lands right where the joystick
+   plants. Drop it. */
+.hud.touch .lookhint {
+  display: none;
+}
+
+/* The proximity vignette is a tasteful red *frame* on desktop: a clear centre,
+   colour only at the edges. On a phone-sized screen that band is a sliver you
+   barely register mid-sprint, so on touch the whole viewport reddens — centre
+   included — and keeps deepening with --threat. */
+.hud.touch .vignette {
+  opacity: calc(var(--threat, 0) * 0.95);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(118, 8, 8, 0.3) 0%,
+    rgba(78, 4, 4, 0.58) 58%,
+    rgba(22, 0, 0, 0.9) 100%
+  );
+}
+
+/* The lunge cue likewise: desktop draws it as a fixed-inset edge glow
+   (inset 0 0 80px 24px), which is a hair-thin border on a 360px-tall screen.
+   On touch it fills the frame instead — a flat red the whole viewport, pulsing
+   on --danger, so "he's on you" is the screen going hot, not a 24px rim. */
+.hud.touch .lunge {
+  box-shadow: none;
+  background: rgba(214, 26, 18, 0.42);
+  animation: lunge-wash 0.5s ease-in-out infinite;
+}
+
+@keyframes lunge-wash {
+  0%,
+  100% {
+    opacity: calc(var(--danger, 0) * 0.68);
+  }
+  50% {
+    opacity: var(--danger, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud.touch .lunge {
+    animation: none;
+  }
+}
+
+/* Short viewports — a phone held in landscape (9.6 nudges players there). The
+   corner gauges, score and prompt cards are sized for a desktop window; at
+   ~360px tall they crowd each other and the game-over tally clips off-screen.
+   Scale the whole readout down. Keyed on height alone so a normal desktop
+   window is never touched. */
+@media (max-height: 480px) {
+  .gauge {
+    top: 0.6rem;
+    left: max(0.6rem, env(safe-area-inset-left));
+    width: 150px;
+  }
+
+  .gauge.stamina {
+    top: 2.5rem;
+  }
+
+  .gauge-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    margin-bottom: 0.2rem;
+  }
+
+  .gauge-track {
+    height: 8px;
+  }
+
+  .score {
+    top: 0.6rem;
+    right: max(0.7rem, env(safe-area-inset-right));
+  }
+
+  .score-value {
+    font-size: 1.5rem;
+  }
+
+  .score-sub {
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* 9.3's WALK / RUN pill sits under the gauges — follow them up. */
+  .move-state {
+    top: 62px;
+  }
+
+  /* Centred pursuit / adrenaline / shelter cues are placed by percentage, which
+     collapses to a few px of spacing on a short screen. Pin them to fixed
+     offsets off the bottom edge, stacked and shrunk, clear of the thumb zones. */
+  .pursuit {
+    bottom: 3.4rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+  }
+
+  .adrenaline {
+    bottom: 4.9rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+  }
+
+  .shelter {
+    bottom: 6.4rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+  }
+
+  .consumables {
+    bottom: 3.4rem;
+    gap: 0.3rem;
+  }
+
+  .consumable {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+  }
+
+  /* Prompt cards — trim the padding and type so the game-over tally fits inside
+     a landscape phone, with a scroll fallback if it still doesn't. */
+  .prompt {
+    padding: 0.9rem 1.4rem;
+    max-width: 92vw;
+    max-height: 92svh;
+    overflow-y: auto;
+  }
+
+  .prompt h1 {
+    margin-bottom: 0.4rem;
+    font-size: 1.25rem;
+  }
+
+  .prompt p {
+    margin: 0.15rem 0;
+    font-size: 0.85rem;
+  }
+
+  .prompt .keys {
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .prompt .final {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .prompt.levelcard h1 {
+    font-size: 1.6rem;
+  }
+
+  .prompt .tally {
+    margin-top: 0.5rem;
+    width: 13rem;
+    font-size: 0.8rem;
+  }
+
+  .prompt .tally p {
+    margin: 0.18rem 0;
+  }
+
+  .prompt .tally .tally-total {
+    margin-top: 0.4rem;
+    padding-top: 0.35rem;
+    font-size: 0.95rem;
+  }
+
+  .prompt-btn {
+    margin-top: 0.8rem;
+    padding: 0.55rem 1.2rem;
+    font-size: 0.85rem;
+  }
+
+  .prompt-btns .prompt-btn {
+    margin-top: 0;
+  }
+}

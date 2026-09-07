@@ -143,6 +143,14 @@ describe('Hud', () => {
     expect(screen.queryByText('Click to look around')).not.toBeInTheDocument()
   })
 
+  it('marks the HUD root .touch on a touch device so the CSS can go full-bleed', () => {
+    const { container, rerender } = render(<Hud locked={false} isTouch={true} />)
+    expect(container.querySelector('.hud.touch')).not.toBeNull()
+
+    rerender(<Hud locked={true} isTouch={false} />)
+    expect(container.querySelector('.hud.touch')).toBeNull()
+  })
+
   it('draws the crosshair only while a run is live and locked', () => {
     const { container, rerender } = render(<Hud locked={true} />)
     expect(container.querySelector('.crosshair')).not.toBeNull()

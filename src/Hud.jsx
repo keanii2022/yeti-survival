@@ -194,9 +194,10 @@ export default function Hud({ locked, isTouch }) {
         : '#cfe9ff'
 
   return (
-    <div className="hud">
+    <div className={`hud${isTouch ? ' touch' : ''}`}>
       {/* Edges darken and redden as the yeti closes in — opacity is driven by
-          the `--threat` CSS var that Sound.jsx updates each frame. */}
+          the `--threat` CSS var that Sound.jsx updates each frame. On touch the
+          `.hud.touch` scope (9.4) turns this frame into a full-viewport wash. */}
       <div className="vignette" />
 
       {/* Throbs on top of the vignette when the yeti is in pounce range mid-
