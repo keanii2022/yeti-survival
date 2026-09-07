@@ -42,7 +42,9 @@ input hook, and the HUD's state-driven rendering.
 - [x] Yeti with chase-detection AI
 - [x] Embers, warmth meter, scoring, game-over screen
 - [x] Atmosphere — snowfall, ambient audio, proximity stingers
-- [ ] Step 6 — polish / stretch (see below)
+- [x] Step 6 — polish / stretch (6.1–6.14)
+- [ ] Step 7 — chase-fair, inventory, controls, world (see below)
+- [ ] Step 8 — AI escalation & replay (see below)
 
 ## Step 6 — polish / stretch
 
@@ -149,13 +151,131 @@ Dependency order: 6.5 → 6.10 → 6.11 → 6.6 → 6.7. 6.12 needs 6.11; 6.14 n
 and 6.7; 6.13 is standalone. 6.8 and 6.9 slot in anywhere. Within the
 hide-and-seek group (6.10–6.14) the exact order is playtest-driven.
 
-## v2 — parked
+## Step 7 — chase-fair, inventory, controls, world
 
-Explicit "not step 6" decisions:
+Scoped from the post–Step-6 brainstorm in `docs/v2-backlog.md`, redlined then
+folded here. Same discipline as Step 6: one session and one commit per item, a
+playtest between each, no batching, push after each.
+
+The through-line: Step 6 gave the yeti a memory, but the chase is still unfair —
+it re-aims at your exact position every frame, so juking does nothing. 7.1–7.3
+fix that; the rest builds the hide-and-seek toolkit on top.
+
+- **7.1 Yeti max turn rate** — a hard cap on how fast the yeti's heading changes.
+  A 90° cut now opens a gap it has to arc back from, so a chase reads as a chase.
+  Prerequisite for the whole group; hiding / juking / decoys all feel unfair
+  without it.
+- **7.2 Mirror / look-behind (L)** — press **L**, the camera glances behind you,
+  the view frosts over after ~1–2 s, maybe a short cooldown. The coarse feedback
+  that makes 7.1 legible — you cut, then check. Stays outside the hint system: no
+  yeti bearing on the HUD, ever. (Was "M" in early notes; M is an inventory slot
+  now.)
+- **7.3 Footprints** — the player leaves tracks in snow. An investigating yeti
+  (6.11) follows them toward your last-known instead of teleporting its attention
+  there. Tracks fade over time; hard ground — shed floor now, pond ice and rock
+  later — leaves none. Adds the surface-type hook 7.13 and 7.15 reuse.
+- **7.4 Inventory** — 4 generic carried slots, keys **V B N M**. Pick an item
+  into whatever slot is free, not one key per type. Full inventory → drop one
+  (stays in the world, found via 7.5) to pick another. Migrates snack / blanket /
+  decoy onto this system and retires their 6.13 E/Q bindings. The one-handed
+  V/B/N/M fumble while steering is intentional — don't smooth it; using an item
+  may briefly lock you to walk speed.
+- **7.5 Dropped-item hint pip** — a fuzzy HUD direction pip, no distance, back
+  toward anything you've dropped. Mainly for the blanket (7.6); applies to any
+  dropped slot item.
+- **7.6 Placeable blanket** — the blanket becomes placeable: set it down, warmth
+  drains slower while you stand on it, 7.5 points you back to it.
+- **7.7 Snack / water-bottle merge** — snack stays the **day** version (locks
+  stamina at full for a window). Water bottle is the **night** version: locked
+  stamina + a small speed boost. Same slot; time of day picks which spawns.
+- **7.8 Throwables — duck & poop** — both reuse 6.11's investigate-a-point.
+  Squeaky duck: loud squeak on landing, a short snappy lure. Poop: squish on
+  landing, the yeti walks over, sniffs, recoils, leaves — a longer window than
+  the duck, no repeat interest. Ship both; the humour is the point for playing
+  with a kid.
+- **7.9 Flare (throwable)** — lights an area and makes the yeti avoid that zone
+  for a while — area denial, the inverse of the duck. Doubles as vision through
+  fog / dusk. Rare.
+- **7.10 Pause** — **Esc** opens a pause menu and releases the mouse in one press
+  (the browser drops pointer-lock on the first Esc, so a two-press design isn't
+  reliable). Click **Resume** to re-lock.
+- **7.11 Sprint rebind** — move sprint off the pinky: **Mouse4** (thumb button),
+  Shift kept as an alias. Still hold-to-sprint, no behaviour change. The toggle /
+  fixed-burst model stays parked pending this playtest.
+- **7.12 Jump** — **Space**, with its own small bar so it can't be spammed. Low
+  obstacles (logs): the player hops them, the yeti has no jump and a wider
+  collision so it detours around. Pairs with the 6.9 tree colliders; the yeti
+  stays dumb.
+- **7.13 Frozen pond** — fast to cross, but **cracks if you sprint** across:
+  falling in is a big warmth hit plus ~1 s immobilised. The yeti avoids the ice
+  and detours. A shortcut with a risk. Ice counts as hard ground for 7.3.
+- **7.14 Campfire** — stand in the radius for warmth regen, but **while lit your
+  detection range balloons**. A direct risk / reward on the core stat.
+- **7.15 Shed extension** — entering a shed **unseen** is still safe (6.12).
+  Entering **while chased**: the yeti waits outside a few seconds, then loses
+  interest — it can't open the door. Shed floor is hard ground: no footprints
+  (7.3).
+- **7.16 Weather events** — discrete events, not a system. Wind gust: directional,
+  accelerates warmth drain when you move into it, readable in the snow particles.
+  Sleet: cuts vision for a window.
+
+**Groups and order:**
+
+- **Chase-fair (7.1–7.3):** 7.1 before 7.2 — the mirror is pointless until a cut
+  actually opens a gap. 7.3 has no code dependency on 7.1/7.2; it's grouped here
+  as the third piece of making the hunt feel fair. Each ships and is playtested
+  on its own, then playtest 7.1–7.3 together as the "does the chase read as a
+  chase now" gate before moving on.
+- **Inventory + consumables (7.4–7.9):** 7.4 first — 7.5, 7.7, 7.8 and 7.9 all
+  need a slot to exist. Then 7.5 before 7.6 (the pip points you back to the
+  placed blanket).
+- **Control-map cleanup (7.10–7.12):** independent of everything else in Step 7;
+  placed after the inventory group by choice, to get slots in sooner.
+- **World mechanics (7.13–7.16):** 7.13 and 7.15 use the hard-ground /
+  surface-type hook from 7.3 (no prints on ice or shed floor); 7.14 and 7.16
+  stand alone.
+
+Within a group the exact order is playtest-driven, like 6.10–6.14.
+
+## Step 8 — AI escalation & replay
+
+Split out of the Step 7 backlog because it's the biggest design risk and wants
+everything in Step 7 — plus a full father-and-son playtest of it — settled first.
+Same one-item-per-commit discipline.
+
+- **8.1 Distracted feeding** — the yeti occasionally stops to feed, fully blind
+  for a few seconds. Spawns near a level's **final** ember cluster, so the last
+  pickups of each level are the tensest.
+- **8.2 Roar / stun** — a telegraphed roar. If the player is in the yeti's
+  sightline when it lands: a brief slow + screen shake. Punishes standing still
+  in the open.
+- **8.3 Two yetis — Hunter + Guardian (from L5)** — the Hunter hunts constantly,
+  ramping on the existing 6.6 dial. The Guardian has a job: it patrols the green
+  ember (6.7) on its **own** ramp track — tighter patrol radius, wider aggro, and
+  at high levels it peels off to chase briefly before returning to post. Net at
+  L5+: one chaser plus one guarded high-value zone, not two chasers. Reframes 6.7
+  as "raid the Guardian's turf while the Hunter is still on you."
+- **8.4 Daily seed** — one fixed seed per calendar day, so two people can compare
+  scores on the same layout. No persistent leaderboard.
+- **8.5 Per-level modifiers** — occasional twist levels: blizzard (vision cut),
+  blackout (no HUD), double embers. Cheap variety on top of the linear ramp.
+- **8.6 Nightfall rework** *(needs 8.3)* — replaces the current capped-replay
+  nightfall. Both yetis always present, shorter calm interludes, escalation that
+  keeps going; score is how far you get. This is the "let the yeti climb past the
+  base-game peak, paired with counterplay that earns it" design the old v2 note
+  parked — Step 7's agility tools (jump, mirror, night consumables) are that
+  counterplay.
+
+## Parked
+
+Explicitly not in Steps 6–8:
 
 - Streaming / infinite terrain
 - Any yeti pathfinding or route-planning around obstacles
-- Nightfall rework (later, ~v3): let the yeti keep escalating past the base-game
-  peak instead of the current cap, paired with player counterplay that earns it
-  — more agility and night-only consumables (water bottle, etc.). Until that
-  exists as one design, nightfall stays the bounded capped replay it is now.
+- Deep snow drifts + snowshoes — a pair; snowshoes only matter if drifts exist,
+  so revisit together
+- Scent-vs-sight detection modes — found confusing in the brainstorm; night mode
+  already carries the "scarier detection" job
+- Sprint toggle / fixed-burst rework — revisit after the 7.11 Mouse4 rebind
+  playtest
+- Mirror as a physical held item, vs the 7.2 base L-key glance
