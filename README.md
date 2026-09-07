@@ -137,8 +137,9 @@ into a session, no commit spanning two items.
   flip — then a cooldown before it checks the same one again. Hiding is a real
   trade: safe, but warmth still ticking and embers not being collected.
 - **6.13 Snacks + blanket** — two rare consumables scattered like embers. Snack:
-  press **S** to eat, locks stamina at full for a fixed window. Blanket: warmth
-  drains much slower for a fixed window. Both scarce enough to feel precious.
+  press **E** to eat, locks stamina at full for a fixed window. Blanket: press
+  **Q** to wrap up, warmth drains much slower for a fixed window. Both scarce
+  enough to feel precious.
 - **6.14 Decoy (throwable)** *(needs 6.11, pairs with 6.7)* — a throwable item the
   yeti diverts to investigate for a few seconds, hard-resetting an active chase.
   Rare. Spawns near the green ember, so the risky grab doubles as restocking your
