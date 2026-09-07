@@ -80,7 +80,10 @@ export default function Player() {
   // view half-turned or iced up.
   const endGlance = useCallback(() => {
     const gl = glance.current
-    if (gl.phase === 'look' || gl.phase === 'frost') {
+    // On touch the frame loop owns camera.rotation outright and applies the
+    // 180° via a yaw offset keyed on gl.phase — clearing the phase is the whole
+    // undo. On desktop the spin is a real transform that has to be reversed.
+    if (!isTouch && (gl.phase === 'look' || gl.phase === 'frost')) {
       camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
     }
     gl.phase = 'idle'
@@ -88,7 +91,7 @@ export default function Player() {
     mirror.frost = 0
     mirror.ready = true
     document.documentElement.style.setProperty('--frost', '0')
-  }, [camera])
+  }, [camera, isTouch])
 
   // While paused, disable the controls so mouse-look freezes but the pointer
   // stays captured — resuming with Space is then seamless. Once the run ends,
@@ -120,23 +123,29 @@ export default function Player() {
     const onKey = (e) => {
       if (e.code !== 'KeyL' || e.repeat) return
       if (useGame.getState().status !== 'playing') return
-      if (!controls.current?.isLocked) return
+      // Desktop needs the mouse captured; touch (9.3's on-screen L button) has
+      // no pointer lock and is always "in control" while playing.
+      if (!isTouch && !controls.current?.isLocked) return
       const gl = glance.current
       if (gl.phase !== 'idle') return
-      // Freeze the travel heading, spin the view 180°, cut mouse-look.
+      // Freeze the travel heading, spin the view 180°, cut mouse-look. On touch
+      // the frame loop does the spin (a Math.PI yaw offset while gl.phase is
+      // 'look'/'frost') and there's no PointerLockControls to disable.
       camera.getWorldDirection(gl.fwd)
       gl.fwd.y = 0
       if (gl.fwd.lengthSq() < 1e-6) gl.fwd.set(0, 0, -1)
       gl.fwd.normalize()
-      camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
-      controls.current.enabled = false
+      if (!isTouch) {
+        camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
+        controls.current.enabled = false
+      }
       gl.phase = 'look'
       gl.t = 0
       mirror.ready = false
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [camera])
+  }, [camera, isTouch])
 
   // 9.1: drag-look on touch. A finger that lands in the right-hand look zone
   // (and not on an on-screen control) is claimed; its drag turns the view at
@@ -222,10 +231,16 @@ export default function Player() {
     if (useGame.getState().status !== 'playing') return
 
     // On touch, the drag-look handlers have accumulated yaw/pitch — write them
-    // onto the camera here, before the heading is read for movement below.
+    // onto the camera here, before the heading is read for movement below. A
+    // look-behind glance (9.3's L button) has no real transform to spin the
+    // view on touch, so it rides in as a Math.PI yaw offset for the 'look' and
+    // 'frost' phases — dropped once the phase machine flips back behind the
+    // frost white-out.
     if (isTouch) {
+      const g = glance.current
+      const flip = g.phase === 'look' || g.phase === 'frost' ? Math.PI : 0
       camera.rotation.order = 'YXZ'
-      camera.rotation.set(look.current.pitch, look.current.yaw, 0)
+      camera.rotation.set(look.current.pitch, look.current.yaw + flip, 0)
     }
 
     const held = keys.current
@@ -241,7 +256,9 @@ export default function Player() {
         mirror.frost = Math.min(1, gl.t / GLANCE_FROST_TIME)
         if (gl.t >= GLANCE_FROST_TIME) {
           // Behind the white-out: flip back to front and hand mouse-look back.
-          camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
+          // On touch the flip is just the yaw offset above going to 0 as the
+          // phase leaves 'frost' — no transform to reverse.
+          if (!isTouch) camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
           if (controls.current) controls.current.enabled = true
           mirror.frost = 1
           gl.phase = 'melt'
