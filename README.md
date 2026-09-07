@@ -5,6 +5,8 @@ time. You're alone in a snowbound arena. Collect embers to stay warm, keep
 moving, and don't let the yeti close the gap — it's slower than your sprint but
 faster than your walk. Survive as long as you can and bank a high score.
 
+**▶ Play it: [keanii2022.github.io/yeti-survival](https://keanii2022.github.io/yeti-survival/)**
+
 ## Stack
 
 - **Vite + React** — app shell and build
@@ -15,13 +17,19 @@ faster than your walk. Survive as long as you can and bank a high score.
 
 ## Run it
 
+The live build is at
+**[keanii2022.github.io/yeti-survival](https://keanii2022.github.io/yeti-survival/)**,
+redeployed on every push to `main`. To run it locally:
+
 ```bash
 npm install
 npm run dev
 ```
 
 Open the printed localhost URL. Click to capture the mouse — **WASD** move,
-**Shift** sprint, **Esc** release.
+**Shift** sprint, **L** glance behind, **E** / **Q** snack / blanket, **F**
+decoy, **Esc** release. Run `npm run dev -- --host` to reach it from a phone on
+the same network.
 
 ## Tests
 
@@ -45,6 +53,10 @@ input hook, and the HUD's state-driven rendering.
 - [x] Step 6 — polish / stretch (6.1–6.14)
 - [ ] Step 7 — chase-fair, inventory, controls, world (see below)
 - [ ] Step 8 — AI escalation & replay (see below)
+- [ ] Step 9 — Mobile / touch — pulled forward ahead of Step 7's remainder (see below)
+
+Deployed to [GitHub Pages](https://keanii2022.github.io/yeti-survival/); every
+push to `main` redeploys.
 
 ## Step 6 — polish / stretch
 
@@ -266,9 +278,36 @@ Same one-item-per-commit discipline.
   parked — Step 7's agility tools (jump, mirror, night consumables) are that
   counterplay.
 
+## Step 9 — Mobile / touch
+
+Pulled forward ahead of Step 7's remainder: the game is deployed and I want it
+playable on a phone for playtesting with my son. Desktop keyboard/mouse stays the
+default and is left untouched — the touch layer is swapped in on a coarse-pointer
+device. Same discipline as Steps 6–8: one session and one commit per item, a
+playtest between each, push after each. Order within the step is playtest-driven,
+like 6.10–6.14.
+
+- **9.1 Touch detection + drag-look** — coarse-pointer detection swaps in the
+  touch UI. Drag anywhere on the right half of the screen to look; no
+  pointer-lock (iOS Safari can't do it). The keyboard/mouse path is unchanged.
+- **9.2 Movement joystick** — a left-thumb zone maps touch offset to a move
+  vector. Drag past a radius threshold to latch sprint; pull back inside it to
+  release. Replaces WASD + Shift on touch.
+- **9.3 On-screen action buttons** — **L** (glance behind), **E** / **Q** (snack
+  / blanket), **F** (decoy) as thumb-reachable tap targets, clear of the joystick
+  and look zones.
+- **9.4 Responsive HUD + full-bleed threat vignette** — the HUD scales to a small
+  landscape screen; the "he sees you" red wraps the whole viewport instead of a
+  fixed inset.
+- **9.5 Mobile performance tier** — on touch devices: clamp devicePixelRatio,
+  thin the instanced trees and the snow density, cheaper or fewer shadows. Tuned
+  against the framerate on a real phone, not a guess.
+- **9.6 Landscape + fullscreen** — a rotate-to-landscape nudge, fullscreen on
+  first tap, and an add-to-home-screen manifest for a chromeless launch.
+
 ## Parked
 
-Explicitly not in Steps 6–8:
+Explicitly not in Steps 6–9:
 
 - Streaming / infinite terrain
 - Any yeti pathfinding or route-planning around obstacles
