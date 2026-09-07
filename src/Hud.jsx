@@ -27,6 +27,7 @@ function ChaseState() {
   }, [])
   if (mode === 'chase') return <div className="pursuit chasing">he sees you</div>
   if (mode === 'search') return <div className="pursuit searching">he&rsquo;s searching</div>
+  if (mode === 'decoy') return <div className="pursuit distracted">he&rsquo;s distracted</div>
   return null
 }
 
@@ -84,7 +85,9 @@ function ConsumableCue() {
   const hasBlanket = useGame((s) => s.hasBlanket)
   const snackActive = useGame((s) => s.snackActive)
   const blanketActive = useGame((s) => s.blanketActive)
-  if (!hasSnack && !hasBlanket && !snackActive && !blanketActive) return null
+  const hasDecoy = useGame((s) => s.hasDecoy)
+  if (!hasSnack && !hasBlanket && !snackActive && !blanketActive && !hasDecoy)
+    return null
   return (
     <div className="consumables">
       {snackActive ? (
@@ -97,6 +100,7 @@ function ConsumableCue() {
       ) : hasBlanket ? (
         <div className="consumable blanket">Blanket &middot; press Q</div>
       ) : null}
+      {hasDecoy ? <div className="consumable decoy">Decoy &middot; press F</div> : null}
     </div>
   )
 }
@@ -284,7 +288,7 @@ export default function Hud({ locked }) {
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>
           <p className="keys">
-            WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; E snack &nbsp;·&nbsp; Q blanket &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+            WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; E snack &nbsp;·&nbsp; Q blanket &nbsp;·&nbsp; F decoy &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
           </p>
           <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
         </div>

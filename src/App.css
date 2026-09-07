@@ -98,6 +98,12 @@
   opacity: 0.9;
 }
 
+/* 6.14: the decoy pulled him off you — violet, matching the decoy pickup. */
+.pursuit.distracted {
+  color: #b98dff;
+  opacity: 0.9;
+}
+
 @keyframes pursuit-pulse {
   0%,
   100% {
@@ -193,6 +199,10 @@
 
 .consumable.blanket {
   color: #9fbcff;
+}
+
+.consumable.decoy {
+  color: #b98dff;
 }
 
 .consumable.active {

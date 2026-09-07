@@ -39,6 +39,7 @@ export default function Sound() {
   const prevSheltered = useRef(false)
   const prevSnack = useRef(false)
   const prevBlanket = useRef(false)
+  const prevDecoy = useRef(false)
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -68,6 +69,7 @@ export default function Sound() {
     prevSheltered.current = false
     prevSnack.current = false
     prevBlanket.current = false
+    prevDecoy.current = false
     getAtmosphere()?.revive()
     const root = document.documentElement.style
     root.setProperty('--threat', '0')
@@ -92,6 +94,7 @@ export default function Sound() {
       nightfall,
       snackActive,
       blanketActive,
+      hasDecoy,
     } = useGame.getState()
 
     // --- state-change one-shots ---
@@ -141,6 +144,11 @@ export default function Sound() {
     else if (!blanketActive && prevBlanket.current) eng.effectEnd()
     prevBlanket.current = blanketActive
 
+    // Decoy (6.14): the hand emptying while the run's live is a throw — whoosh.
+    // (A grab fills the hand and is deliberately silent, like the other pickups.)
+    if (!hasDecoy && prevDecoy.current) eng.decoyThrow()
+    prevDecoy.current = hasDecoy
+
     // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
     // muffles for as long as you're inside — the "cold's eased" cue for the
     // slower warmth drain. While hidden: if the yeti is near your shed, knock
@@ -175,7 +183,9 @@ export default function Sound() {
     // chase strings pull out, so the drop is audible the moment he breaks off.
     let threatLevel = 0
     if (threat.mode === 'chase') threatLevel = clamp(1 - threat.distance / 30, 0.7, 1)
-    else if (threat.mode === 'search') threatLevel = 0.5
+    // 'decoy' (6.14): he's been pulled off you but is still up and active near
+    // your throw — hold the bed at the same notch as a 'search'.
+    else if (threat.mode === 'search' || threat.mode === 'decoy') threatLevel = 0.5
     else if (threat.distance < NEAR) threatLevel = clamp((NEAR - threat.distance) / 24, 0, 0.8)
 
     // 6.6 darkness drive: climbs with the effective level (nightfall starts it

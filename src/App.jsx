@@ -8,6 +8,7 @@ import Sheds from './Sheds.jsx'
 import Items from './Items.jsx'
 import GreenEmber from './GreenEmber.jsx'
 import Consumables from './Consumables.jsx'
+import Decoy from './Decoy.jsx'
 import Levels from './Levels.jsx'
 import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
@@ -50,6 +51,8 @@ export default function App() {
         // 6.13: wrap a carried blanket (no-op without one).
         useGame.getState().useBlanket()
       }
+      // 6.14's F (throw decoy) is handled in Decoy.jsx — it needs the camera
+      // heading, which only exists inside the Canvas.
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -72,6 +75,7 @@ export default function App() {
         <Items />
         <GreenEmber />
         <Consumables />
+        <Decoy />
         <Levels />
         <Survival />
         <Sound />
