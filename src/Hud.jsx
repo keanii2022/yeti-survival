@@ -76,6 +76,31 @@ function ShelterCue() {
   return null
 }
 
+// 6.13: bottom-left chips for the two consumables — a carried item shows its
+// key prompt, an active one pulses its effect. Plain store selectors (they only
+// re-render on a flag flip), unlike the rAF-polled cues above.
+function ConsumableCue() {
+  const hasSnack = useGame((s) => s.hasSnack)
+  const hasBlanket = useGame((s) => s.hasBlanket)
+  const snackActive = useGame((s) => s.snackActive)
+  const blanketActive = useGame((s) => s.blanketActive)
+  if (!hasSnack && !hasBlanket && !snackActive && !blanketActive) return null
+  return (
+    <div className="consumables">
+      {snackActive ? (
+        <div className="consumable snack active">stamina locked</div>
+      ) : hasSnack ? (
+        <div className="consumable snack">Snack &middot; press E</div>
+      ) : null}
+      {blanketActive ? (
+        <div className="consumable blanket active">blanket wrapped</div>
+      ) : hasBlanket ? (
+        <div className="consumable blanket">Blanket &middot; press Q</div>
+      ) : null}
+    </div>
+  )
+}
+
 // Whole seconds -> "M:SS" for the game-over readout.
 function formatTime(seconds) {
   const total = Math.max(0, Math.floor(seconds))
@@ -102,6 +127,8 @@ export default function Hud({ locked }) {
   const escapes = useGame((s) => s.escapes)
   const interlude = useGame((s) => s.interlude)
   const nightfall = useGame((s) => s.nightfall)
+  const snackActive = useGame((s) => s.snackActive)
+  const blanketActive = useGame((s) => s.blanketActive)
 
   const playing = status === 'playing'
   const paused = status === 'paused'
@@ -113,15 +140,24 @@ export default function Hud({ locked }) {
   const showMute = !(locked && playing)
 
   const warmthPct = Math.max(0, Math.min(100, warmth))
-  const warmthColor =
-    warmthPct < 25 ? '#ff5a4a' : warmthPct < 55 ? '#ffb347' : '#6fd3ff'
+  // 6.13: while the blanket's on, the fill goes a warm amber and the track
+  // glows — the drain's slower and the bar should say so at a glance.
+  const warmthColor = blanketActive
+    ? '#ffd18a'
+    : warmthPct < 25
+      ? '#ff5a4a'
+      : warmthPct < 55
+        ? '#ffb347'
+        : '#6fd3ff'
 
   const staminaPct = Math.max(0, Math.min(100, stamina))
-  const staminaColor = sprintLocked
-    ? '#ff5a4a'
-    : staminaPct < 30
-      ? '#ffd27a'
-      : '#cfe9ff'
+  const staminaColor = snackActive
+    ? '#7dffb0'
+    : sprintLocked
+      ? '#ff5a4a'
+      : staminaPct < 30
+        ? '#ffd27a'
+        : '#cfe9ff'
 
   return (
     <div className="hud">
@@ -134,6 +170,10 @@ export default function Hud({ locked }) {
           Driven by `--danger`. */}
       <div className="lunge" />
 
+      {/* 6.13: a soft warm inset glow the whole time the blanket's wrapped —
+          the cosy counterpart to the cold vignette. */}
+      {locked && playing && blanketActive && <div className="blanketglow" />}
+
       {locked && playing && <div className="crosshair" />}
 
       {locked && playing && <ChaseState />}
@@ -142,12 +182,16 @@ export default function Hud({ locked }) {
 
       {locked && playing && <ShelterCue />}
 
+      {locked && playing && <ConsumableCue />}
+
       {showMute && <MuteToggle />}
 
       {showStats && (
         <>
-          <div className="gauge">
-            <span className="gauge-label">Warmth</span>
+          <div className={`gauge${blanketActive ? ' shielded' : ''}`}>
+            <span className="gauge-label">
+              {blanketActive ? 'Warmth · blanket' : 'Warmth'}
+            </span>
             <div className="gauge-track">
               <div
                 className="gauge-fill"
@@ -156,9 +200,9 @@ export default function Hud({ locked }) {
             </div>
           </div>
 
-          <div className="gauge stamina">
+          <div className={`gauge stamina${snackActive ? ' shielded' : ''}`}>
             <span className="gauge-label">
-              {sprintLocked ? 'Winded' : 'Stamina'}
+              {snackActive ? 'Stamina · snack' : sprintLocked ? 'Winded' : 'Stamina'}
             </span>
             <div className="gauge-track">
               <div
@@ -240,7 +284,7 @@ export default function Hud({ locked }) {
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>
           <p className="keys">
-            WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+            WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; E snack &nbsp;·&nbsp; Q blanket &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
           </p>
           <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
         </div>

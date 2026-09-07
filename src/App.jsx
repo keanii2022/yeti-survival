@@ -7,6 +7,7 @@ import Yeti from './Yeti.jsx'
 import Sheds from './Sheds.jsx'
 import Items from './Items.jsx'
 import GreenEmber from './GreenEmber.jsx'
+import Consumables from './Consumables.jsx'
 import Levels from './Levels.jsx'
 import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
@@ -42,6 +43,12 @@ export default function App() {
       } else if (e.code === 'KeyN') {
         const { status, nightfall, startNightfall } = useGame.getState()
         if (status === 'won' && !nightfall) startNightfall()
+      } else if (e.code === 'KeyE') {
+        // 6.13: eat a carried snack (no-op without one).
+        useGame.getState().useSnack()
+      } else if (e.code === 'KeyQ') {
+        // 6.13: wrap a carried blanket (no-op without one).
+        useGame.getState().useBlanket()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -64,6 +71,7 @@ export default function App() {
         <Sheds />
         <Items />
         <GreenEmber />
+        <Consumables />
         <Levels />
         <Survival />
         <Sound />

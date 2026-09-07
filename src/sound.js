@@ -625,6 +625,81 @@ class Atmosphere {
     })
   }
 
+  // 6.13 snack (E): a quick crunch-then-lift — two short mid taps and a rising
+  // blip, clearly a "you just used something" beat distinct from the ember chime.
+  snackEat() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.2, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42)
+    g.connect(this.master)
+    ;[
+      [330, 0],
+      [330, 0.08],
+      [523.25, 0.17],
+      [784, 0.26],
+    ].forEach(([f, dt]) => {
+      const o = ctx.createOscillator()
+      o.type = 'square'
+      o.frequency.value = f
+      const og = ctx.createGain()
+      og.gain.value = 0.5
+      o.connect(og).connect(g)
+      o.start(t + dt)
+      o.stop(t + dt + 0.12)
+    })
+  }
+
+  // 6.13 blanket (Q): a soft, warm low swell — a muffled "whump" as it wraps
+  // round you. Low sine through a gentle lowpass, plus a quiet major third, so
+  // it reads as cosy rather than another alert.
+  blanketWrap() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.26, t + 0.14)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.95)
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.setValueAtTime(180, t)
+    lp.frequency.linearRampToValueAtTime(520, t + 0.3)
+    lp.frequency.linearRampToValueAtTime(220, t + 0.9)
+    lp.connect(g).connect(this.master)
+    ;[110, 138.59, 164.81].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'sine'
+      o.frequency.value = f
+      const og = ctx.createGain()
+      og.gain.value = i === 0 ? 0.6 : 0.22
+      o.connect(og).connect(lp)
+      o.start(t)
+      o.stop(t + 1.0)
+    })
+  }
+
+  // 6.13: a quiet two-note fall when a snack or blanket window runs out — the
+  // "that wore off" tell so the effect ending isn't silent.
+  effectEnd() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5)
+    g.connect(this.master)
+    ;[440, 330].forEach((f, i) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.connect(g)
+      o.start(t + i * 0.12)
+      o.stop(t + i * 0.12 + 0.22)
+    })
+  }
+
   // One heavy descending boom on game over; the yeti kill also gets the stinger.
   gameOver(kind) {
     const { ctx } = this
