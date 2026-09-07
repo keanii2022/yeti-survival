@@ -10,6 +10,7 @@ import { greenEmber } from './greenEmber.js'
 import { mirror, resetMirror } from './mirror.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
+import { qualityFor } from './quality.js'
 import { ARENA_HALF } from './arena.js'
 
 // First-person controller: mouse look via PointerLockControls, WASD movement
@@ -211,7 +212,11 @@ export default function Player() {
   }, [isTouch, camera])
 
   // Trunk / shed colliders for this run — fixed-seed lists shared with World.jsx.
-  const trees = useMemo(() => generateTrees(), [])
+  // 9.5: touch renders (and so collides against) a thinner tree stand.
+  const trees = useMemo(
+    () => generateTrees(qualityFor(isTouch).treeCount),
+    [isTouch],
+  )
   const sheds = useMemo(() => generateSheds(), [])
 
   // Reused each frame to avoid allocating vectors in the render loop.

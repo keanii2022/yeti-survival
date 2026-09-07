@@ -5,6 +5,7 @@ import { Sky, Stars, Instances, Instance } from '@react-three/drei'
 import { ARENA_HALF } from './Player.jsx'
 import { generateTrees, TREE_COUNT } from './trees.js'
 import { useGame } from './store.js'
+import { qualityFor } from './quality.js'
 
 // Small deterministic PRNG so the tree scatter is the same on every reload.
 function mulberry32(seed) {
@@ -85,8 +86,11 @@ function Mountains() {
 // transform per tree rather than a group per tree — a few draw calls for the
 // whole stand. 6.9 moved the scatter into trees.js so the trunk colliders the
 // player and yeti test against come from the same fixed-seed list.
-function Trees() {
-  const trees = useMemo(() => generateTrees(), [])
+function Trees({ quality }) {
+  // 9.5: the touch tier renders a thinner stand (a strict prefix of the 220, so
+  // Player / Yeti collide against exactly what's drawn) and the pines stop
+  // casting shadows.
+  const trees = useMemo(() => generateTrees(quality.treeCount), [quality.treeCount])
 
   // Each part's local vertical offset is baked into its geometry, so a single
   // uniform-scaled transform per tree reproduces the old nested-group layout.
@@ -111,15 +115,30 @@ function Trees() {
 
   return (
     <group>
-      <Instances geometry={trunkGeo} limit={TREE_COUNT} range={trees.length} castShadow>
+      <Instances
+        geometry={trunkGeo}
+        limit={TREE_COUNT}
+        range={trees.length}
+        castShadow={quality.treeShadows}
+      >
         <meshStandardMaterial color="#5b4636" roughness={1} />
         {transforms}
       </Instances>
-      <Instances geometry={bodyGeo} limit={TREE_COUNT} range={trees.length} castShadow>
+      <Instances
+        geometry={bodyGeo}
+        limit={TREE_COUNT}
+        range={trees.length}
+        castShadow={quality.treeShadows}
+      >
         <meshStandardMaterial color="#2f4a3d" roughness={1} />
         {transforms}
       </Instances>
-      <Instances geometry={capGeo} limit={TREE_COUNT} range={trees.length} castShadow>
+      <Instances
+        geometry={capGeo}
+        limit={TREE_COUNT}
+        range={trees.length}
+        castShadow={quality.treeShadows}
+      >
         <meshStandardMaterial color="#eef4f8" roughness={1} />
         {transforms}
       </Instances>
@@ -234,7 +253,7 @@ function dialParams(u) {
   }
 }
 
-function DayCycle() {
+function DayCycle({ quality }) {
   const sky = useRef()
   const key = useRef()
   const moonLight = useRef()
@@ -390,7 +409,7 @@ function DayCycle() {
         intensity={init.keyIntensity}
         color={init.keyColor}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[quality.shadowMapSize, quality.shadowMapSize]}
       />
       <directionalLight
         ref={moonLight}
@@ -404,9 +423,13 @@ function DayCycle() {
 
 // The snowy world: ground, sky, drifting light, fog, mountains and trees.
 export default function World() {
+  // 9.5: scene-quality budget for this device (clamped DPR is applied on the
+  // <Canvas> in App.jsx; the shadow-map size and tree stand are read here).
+  const quality = qualityFor(useGame((s) => s.isTouch))
+
   return (
     <>
-      <DayCycle />
+      <DayCycle quality={quality} />
 
       {/* Snowy ground plane — sized to run well past the boundary ring so the
           world doesn't visibly end behind the mountains at the new arena scale */}
@@ -416,7 +439,7 @@ export default function World() {
       </mesh>
 
       <Mountains />
-      <Trees />
+      <Trees quality={quality} />
     </>
   )
 }
