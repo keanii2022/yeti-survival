@@ -50,6 +50,12 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
    Guardian), daily seed, per-level modifiers, nightfall rework. Needs Step 7
    shipped and fully playtested first. Full detail in the README's "Step 8"
    section.
+9. Mobile / touch — pulled forward ahead of Step 7's remainder so the game is
+   playable on a phone. Coarse-pointer devices get a swapped-in touch layer
+   (drag-look, thumb joystick with a sprint detent, on-screen action buttons,
+   responsive HUD, a mobile performance tier, landscape / fullscreen); desktop
+   keyboard/mouse is unchanged. Same one-session / one-commit / one-playtest /
+   no-batching rule. Full detail in the README's "Step 9" section.
 
 ### Step 6 sub-steps
 
