@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useKeyboardControls } from './hooks/useKeyboardControls.js'
 import { useGame } from './store.js'
 import { greenEmber } from './greenEmber.js'
+import { mirror, resetMirror } from './mirror.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { ARENA_HALF } from './arena.js'
@@ -27,6 +28,23 @@ const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
 const PLAYER_RADIUS = 0.4 // body circle for the 6.9 tree push-out
 
+// 7.2: the look-behind glance (press L). You cut, then check — a coarse read on
+// whether the 7.1 turn-rate cap actually opened a gap. The camera snaps 180°,
+// mouse-look freezes, and you keep running the way you were already headed for
+// GLANCE_LOOK_TIME. Then the rear view frosts over (GLANCE_FROST_TIME) — behind
+// that white-out the camera flips back to front — and the frost melts
+// (GLANCE_MELT_TIME) as you face forward again. GLANCE_COOLDOWN before L works
+// once more, so it can't be held open as a rear-view mirror. No yeti bearing on
+// the HUD, ever: the reversed view and the frost are the whole feedback.
+const GLANCE_LOOK_TIME = 1.3
+const GLANCE_FROST_TIME = 0.7
+const GLANCE_MELT_TIME = 0.5
+const GLANCE_COOLDOWN = 2
+// The glance turns the view with a true 180° spin about world-up — not by adding
+// to camera.rotation.y, whose XYZ Euler order folds any pitch into a tilt that
+// survives the flip back. Another 180° about the same axis undoes it exactly.
+const WORLD_UP = new THREE.Vector3(0, 1, 0)
+
 // Half-width of the walkable arena — a 120x120 square centred on the origin.
 // Step 6.10 grew this from 30: the old 60x60 pen was barely wider than the
 // yeti's LOSE_RADIUS, so a chase always ended at a wall. There's now room to
@@ -42,14 +60,72 @@ export default function Player() {
   const status = useGame((s) => s.status)
   const over = status === 'caught' || status === 'frozen' || status === 'won'
 
+  // 7.2 glance state. phase: 'idle' | 'look' | 'frost' | 'melt' | 'cooldown'.
+  // `fwd` is the travel heading captured the instant L was pressed — movement
+  // stays locked to it through 'look'/'frost' so holding W keeps you running
+  // away from the yeti while the camera is turned around looking at it.
+  const glance = useRef({ phase: 'idle', t: 0, fwd: new THREE.Vector3(0, 0, -1) })
+
+  // Bail a glance that's cut short by a pause or the run ending — flip the
+  // camera back if it's still reversed, drop the frost, so we never leave the
+  // view half-turned or iced up.
+  const endGlance = useCallback(() => {
+    const gl = glance.current
+    if (gl.phase === 'look' || gl.phase === 'frost') {
+      camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
+    }
+    gl.phase = 'idle'
+    gl.t = 0
+    mirror.frost = 0
+    mirror.ready = true
+    document.documentElement.style.setProperty('--frost', '0')
+  }, [camera])
+
   // While paused, disable the controls so mouse-look freezes but the pointer
   // stays captured — resuming with Space is then seamless. Once the run ends,
   // fully release the pointer so the mouse is free for the "press R" screen
   // (the controls also unmount below, removing the click-to-lock handler).
   useEffect(() => {
+    if (status !== 'playing' && glance.current.phase !== 'idle') endGlance()
     if (controls.current) controls.current.enabled = status === 'playing'
     if (over) document.exitPointerLock?.()
-  }, [status, over])
+  }, [status, over, endGlance])
+
+  // mirror.frost is a module singleton — clear it for a fresh scene so a glance
+  // interrupted by a game-over can't carry its ice into the next run.
+  useEffect(() => {
+    resetMirror()
+    document.documentElement.style.setProperty('--frost', '0')
+    return () => {
+      resetMirror()
+      document.documentElement.style.setProperty('--frost', '0')
+    }
+  }, [])
+
+  // 7.2: L starts a look-behind glance. Edge-triggered with a cooldown (the
+  // phase machine in the frame loop owns the timing), not a held movement
+  // intent, so it lives here rather than in useKeyboardControls.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code !== 'KeyL' || e.repeat) return
+      if (useGame.getState().status !== 'playing') return
+      if (!controls.current?.isLocked) return
+      const gl = glance.current
+      if (gl.phase !== 'idle') return
+      // Freeze the travel heading, spin the view 180°, cut mouse-look.
+      camera.getWorldDirection(gl.fwd)
+      gl.fwd.y = 0
+      if (gl.fwd.lengthSq() < 1e-6) gl.fwd.set(0, 0, -1)
+      gl.fwd.normalize()
+      camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
+      controls.current.enabled = false
+      gl.phase = 'look'
+      gl.t = 0
+      mirror.ready = false
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [camera])
 
   // Trunk / shed colliders for this run — fixed-seed lists shared with World.jsx.
   const trees = useMemo(() => generateTrees(), [])
@@ -73,10 +149,43 @@ export default function Player() {
     const held = keys.current
     const { forward, right, move, hit } = scratch
 
-    // Walk direction is the camera's heading flattened onto the ground.
-    camera.getWorldDirection(forward)
-    forward.y = 0
-    forward.normalize()
+    // --- 7.2 look-behind glance ---
+    const gl = glance.current
+    if (gl.phase !== 'idle') {
+      gl.t += delta
+      if (gl.phase === 'look') {
+        if (gl.t >= GLANCE_LOOK_TIME) { gl.phase = 'frost'; gl.t = 0 }
+      } else if (gl.phase === 'frost') {
+        mirror.frost = Math.min(1, gl.t / GLANCE_FROST_TIME)
+        if (gl.t >= GLANCE_FROST_TIME) {
+          // Behind the white-out: flip back to front and hand mouse-look back.
+          camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
+          if (controls.current) controls.current.enabled = true
+          mirror.frost = 1
+          gl.phase = 'melt'
+          gl.t = 0
+        }
+      } else if (gl.phase === 'melt') {
+        mirror.frost = Math.max(0, 1 - gl.t / GLANCE_MELT_TIME)
+        if (gl.t >= GLANCE_MELT_TIME) { mirror.frost = 0; gl.phase = 'cooldown'; gl.t = 0 }
+      } else if (gl.phase === 'cooldown') {
+        if (gl.t >= GLANCE_COOLDOWN) { gl.phase = 'idle'; gl.t = 0 }
+      }
+      document.documentElement.style.setProperty('--frost', mirror.frost.toFixed(3))
+    }
+    mirror.ready = gl.phase === 'idle'
+
+    // Walk direction is the camera's heading flattened onto the ground — except
+    // mid-glance, when the camera is turned around: movement stays welded to the
+    // heading you had when you pressed L, so a look-back doesn't run you at the
+    // yeti.
+    if (gl.phase === 'look' || gl.phase === 'frost') {
+      forward.copy(gl.fwd)
+    } else {
+      camera.getWorldDirection(forward)
+      forward.y = 0
+      forward.normalize()
+    }
     right.crossVectors(forward, camera.up).normalize()
 
     move.set(0, 0, 0)
