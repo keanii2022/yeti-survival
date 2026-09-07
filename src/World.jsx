@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Sky, Stars, Instances, Instance } from '@react-three/drei'
 import { ARENA_HALF } from './Player.jsx'
+import { generateTrees, TREE_COUNT } from './trees.js'
 import { useGame } from './store.js'
 
 // Small deterministic PRNG so the tree scatter is the same on every reload.
@@ -82,24 +83,10 @@ function Mountains() {
 // handful to a proper sparse woodland. Each pine is three parts (trunk, body,
 // snow cap) with distinct colours, so it's three InstancedMeshes sharing one
 // transform per tree rather than a group per tree — a few draw calls for the
-// whole stand. The scatter stays on a fixed seed: the layout is stable run to
-// run, ready for colliders in 6.9.
-function Trees({ count = 220, spread = 52 }) {
-  const trees = useMemo(() => {
-    const rand = mulberry32(20260905)
-    const placed = []
-    while (placed.length < count) {
-      const x = (rand() * 2 - 1) * spread
-      const z = (rand() * 2 - 1) * spread
-      if (Math.hypot(x, z) < 7) continue // keep the spawn area clear
-      placed.push({
-        position: [x, 0, z],
-        rotation: [0, rand() * Math.PI * 2, 0],
-        scale: 0.8 + rand() * 0.9,
-      })
-    }
-    return placed
-  }, [count, spread])
+// whole stand. 6.9 moved the scatter into trees.js so the trunk colliders the
+// player and yeti test against come from the same fixed-seed list.
+function Trees() {
+  const trees = useMemo(() => generateTrees(), [])
 
   // Each part's local vertical offset is baked into its geometry, so a single
   // uniform-scaled transform per tree reproduces the old nested-group layout.
@@ -124,15 +111,15 @@ function Trees({ count = 220, spread = 52 }) {
 
   return (
     <group>
-      <Instances geometry={trunkGeo} limit={count} range={trees.length} castShadow>
+      <Instances geometry={trunkGeo} limit={TREE_COUNT} range={trees.length} castShadow>
         <meshStandardMaterial color="#5b4636" roughness={1} />
         {transforms}
       </Instances>
-      <Instances geometry={bodyGeo} limit={count} range={trees.length} castShadow>
+      <Instances geometry={bodyGeo} limit={TREE_COUNT} range={trees.length} castShadow>
         <meshStandardMaterial color="#2f4a3d" roughness={1} />
         {transforms}
       </Instances>
-      <Instances geometry={capGeo} limit={count} range={trees.length} castShadow>
+      <Instances geometry={capGeo} limit={TREE_COUNT} range={trees.length} castShadow>
         <meshStandardMaterial color="#eef4f8" roughness={1} />
         {transforms}
       </Instances>
