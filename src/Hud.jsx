@@ -7,6 +7,7 @@ import {
 } from './store.js'
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
+import { shelter } from './shelter.js'
 import MuteToggle from './MuteToggle.jsx'
 
 // A glanceable read on the yeti's attention so you don't have to swing the
@@ -44,6 +45,35 @@ function AdrenalineCue() {
     return () => cancelAnimationFrame(raf.current)
   }, [])
   return on ? <div className="adrenaline">adrenaline</div> : null
+}
+
+// 6.12: shown while you're tucked inside a shed — a steady "hidden" that flips
+// to a pulsing "he's at the door" once the yeti is checking the shed you're in
+// and closing on it. Same rAF-polled, render-only-on-change shape as the others.
+function ShelterCue() {
+  const [state, setState] = useState('none') // 'none' | 'hidden' | 'rattled'
+  const raf = useRef()
+  useEffect(() => {
+    const tick = () => {
+      let next = 'none'
+      if (shelter.inside) {
+        next =
+          shelter.yetiCheckIndex >= 0 &&
+          shelter.yetiCheckIndex === shelter.shedIndex &&
+          shelter.yetiCheckDist < 13
+            ? 'rattled'
+            : 'hidden'
+      }
+      setState(next)
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [])
+  if (state === 'rattled')
+    return <div className="shelter rattled">he&rsquo;s at the door</div>
+  if (state === 'hidden') return <div className="shelter">hidden</div>
+  return null
 }
 
 // Whole seconds -> "M:SS" for the game-over readout.
@@ -109,6 +139,8 @@ export default function Hud({ locked }) {
       {locked && playing && <ChaseState />}
 
       {locked && playing && <AdrenalineCue />}
+
+      {locked && playing && <ShelterCue />}
 
       {showMute && <MuteToggle />}
 

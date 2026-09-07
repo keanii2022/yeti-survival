@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { threat } from './threat.js'
+import { shelter } from './shelter.js'
 import { getAtmosphere } from './sound.js'
 import { effectiveLevel } from './levels.js'
 
@@ -34,6 +35,8 @@ export default function Sound() {
   const prevItems = useRef(0)
   const prevGreen = useRef(0)
   const prevEscapes = useRef(0)
+  const shedTellPhase = useRef(0) // countdown between shed-tell knocks
+  const prevSheltered = useRef(false)
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -59,6 +62,8 @@ export default function Sound() {
     prevItems.current = 0
     prevGreen.current = 0
     prevEscapes.current = 0
+    shedTellPhase.current = 0
+    prevSheltered.current = false
     getAtmosphere()?.revive()
     const root = document.documentElement.style
     root.setProperty('--threat', '0')
@@ -81,11 +86,13 @@ export default function Sound() {
       if (status === 'paused') eng.setPaused(true)
       else if (status === 'playing') eng.setPaused(false)
       else if (status === 'caught' || status === 'frozen') {
+        eng.setSheltered(false)
         eng.update(0, 0, 'idle')
         eng.gameOver(status)
         document.documentElement.style.setProperty('--threat', '0')
         document.documentElement.style.setProperty('--danger', '0')
       } else if (status === 'won') {
+        eng.setSheltered(false)
         eng.update(0, 0, 'idle')
         eng.win()
         document.documentElement.style.setProperty('--threat', '0')
@@ -111,6 +118,32 @@ export default function Sound() {
     prevGreen.current = greenCount
     if (escapes > prevEscapes.current) eng.escape()
     prevEscapes.current = escapes
+
+    // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
+    // muffles for as long as you're inside — the "cold's eased" cue for the
+    // slower warmth drain. While hidden: if the yeti is near your shed, knock
+    // the door on a cadence that quickens and hardens as he closes, so bolting
+    // early is a read on the sound rather than a coin flip.
+    if (shelter.inside && !prevSheltered.current) eng.shelterEnter()
+    prevSheltered.current = shelter.inside
+    eng.setSheltered(shelter.inside)
+
+    const heNearMyShed =
+      shelter.inside &&
+      shelter.yetiCheckIndex === shelter.shedIndex &&
+      shelter.yetiCheckDist < 26
+    if (heNearMyShed) {
+      const near = clamp((24 - shelter.yetiCheckDist) / 21, 0, 1)
+      shedTellPhase.current -= delta
+      if (shedTellPhase.current <= 0) {
+        eng.shedTell(near)
+        // slow, overlapping swells — ~3.6s apart out at the edge, ~1.5s apart
+        // (a near-continuous tense bed) once he's at the door
+        shedTellPhase.current = 3.6 - near * 2.1
+      }
+    } else {
+      shedTellPhase.current = 0
+    }
 
     // --- threat level → heartbeat / drone / vignette ---
     // During a chase the level tracks how close he actually is (0.7 at the edge

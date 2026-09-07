@@ -6,6 +6,8 @@ import { useKeyboardControls } from './hooks/useKeyboardControls.js'
 import { useGame } from './store.js'
 import { greenEmber } from './greenEmber.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
+import { generateSheds, resolveShedCollision } from './sheds.js'
+import { ARENA_HALF } from './arena.js'
 
 // First-person controller: mouse look via PointerLockControls, WASD movement
 // on the ground plane. No physics yet — the player floats at a fixed eye
@@ -28,8 +30,10 @@ const PLAYER_RADIUS = 0.4 // body circle for the 6.9 tree push-out
 // Half-width of the walkable arena — a 120x120 square centred on the origin.
 // Step 6.10 grew this from 30: the old 60x60 pen was barely wider than the
 // yeti's LOSE_RADIUS, so a chase always ended at a wall. There's now room to
-// cut sideways into the fog and actually shake it.
-export const ARENA_HALF = 60
+// cut sideways into the fog and actually shake it. Lives in arena.js now (so the
+// pure modules can read it without dragging three/drei in); re-exported here so
+// every importer that reached for it from Player.jsx still works.
+export { ARENA_HALF } from './arena.js'
 
 export default function Player() {
   const controls = useRef()
@@ -47,8 +51,9 @@ export default function Player() {
     if (over) document.exitPointerLock?.()
   }, [status, over])
 
-  // Trunk colliders for this run — a fixed-seed list shared with World.jsx.
+  // Trunk / shed colliders for this run — fixed-seed lists shared with World.jsx.
   const trees = useMemo(() => generateTrees(), [])
+  const sheds = useMemo(() => generateSheds(), [])
 
   // Reused each frame to avoid allocating vectors in the render loop.
   const scratch = useMemo(
@@ -97,9 +102,11 @@ export default function Player() {
     const step = Math.min(delta, MAX_STEP)
     game.tickStamina(sprinting, (sprinting ? SPRINT_DRAIN : STAMINA_REGEN) * step)
 
-    // Bump back out of any tree trunk we stepped into (6.9), then keep the
-    // player pinned to eye height and inside the arena bounds.
+    // Bump back out of any tree trunk (6.9) or shed wall (6.12) we stepped into
+    // — the doorway gap is the one way through a shed — then keep the player
+    // pinned to eye height and inside the arena bounds.
     resolveTreeCollision(trees, camera.position.x, camera.position.z, PLAYER_RADIUS, hit)
+    resolveShedCollision(sheds, hit.x, hit.z, PLAYER_RADIUS, hit)
     camera.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
     camera.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
     camera.position.y = EYE_HEIGHT

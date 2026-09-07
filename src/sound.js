@@ -56,6 +56,7 @@ class Atmosphere {
     this._buildCalm()
     this._buildStrings()
     this._buildDark()
+    this._buildShed()
 
     this.threat = 0 // 0..1, smoothed toward the level passed to update()
     this.beatPhase = 0
@@ -64,6 +65,10 @@ class Atmosphere {
     this.calmNext = 2.5
     this.dark = 0 // 0..1, the 6.6 per-level darkness, smoothed
     this.pulsePhase = 0
+    this.sheltered = false // 6.12: true while the player is inside a shed
+    this.shelterMix = 0 // smoothed 0..1 — cross-fades the open-air beds to the shed bed
+    this.shedCreakPhase = 0
+    this.shedCreakNext = 4
     this.awake = false
   }
 
@@ -108,6 +113,7 @@ class Atmosphere {
     volLfo.start()
 
     this.windGain = gain
+    this.windLp = lp // 6.12 muffles this while the player is sheltered
   }
 
   // Low detuned sines that swell in as the threat rises — the dread bed under
@@ -248,6 +254,66 @@ class Atmosphere {
     this.darkGain = gate
   }
 
+  // Step 6.12: the shed interior bed. Its own sound, not the open-air calm bed
+  // muffled — a low warm pad (C2 / G2, rounder and darker than calm's F pad)
+  // plus a heavily lowpassed room tone so it feels enclosed. update() cross-
+  // fades this in against the outdoor beds via `shelterMix`, and taps the odd
+  // wood creak on top. Deliberately sparse — this is the hook to build the shed
+  // out into something deeper later.
+  _buildShed() {
+    const { ctx } = this
+    const gate = ctx.createGain()
+    gate.gain.value = 0
+    gate.connect(this.master)
+
+    ;[65.41, 98].forEach((f, k) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.detune.value = (k - 0.5) * 6
+      const og = ctx.createGain()
+      og.gain.value = 0.08
+      o.connect(og).connect(gate)
+      o.start()
+    })
+
+    const src = ctx.createBufferSource()
+    src.buffer = this._noiseBuffer(3)
+    src.loop = true
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 120
+    const g = ctx.createGain()
+    g.gain.value = 0.12
+    src.connect(lp).connect(g).connect(gate)
+    src.start()
+
+    this.shedGain = gate
+  }
+
+  // One dry wood creak from inside the shed — a short descending sawtooth
+  // through a bandpass. Routed through shedGain so it only sounds while you're
+  // actually in there.
+  _shedCreak() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const o = ctx.createOscillator()
+    o.type = 'sawtooth'
+    o.frequency.setValueAtTime(170 + Math.random() * 90, t)
+    o.frequency.exponentialRampToValueAtTime(85, t + 0.5)
+    const f = ctx.createBiquadFilter()
+    f.type = 'bandpass'
+    f.frequency.value = 380
+    f.Q.value = 3
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.045, t + 0.06)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6)
+    o.connect(f).connect(g).connect(this.shedGain)
+    o.start(t)
+    o.stop(t + 0.65)
+  }
+
   // Call from a user gesture (the click that grabs pointer-lock counts).
   resume() {
     if (this.ctx.state === 'suspended') this.ctx.resume()
@@ -283,14 +349,26 @@ class Atmosphere {
 
     const t = this.ctx.currentTime
 
-    this.droneGain.gain.setTargetAtTime(0.14 * this.threat, t, 0.2)
-    this.calmGain.gain.setTargetAtTime(0.6 * (1 - this.chase), t, 0.5)
-    this.stringsGain.gain.setTargetAtTime(0.5 * this.chase, t, 0.4)
+    // 6.12: whenever the player's sheltered, cross-fade every open-air bed down
+    // and the dedicated shed bed up. `openAir` scales the outdoor layers; the
+    // shed bed rides `shelterMix` directly.
+    this.shelterMix +=
+      ((this.sheltered ? 1 : 0) - this.shelterMix) * Math.min(delta * 2.5, 1)
+    const openAir = 1 - this.shelterMix
+    this.shedGain.gain.setTargetAtTime(0.42 * this.shelterMix, t, 0.4)
+
+    this.droneGain.gain.setTargetAtTime(
+      0.14 * this.threat * (0.4 + 0.6 * openAir),
+      t,
+      0.2,
+    )
+    this.calmGain.gain.setTargetAtTime(0.6 * (1 - this.chase) * openAir, t, 0.5)
+    this.stringsGain.gain.setTargetAtTime(0.5 * this.chase * openAir, t, 0.4)
 
     // 6.6 darkness bed: ease toward `drive`, a little slower than the strings so
     // the interlude strip-back is a fade, not a cut.
     this.dark += (drive - this.dark) * Math.min(delta * 1.5, 1)
-    this.darkGain.gain.setTargetAtTime(0.34 * this.dark, t, 0.6)
+    this.darkGain.gain.setTargetAtTime(0.34 * this.dark * openAir, t, 0.6)
     // A slow low pulse rides on top once the bed is well established and the
     // yeti's actually a factor.
     if (this.dark > 0.45 && this.threat > 0.02) {
@@ -303,8 +381,9 @@ class Atmosphere {
       this.pulsePhase = 0
     }
 
-    // Sparse calm motif, only while the calm bed is the layer you can hear.
-    if (this.chase < 0.5) {
+    // Sparse calm motif, only while the calm bed is the layer you can actually
+    // hear — not mid-chase, and not while you're shut inside a shed.
+    if (this.chase < 0.5 && this.shelterMix < 0.5) {
       this.calmPhase += delta
       if (this.calmPhase >= this.calmNext) {
         this.calmPhase = 0
@@ -313,6 +392,18 @@ class Atmosphere {
       }
     } else {
       this.calmPhase = 0
+    }
+
+    // Odd wood creak while you're inside — keeps the shed bed alive.
+    if (this.shelterMix > 0.5) {
+      this.shedCreakPhase += delta
+      if (this.shedCreakPhase >= this.shedCreakNext) {
+        this.shedCreakPhase = 0
+        this.shedCreakNext = 4 + Math.random() * 6
+        this._shedCreak()
+      }
+    } else {
+      this.shedCreakPhase = 0
     }
 
     if (this.threat > 0.04) {
@@ -419,6 +510,101 @@ class Atmosphere {
     })
   }
 
+  // Shed tell (6.12): the yeti at the door while you're hiding inside. All
+  // tonal — no noise, no percussion: a slow bowed-string swell with a low
+  // AM-wobbled growl underneath. `intensity` (0..1) climbs as he closes, so the
+  // last couple of seconds are unmistakable without a jump-scare or a hiss.
+  shedTell(intensity = 0) {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const i = Math.max(0, Math.min(1, intensity))
+
+    // bowed strings — a tense minor-second / tritone cluster, slow in, slow
+    // out, creeping up in pitch
+    const sg = ctx.createGain()
+    sg.gain.setValueAtTime(0.0001, t)
+    sg.gain.exponentialRampToValueAtTime(0.04 + 0.13 * i, t + 0.4)
+    sg.gain.exponentialRampToValueAtTime(0.0001, t + 1.7)
+    const sl = ctx.createBiquadFilter()
+    sl.type = 'lowpass'
+    sl.frequency.value = 650 + i * 550
+    sl.Q.value = 1
+    sl.connect(sg).connect(this.master)
+    ;[146.83, 155.56, 207.65].forEach((f, k) => {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.setValueAtTime(f, t)
+      o.frequency.linearRampToValueAtTime(f * 1.03, t + 1.4)
+      o.detune.value = (k - 1) * 7
+      const og = ctx.createGain()
+      og.gain.value = 0.5
+      o.connect(og).connect(sl)
+      o.start(t)
+      o.stop(t + 1.8)
+    })
+
+    // growl — a low sawtooth with a fast tremolo for the rumble texture,
+    // present the whole time he's near and swelling as he closes
+    const gg = ctx.createGain()
+    gg.gain.setValueAtTime(0.0001, t)
+    gg.gain.exponentialRampToValueAtTime(0.03 + 0.13 * i, t + 0.35)
+    gg.gain.exponentialRampToValueAtTime(0.0001, t + 1.4)
+    const gl = ctx.createBiquadFilter()
+    gl.type = 'lowpass'
+    gl.frequency.value = 200
+    gl.connect(gg).connect(this.master)
+    const go = ctx.createOscillator()
+    go.type = 'sawtooth'
+    go.frequency.setValueAtTime(52, t)
+    go.frequency.linearRampToValueAtTime(43, t + 1.1)
+    const trem = ctx.createGain()
+    trem.gain.value = 0.7
+    const tremLfo = ctx.createOscillator()
+    tremLfo.type = 'sine'
+    tremLfo.frequency.value = 19 + i * 6
+    const tremAmt = ctx.createGain()
+    tremAmt.gain.value = 0.5
+    tremLfo.connect(tremAmt).connect(trem.gain)
+    go.connect(trem).connect(gl)
+    go.start(t)
+    go.stop(t + 1.45)
+    tremLfo.start(t)
+    tremLfo.stop(t + 1.45)
+  }
+
+  // 6.12: stepping into a shed. A brief warm rising triad — the "out of the
+  // wind, the cold's eased" beat — paired with setSheltered() / the shelterMix
+  // cross-fade so the shed bed and the slower warmth drain read by ear.
+  shelterEnter() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.14, t + 0.05)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1)
+    g.connect(this.master)
+    ;[196, 261.63, 329.63].forEach((f, k) => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = f
+      o.connect(g)
+      o.start(t + k * 0.09)
+      o.stop(t + 1.1)
+    })
+  }
+
+  // Flag the player as inside / outside a shed. `sheltered` drives the
+  // shelterMix cross-fade in update() (open-air beds out, shed bed in); here we
+  // just knock the wind bed right down and clamp its filter so the outdoor wind
+  // all but disappears the moment you're through the door.
+  setSheltered(on) {
+    if (on === this.sheltered) return
+    this.sheltered = on
+    const t = this.ctx.currentTime
+    this.windGain.gain.setTargetAtTime(on ? 0.01 : 0.11, t, 0.5)
+    if (this.windLp) this.windLp.frequency.setTargetAtTime(on ? 140 : 460, t, 0.5)
+  }
+
   // Clean getaway (6.7): a short rising three-note flourish when the green ember
   // makes it clear of the yeti's range.
   escape() {
@@ -447,6 +633,7 @@ class Atmosphere {
     this.calmGain.gain.setTargetAtTime(0, t, 0.3)
     this.stringsGain.gain.setTargetAtTime(0, t, 0.4)
     this.darkGain.gain.setTargetAtTime(0, t, 0.4)
+    this.shedGain.gain.setTargetAtTime(0, t, 0.4)
     this.windGain.gain.setTargetAtTime(0.03, t, 0.4)
 
     const o = ctx.createOscillator()
@@ -473,11 +660,16 @@ class Atmosphere {
     this.calmPhase = 0
     this.dark = 0
     this.pulsePhase = 0
+    this.sheltered = false
+    this.shelterMix = 0
+    this.shedCreakPhase = 0
     this.droneGain.gain.setTargetAtTime(0, t, 0.1)
     this.stringsGain.gain.setTargetAtTime(0, t, 0.1)
     this.darkGain.gain.setTargetAtTime(0, t, 0.1)
+    this.shedGain.gain.setTargetAtTime(0, t, 0.1)
     this.calmGain.gain.setTargetAtTime(0.6, t, 0.8)
     this.windGain.gain.setTargetAtTime(0.11, t, 0.6)
+    if (this.windLp) this.windLp.frequency.setTargetAtTime(460, t, 0.6)
   }
 
   // 6.6 win screen: strip the tension out and lift a warm rising triad over the
@@ -488,6 +680,7 @@ class Atmosphere {
     this.droneGain.gain.setTargetAtTime(0, t, 0.4)
     this.stringsGain.gain.setTargetAtTime(0, t, 0.4)
     this.darkGain.gain.setTargetAtTime(0, t, 0.6)
+    this.shedGain.gain.setTargetAtTime(0, t, 0.6)
     this.calmGain.gain.setTargetAtTime(0.5, t, 1.2)
     this.windGain.gain.setTargetAtTime(0.06, t, 1)
     ;[261.63, 329.63, 392, 523.25].forEach((f, i) => {

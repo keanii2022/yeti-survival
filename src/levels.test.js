@@ -109,6 +109,28 @@ describe('levelParams — the curve', () => {
     expect(levelParams(10).wanderRadius).toBeLessThan(levelParams(2).wanderRadius)
     for (const L of levels) expect(levelParams(L).wanderRadius).toBeGreaterThanOrEqual(26)
   })
+
+  it('checks sheds slowly at L1 and much more often deep in (6.12)', () => {
+    expect(levelParams(1).shedCheckInterval).toBeGreaterThan(
+      levelParams(8).shedCheckInterval,
+    )
+    expect(levelParams(1).shedLookTime).toBeLessThan(levelParams(8).shedLookTime)
+  })
+
+  it('never checks faster than every 10s or lingers past 4s, and both move monotonically', () => {
+    for (const L of levels) {
+      expect(levelParams(L).shedCheckInterval).toBeGreaterThanOrEqual(10)
+      expect(levelParams(L).shedLookTime).toBeLessThanOrEqual(4)
+    }
+    for (let L = 2; L <= 30; L++) {
+      expect(levelParams(L).shedCheckInterval).toBeLessThanOrEqual(
+        levelParams(L - 1).shedCheckInterval,
+      )
+      expect(levelParams(L).shedLookTime).toBeGreaterThanOrEqual(
+        levelParams(L - 1).shedLookTime,
+      )
+    }
+  })
 })
 
 describe('LEVEL_COUNT', () => {

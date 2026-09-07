@@ -21,6 +21,10 @@ const LOOK_SPEED = 1.9 // a slow prowl while casting around the area
 const LOOK_DWELL_MIN = 1.0 // seconds spent heading to each nearby poke point
 const LOOK_DWELL_VAR = 1.3
 const DEFAULT_SEARCH_TIME = 5
+// Safety net: if the point can't actually be reached (walled off — 6.12 sends
+// the yeti to a shed door he then can't push past), drop into the look phase
+// anyway after this long so the probe still ends instead of grinding forever.
+const TRAVEL_TIMEOUT = 8
 
 // A probe is the per-yeti scratch state for one investigation. Make one at mount
 // and reuse it; beginProbe re-arms it.
@@ -34,6 +38,7 @@ export function createProbe() {
     lookZ: 0,
     lookTimer: 0,
     searchTimer: 0,
+    travelTimer: 0,
   }
 }
 
@@ -47,6 +52,7 @@ export function beginProbe(probe, x, z, searchTime = DEFAULT_SEARCH_TIME) {
   probe.lookZ = z
   probe.lookTimer = 0
   probe.searchTimer = searchTime
+  probe.travelTimer = TRAVEL_TIMEOUT
 }
 
 // Uniform point inside SEARCH_RADIUS of the target, clamped to the arena.
@@ -75,9 +81,10 @@ export function stepProbe(probe, pos, delta, opts = {}) {
   const bound = opts.bound
 
   if (probe.phase === 'travel') {
+    probe.travelTimer -= delta
     const dx = probe.targetX - pos.x
     const dz = probe.targetZ - pos.z
-    if (dx * dx + dz * dz <= ARRIVE_DIST * ARRIVE_DIST) {
+    if (dx * dx + dz * dz <= ARRIVE_DIST * ARRIVE_DIST || probe.travelTimer <= 0) {
       probe.phase = 'look'
       pickLookPoint(probe, rng, bound)
     } else {
