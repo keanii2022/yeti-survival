@@ -156,6 +156,10 @@ export default function Hud({ locked, isTouch }) {
   const nightfall = useGame((s) => s.nightfall)
   const snackActive = useGame((s) => s.snackActive)
   const blanketActive = useGame((s) => s.blanketActive)
+  // 9.x: touch has no keyboard, so the "press R / N" end-screen prompts need
+  // tap targets. Store actions are stable references.
+  const reset = useGame((s) => s.reset)
+  const startNightfall = useGame((s) => s.startNightfall)
 
   const playing = status === 'playing'
   const paused = status === 'paused'
@@ -308,11 +312,28 @@ export default function Hud({ locked, isTouch }) {
               <span>{score}</span>
             </p>
           </div>
-          <p>
-            {nightfall
-              ? 'Press R to start over'
-              : 'Press N for the nightfall — the same ten, harder · R to start over'}
-          </p>
+          {isTouch ? (
+            <div className="prompt-btns">
+              {!nightfall && (
+                <button
+                  type="button"
+                  className="prompt-btn ghost"
+                  onClick={startNightfall}
+                >
+                  Nightfall
+                </button>
+              )}
+              <button type="button" className="prompt-btn" onClick={reset}>
+                Start over
+              </button>
+            </div>
+          ) : (
+            <p>
+              {nightfall
+                ? 'Press R to start over'
+                : 'Press N for the nightfall — the same ten, harder · R to start over'}
+            </p>
+          )}
         </div>
       )}
 
@@ -370,7 +391,13 @@ export default function Hud({ locked, isTouch }) {
               <span>{score}</span>
             </p>
           </div>
-          <p>Press R to try again</p>
+          {isTouch ? (
+            <button type="button" className="prompt-btn" onClick={reset}>
+              Try again
+            </button>
+          ) : (
+            <p>Press R to try again</p>
+          )}
         </div>
       )}
     </div>
