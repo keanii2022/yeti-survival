@@ -1,5 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
+import { shelter } from './shelter.js'
 
 // The survival clock. Warmth bleeds away the entire time you're out in the
 // arena; embers buy a little of it back. This also advances the run timer that
@@ -15,6 +16,10 @@ import { useGame } from './store.js'
 // freeze. The interlude (warmth paused) is the other half of the breathing room.
 const DRAIN_PER_SECOND = 4
 
+// 6.12: tucked inside a shed the cold bites slower — but not zero. Hiding buys
+// time, it doesn't stop the clock, so camping a shed still freezes you eventually.
+const SHED_DRAIN_FACTOR = 0.45
+
 export default function Survival() {
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
@@ -24,7 +29,8 @@ export default function Survival() {
     // drain during the breather — that's what makes it a breather.
     useGame.getState().tickTime(delta)
     if (useGame.getState().interlude) return
-    useGame.getState().tickWarmth(DRAIN_PER_SECOND * delta)
+    const rate = shelter.inside ? DRAIN_PER_SECOND * SHED_DRAIN_FACTOR : DRAIN_PER_SECOND
+    useGame.getState().tickWarmth(rate * delta)
   })
 
   return null

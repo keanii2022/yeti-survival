@@ -4,6 +4,7 @@ import World from './World.jsx'
 import Snow from './Snow.jsx'
 import Player from './Player.jsx'
 import Yeti from './Yeti.jsx'
+import Sheds from './Sheds.jsx'
 import Items from './Items.jsx'
 import GreenEmber from './GreenEmber.jsx'
 import Levels from './Levels.jsx'
@@ -60,6 +61,7 @@ export default function App() {
         <Snow />
         <Player />
         <Yeti />
+        <Sheds />
         <Items />
         <GreenEmber />
         <Levels />

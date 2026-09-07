@@ -137,6 +137,34 @@
   }
 }
 
+/* Shelter readout (6.12) — shown while you're inside a shed. Steady cyan for
+   "hidden"; flips to a pulsing red "he's at the door" when the yeti is checking
+   your shed. Sits above the adrenaline / chase-state lines. */
+.shelter {
+  position: absolute;
+  left: 50%;
+  bottom: 32%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  color: #8fd8ff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}
+
+.shelter.rattled {
+  color: #ff5a4a;
+  animation: pursuit-pulse 0.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelter.rattled {
+    animation: none;
+  }
+}
+
 .prompt {
   padding: 2rem 3rem;
   border-radius: 12px;

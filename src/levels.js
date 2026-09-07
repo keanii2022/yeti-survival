@@ -89,6 +89,15 @@ export function levelParams(level) {
   // lurks within this radius of your last position, so there's nowhere quiet.
   const wanderRadius = Math.max(26, 130 - (L - 1) * 11)
 
+  // 6.12 shed checks: how often (seconds) the idle yeti breaks off to walk over
+  // and look a shed over, and how long he lingers by the door once there. L1 is
+  // a slow ~28s patrol and a brief 2s look you can wait out from inside; by the
+  // deep levels he's back at your door every ~10s and holds it ~4s — hiding
+  // stops being a refuge and turns into a stopwatch. Kept short on purpose: a
+  // long guard just reads as the yeti being stuck.
+  const shedCheckInterval = Math.max(10, 28 - (L - 1) * 2.6)
+  const shedLookTime = Math.min(4, 2 + (L - 1) * 0.3)
+
   return {
     chaseSpeed,
     burstSpeed,
@@ -98,5 +107,7 @@ export function levelParams(level) {
     commitDelay,
     searchTime,
     wanderRadius,
+    shedCheckInterval,
+    shedLookTime,
   }
 }

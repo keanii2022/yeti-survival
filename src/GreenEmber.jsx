@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useGame } from './store.js'
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
+import { shelter } from './shelter.js'
 import { ARENA_HALF } from './Player.jsx'
 
 // Step 6.7: the green ember. Where the level waves (Items.jsx) are the safe-ish
@@ -185,8 +186,14 @@ export default function GreenEmber() {
     const pdz = camera.position.z - pos.current.z
     const pdist2 = pdx * pdx + pdz * pdz
 
+    // 6.12: no reaching the green ember from inside a shed — it's a risk play,
+    // and a wall between you and the yeti takes the risk out of it. The ember
+    // just trails him past your door; you have to come out for it.
+    const reachable = !shelter.inside
+
     greenEmber.boost =
-      pdist2 < ADRENALINE_RADIUS * ADRENALINE_RADIUS || esc.current.timer > 0
+      (reachable && pdist2 < ADRENALINE_RADIUS * ADRENALINE_RADIUS) ||
+      esc.current.timer > 0
 
     // Bob / spin, fade-in, gentle pulse, and a mild distance brighten so the
     // shaft still points you at it from across the arena.
@@ -205,7 +212,7 @@ export default function GreenEmber() {
     if (glow.current) glow.current.material.opacity = (0.14 + far * 0.14) * pulse * appear
     if (beam.current) beam.current.material.opacity = (0.08 + far * 0.16) * pulse * appear
 
-    if (pdist2 < PICKUP_RADIUS * PICKUP_RADIUS) {
+    if (reachable && pdist2 < PICKUP_RADIUS * PICKUP_RADIUS) {
       useGame.getState().collectGreenEmber()
       esc.current = { timer: ESCAPE_WINDOW, done: false }
       respawn.current = RESPAWN_DELAY

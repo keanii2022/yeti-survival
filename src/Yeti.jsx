@@ -7,6 +7,13 @@ import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
+import {
+  generateSheds,
+  resolveShedCollision,
+  shedApproachPoint,
+  nearestReadyShed,
+} from './sheds.js'
+import { shelter } from './shelter.js'
 
 // Step 3: one yeti with basic chase-detection AI.
 // Step 6.2: spawn point and idle wander are randomized per run.
@@ -181,9 +188,15 @@ export default function Yeti() {
   // so this re-randomizes each time.
   const spawn = useMemo(() => randomSpawn(), [])
 
+  // Trunk / shed colliders for this run — the same fixed-seed lists World.jsx
+  // renders. Defined before the AI ref so the shed-check bookkeeping can size
+  // itself to the shed count.
+  const trees = useMemo(() => generateTrees(), [])
+  const sheds = useMemo(() => generateSheds(), [])
+
   // Per-frame state kept off React so the chase loop never triggers a re-render.
   const ai = useRef({
-    mode: 'idle', // 'idle' | 'chase' | 'search'
+    mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed'
     heading: 0, // yaw the yeti is turning toward, radians
     wander: new THREE.Vector3(spawn[0], 0, spawn[2]), // current idle target
     wanderTimer: 0,
@@ -192,11 +205,13 @@ export default function Yeti() {
     params: levelParams(1), // per-level curve, refreshed when the level changes
     lastKnown: new THREE.Vector3(), // where the player was last seen (for 'search')
     probe: createProbe(), // drives the walk-to-a-spot-and-look-around motion
+    // 6.12 shed checks: a countdown to the next patrol, a per-shed cooldown so
+    // the same one isn't re-checked back to back, and the shed being checked now.
+    shedCheckTimer: levelParams(1).shedCheckInterval,
+    shedCooldowns: sheds.map(() => 0),
+    shedTarget: -1,
   })
   const eyeRef = useRef([null, null])
-
-  // Trunk colliders for this run — the same fixed-seed list World.jsx renders.
-  const trees = useMemo(() => generateTrees(), [])
 
   // Reused every frame so the chase loop allocates nothing.
   const scratch = useMemo(
@@ -205,6 +220,7 @@ export default function Yeti() {
       toWander: new THREE.Vector3(),
       dir: new THREE.Vector3(),
       hit: { x: 0, z: 0 },
+      door: { x: 0, z: 0 }, // reused target for a shed-check probe
     }),
     [],
   )
@@ -218,7 +234,7 @@ export default function Yeti() {
 
     const delta = Math.min(rawDelta, 0.1) // guard against tab-switch time jumps
     const a = ai.current
-    const { toPlayer, toWander, dir, hit } = scratch
+    const { toPlayer, toWander, dir, hit, door } = scratch
 
     // Refresh the per-level curve when the level advances (levels.js). Nightfall
     // shifts the whole run up the curve — effectiveLevel folds that in. Cached
@@ -239,9 +255,22 @@ export default function Yeti() {
     )
     const dist = toPlayer.length()
 
+    // 6.12: inside a shed the player is off the yeti's radar entirely — the
+    // walls cut line of sight, so he can't acquire and can't hold a chase.
+    const hidden = shelter.inside
+
     // --- detection state machine (with hysteresis) ---
     // Keep the last-known fix current for as long as it can actually see you.
     if (a.mode === 'chase') a.lastKnown.set(camera.position.x, 0, camera.position.z)
+
+    // Shed cooldowns recover whenever the run is live and not in the breather —
+    // even mid-chase. The patrol clock itself only ticks while he's calm (idle
+    // branch below).
+    if (!interlude) {
+      for (let i = 0; i < a.shedCooldowns.length; i++) {
+        if (a.shedCooldowns[i] > 0) a.shedCooldowns[i] -= delta
+      }
+    }
 
     if (interlude) {
       // Calm breather: drop everything and back off to a far wander. No
@@ -252,11 +281,49 @@ export default function Yeti() {
         a.wanderTimer = 0
       }
       a.spotTimer = 0
-    } else if (a.mode === 'idle') {
-      // Commit delay: the player has to sit inside detection range for
+      a.shedTarget = -1
+      a.shedCheckTimer = P.shedCheckInterval
+    } else if (a.mode === 'chase') {
+      // Lost sight — over the lose ring, or he ducked into a shed. Don't reset;
+      // go hunt where they were last seen (or the shed door they vanished into).
+      if (hidden && shelter.shedIndex >= 0) {
+        // You ducked into a shed mid-chase — run it as a shed check, not a full
+        // last-known search: he heads to the door, holds it only for the short
+        // shedLookTime, then that shed goes on cooldown (the 'shed' r.done
+        // handler) so a lost chase into a shed doesn't become a 10-second
+        // siege or an endless patrol back and forth.
+        shedApproachPoint(sheds[shelter.shedIndex], door)
+        beginProbe(a.probe, door.x, door.z, P.shedLookTime)
+        a.shedTarget = shelter.shedIndex
+        a.mode = 'shed'
+      } else if (dist > P.loseRadius) {
+        beginProbe(a.probe, a.lastKnown.x, a.lastKnown.z, P.searchTime)
+        a.mode = 'search'
+      }
+    } else if (a.mode === 'search') {
+      if (!hidden && dist < P.reacquireRadius) {
+        a.probe.active = false // reacquired — straight back to the chase
+        a.mode = 'chase'
+      }
+    } else if (a.mode === 'shed') {
+      // Mid shed-check: the player breaking cover close by still yanks him into
+      // a chase, on the same commit delay as an idle spot.
+      if (!hidden && dist < P.detectRadius) {
+        a.spotTimer += delta
+        if (a.spotTimer >= P.commitDelay) {
+          a.probe.active = false
+          a.mode = 'chase'
+          a.spotTimer = 0
+          a.shedTarget = -1
+        }
+      } else {
+        a.spotTimer = 0
+      }
+    } else {
+      // idle. Commit delay: the player has to sit inside detection range for
       // P.commitDelay seconds before the chase locks on — long enough at L1 to
       // dart across his sightline, gone by the deep levels.
-      if (dist < P.detectRadius) {
+      if (!hidden && dist < P.detectRadius) {
         a.spotTimer += delta
         if (a.spotTimer >= P.commitDelay) {
           a.mode = 'chase'
@@ -264,14 +331,29 @@ export default function Yeti() {
         }
       } else {
         a.spotTimer = 0
+        // Nothing doing — count down to the next shed patrol. When it fires,
+        // stalk over to the nearest ready shed that's within reach.
+        a.shedCheckTimer -= delta
+        if (a.shedCheckTimer <= 0) {
+          const idx = nearestReadyShed(
+            sheds,
+            g.position.x,
+            g.position.z,
+            a.shedCooldowns,
+          )
+          if (idx >= 0) {
+            const dx = sheds[idx].x - g.position.x
+            const dz = sheds[idx].z - g.position.z
+            if (dx * dx + dz * dz < 42 * 42) {
+              shedApproachPoint(sheds[idx], door)
+              beginProbe(a.probe, door.x, door.z, P.shedLookTime)
+              a.shedTarget = idx
+              a.mode = 'shed'
+            }
+          }
+          a.shedCheckTimer = P.shedCheckInterval
+        }
       }
-    } else if (a.mode === 'chase' && dist > P.loseRadius) {
-      // Lost sight — don't reset yet. Go hunt where they were last seen.
-      beginProbe(a.probe, a.lastKnown.x, a.lastKnown.z, P.searchTime)
-      a.mode = 'search'
-    } else if (a.mode === 'search' && dist < P.reacquireRadius) {
-      a.probe.active = false // reacquired — straight back to the chase
-      a.mode = 'chase'
     }
 
     // Publish the readout the audio engine / vignette poll each frame. 6.7 adds
@@ -281,8 +363,28 @@ export default function Yeti() {
     threat.yetiX = g.position.x
     threat.yetiZ = g.position.z
 
-    // --- caught? --- (never mid-interlude; the yeti isn't hunting then)
-    if (!interlude && dist < CATCH_RADIUS) {
+    // 6.12: publish how close the yeti is to the shed that matters, so Sound.jsx
+    // can pace the door-knock tell and the HUD can flip to "he's at the door".
+    // Priority is the shed the PLAYER is hiding in whenever they're hidden — so
+    // the tell fires whether he tracked you there in a chase, is searching the
+    // door, or wandered over on a patrol check — falling back to the shed he's
+    // actively checking otherwise.
+    if (hidden && shelter.shedIndex >= 0) {
+      const st = sheds[shelter.shedIndex]
+      shelter.yetiCheckIndex = shelter.shedIndex
+      shelter.yetiCheckDist = Math.hypot(g.position.x - st.x, g.position.z - st.z)
+    } else if (a.mode === 'shed' && a.shedTarget >= 0) {
+      const st = sheds[a.shedTarget]
+      shelter.yetiCheckIndex = a.shedTarget
+      shelter.yetiCheckDist = Math.hypot(g.position.x - st.x, g.position.z - st.z)
+    } else {
+      shelter.yetiCheckIndex = -1
+      shelter.yetiCheckDist = Infinity
+    }
+
+    // --- caught? --- (never mid-interlude, and never while you're safe inside
+    // a shed — he can't grab what he can't see through the wall)
+    if (!interlude && !hidden && dist < CATCH_RADIUS) {
       useGame.getState().catchPlayer()
       return
     }
@@ -295,11 +397,17 @@ export default function Yeti() {
       dir.copy(toPlayer).normalize()
       speed = dist < BURST_RADIUS ? P.burstSpeed : P.chaseSpeed
       moving = true
-    } else if (a.mode === 'search') {
-      // Stalk to the last-known spot, cast around it, then give up — see
-      // investigate.js. Keep the pokes off the arena wall like the waypoints.
+    } else if (a.mode === 'search' || a.mode === 'shed') {
+      // Same motion for both: stalk to the point (last-known spot, or a shed
+      // door), cast around it, then give up — see investigate.js. Keep the
+      // pokes off the arena wall like the waypoints.
       const r = stepProbe(a.probe, g.position, delta, { bound: ARENA_HALF - EDGE_MARGIN })
       if (r.done) {
+        if (a.mode === 'shed' && a.shedTarget >= 0) {
+          // Checked it — don't come straight back to this one.
+          a.shedCooldowns[a.shedTarget] = P.shedCheckInterval * 1.5
+          a.shedTarget = -1
+        }
         a.mode = 'idle'
         a.wanderTimer = 0 // pick a fresh waypoint next frame
       } else {
@@ -335,6 +443,7 @@ export default function Yeti() {
       // arena. He keeps aiming straight at the player — the trunk just stops him
       // passing through, which is what makes trees usable as cover.
       resolveTreeCollision(trees, g.position.x, g.position.z, YETI_RADIUS, hit)
+      resolveShedCollision(sheds, hit.x, hit.z, YETI_RADIUS, hit)
       g.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
       g.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
     }
@@ -347,7 +456,8 @@ export default function Yeti() {
 
     // Menacing bob while moving; eyes flare when locked on.
     g.position.y = moving ? Math.abs(Math.sin(performance.now() * 0.006)) * 0.12 : 0
-    const glow = a.mode === 'chase' ? 1.6 : a.mode === 'search' ? 0.7 : 0.15
+    const glow =
+      a.mode === 'chase' ? 1.6 : a.mode === 'search' || a.mode === 'shed' ? 0.7 : 0.15
     for (const m of eyeRef.current) {
       if (m) m.emissiveIntensity += (glow - m.emissiveIntensity) * Math.min(delta * 6, 1)
     }
