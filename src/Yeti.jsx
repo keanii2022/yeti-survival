@@ -63,7 +63,13 @@ const YETI_RADIUS = 0.9
 const WANDER_SPEED = 1.6
 const INTERLUDE_WANDER_SPEED = 3.2 // a touch quicker so he clears out visibly
 const INTERLUDE_MIN_DIST = 52 // how far off the player his interlude waypoint sits
-const TURN_RATE = 2.6 // radians/sec the yeti can rotate toward its heading
+// 7.1: the yeti can't turn on a dime. Its heading — the direction it actually
+// moves, not just the way the body faces — swings toward the target at this rate
+// and no faster, so a hard cut by the player opens a gap he has to arc back from
+// instead of him re-aiming straight at you every frame. Tighten if mid-chase
+// juking still doesn't bite; the close-range lunge (BURST_RADIUS) may later want
+// its own harder pivot so cornered-and-close stays deadly.
+const MAX_TURN_RATE = 2.6 // radians/sec the yeti's heading can swing
 
 // Detection range at level 1 — the ring randomSpawn() places the yeti outside.
 // Deeper levels only widen it (levelParams.detectRadius), so a level-1 spawn is
@@ -206,7 +212,7 @@ export default function Yeti() {
   // Per-frame state kept off React so the chase loop never triggers a re-render.
   const ai = useRef({
     mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed' | 'decoy'
-    heading: 0, // yaw the yeti is turning toward, radians
+    heading: Math.atan2(-spawn[0], -spawn[2]), // movement yaw; starts facing arena centre
     wander: new THREE.Vector3(spawn[0], 0, spawn[2]), // current idle target
     wanderTimer: 0,
     spotTimer: 0, // seconds the player's been inside detection range (commit delay)
@@ -471,24 +477,34 @@ export default function Yeti() {
       }
     }
 
-    // --- turn toward the direction, then step forward ---
+    // --- turn toward the target, then step forward along the heading ---
+    // 7.1: movement follows `a.heading`, and the heading only swings toward the
+    // target at MAX_TURN_RATE. `dir` is where he *wants* to go; the capped turn
+    // is why a sharp cut by the player actually opens a gap instead of him
+    // tracking your exact position frame to frame.
     if (moving) {
-      a.heading = Math.atan2(dir.x, dir.z)
-      g.position.addScaledVector(dir, speed * delta)
+      const desired = Math.atan2(dir.x, dir.z)
+      let turn = desired - a.heading
+      turn = Math.atan2(Math.sin(turn), Math.cos(turn)) // shortest way round
+      a.heading += THREE.MathUtils.clamp(turn, -MAX_TURN_RATE * delta, MAX_TURN_RATE * delta)
+
+      g.position.x += Math.sin(a.heading) * speed * delta
+      g.position.z += Math.cos(a.heading) * speed * delta
       // Shove back out of any trunk he walked into (6.9), then clamp to the
-      // arena. He keeps aiming straight at the player — the trunk just stops him
-      // passing through, which is what makes trees usable as cover.
+      // arena. The trunk just stops him passing through — it doesn't redirect
+      // him — which is what makes trees usable as cover.
       resolveTreeCollision(trees, g.position.x, g.position.z, YETI_RADIUS, hit)
       resolveShedCollision(sheds, hit.x, hit.z, YETI_RADIUS, hit)
       g.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
       g.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
     }
 
-    // Smoothly rotate the body toward the heading (shortest angular path).
+    // Body faces the way he's moving. `a.heading` is already rate-limited, so
+    // just chase it directly — a touch of smoothing to soak up any snap when the
+    // mode changes.
     let diff = a.heading - g.rotation.y
     diff = Math.atan2(Math.sin(diff), Math.cos(diff))
-    const maxTurn = TURN_RATE * delta
-    g.rotation.y += THREE.MathUtils.clamp(diff, -maxTurn, maxTurn)
+    g.rotation.y += diff * Math.min(delta * 12, 1)
 
     // Menacing bob while moving; eyes flare when locked on.
     g.position.y = moving ? Math.abs(Math.sin(performance.now() * 0.006)) * 0.12 : 0
