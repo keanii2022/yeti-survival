@@ -939,3 +939,76 @@
     margin-top: 0;
   }
 }
+
+/* --- 9.6 rotate-to-landscape nudge (touch only) --- */
+
+/* A full-screen cover shown while a touch device is held in portrait. Opaque so
+   the sideways game underneath doesn't read as a bug; pointer-events:auto so it
+   also swallows stray taps until the phone is turned. z-index clears the
+   joystick (5), the action buttons (6) and the HUD. */
+.rotate-nudge {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: #0b0e12;
+  color: #eef4f8;
+  text-align: center;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A little phone outline that tips from upright to sideways on a loop. */
+.rotate-nudge-phone {
+  width: 46px;
+  height: 78px;
+  border: 3px solid #6fd3ff;
+  border-radius: 10px;
+  animation: rotate-hint 1.8s ease-in-out infinite;
+}
+
+.rotate-nudge-phone::after {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 3px;
+  margin: 6px auto 0;
+  border-radius: 2px;
+  background: #6fd3ff;
+}
+
+@keyframes rotate-hint {
+  0%,
+  28% {
+    transform: rotate(0deg);
+  }
+  62%,
+  100% {
+    transform: rotate(-90deg);
+  }
+}
+
+.rotate-nudge-title {
+  margin: 0;
+  font: 700 1.15rem/1.2 system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.rotate-nudge-sub {
+  margin: 0;
+  color: #9fb3c4;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-nudge-phone {
+    animation: none;
+    transform: rotate(-90deg);
+  }
+}
