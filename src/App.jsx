@@ -14,6 +14,7 @@ import Levels from './Levels.jsx'
 import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
 import Hud from './Hud.jsx'
+import TouchControls from './TouchControls.jsx'
 import { useGame } from './store.js'
 import { detectCoarsePointer } from './touch.js'
 import './App.css'
@@ -97,6 +98,7 @@ export default function App() {
         <Sound />
       </Canvas>
       <Hud locked={locked} isTouch={isTouch} />
+      <TouchControls />
     </>
   )
 }

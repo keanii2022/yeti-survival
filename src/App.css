@@ -524,3 +524,54 @@
   letter-spacing: 0.12em;
   opacity: 0.8;
 }
+
+/* --- 9.2 movement joystick (touch only) --- */
+
+/* Catches touches that start in the left slice of the screen. Width is set
+   inline from LEFT_ZONE_FRACTION. touch-action: none so a drag doesn't scroll
+   or zoom the page. Sits above the canvas but below the HUD prompts. */
+.joystick-zone {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  touch-action: none;
+}
+
+/* Base ring — planted where the thumb first lands (left/top set inline in page
+   coords, centred by the translate). */
+.joystick-base,
+.joystick-knob {
+  position: fixed;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.joystick-base {
+  width: 120px;
+  height: 120px;
+  border: 2px solid rgba(238, 244, 248, 0.35);
+  background: rgba(11, 14, 18, 0.28);
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.35);
+}
+
+.joystick-knob {
+  width: 56px;
+  height: 56px;
+  background: rgba(238, 244, 248, 0.7);
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.45);
+  transition: background 0.12s linear;
+}
+
+/* Latched sprint — the knob goes hot amber. */
+.joystick-knob.sprint {
+  background: rgba(255, 179, 71, 0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joystick-knob {
+    transition: none;
+  }
+}
