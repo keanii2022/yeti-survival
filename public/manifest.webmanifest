@@ -1,0 +1,19 @@
+{
+  "name": "Yeti Survival",
+  "short_name": "Yeti",
+  "description": "Outrun the yeti, grab the embers, survive the cold.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0e12",
+  "theme_color": "#0b0e12",
+  "icons": [
+    {
+      "src": "./app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

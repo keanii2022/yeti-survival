@@ -15,8 +15,10 @@ import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
 import Hud from './Hud.jsx'
 import TouchControls from './TouchControls.jsx'
+import OrientationNudge from './OrientationNudge.jsx'
 import { useGame } from './store.js'
 import { detectCoarsePointer } from './touch.js'
+import { requestFullscreen } from './orientation.js'
 import { qualityFor } from './quality.js'
 import './App.css'
 
@@ -33,10 +35,21 @@ export default function App() {
   // phones up front; the one-shot touchstart listener is the fallback for
   // anything that reports a fine pointer until it's actually touched (some
   // hybrids, some emulators). Latched in the store, never unset.
+  //
+  // Step 9.6: the same first touch is the gesture we spend on a fullscreen
+  // request — browsers only grant it from inside a user handler. Gated on a
+  // coarse pointer so a tap on a hybrid laptop's touchscreen doesn't yank the
+  // desktop path into fullscreen; on a phone that has no Fullscreen API (iOS
+  // Safari) requestFullscreen just no-ops and the home-screen manifest carries
+  // the chromeless launch instead.
   useEffect(() => {
     const { setTouch } = useGame.getState()
-    if (detectCoarsePointer()) setTouch()
-    const onTouch = () => setTouch()
+    const coarse = detectCoarsePointer()
+    if (coarse) setTouch()
+    const onTouch = () => {
+      setTouch()
+      if (coarse) requestFullscreen()
+    }
     window.addEventListener('touchstart', onTouch, { once: true, passive: true })
     return () => window.removeEventListener('touchstart', onTouch)
   }, [])
@@ -105,6 +118,7 @@ export default function App() {
       </Canvas>
       <Hud locked={locked} isTouch={isTouch} />
       <TouchControls />
+      <OrientationNudge />
     </>
   )
 }

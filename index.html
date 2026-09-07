@@ -3,8 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <title>yeti-survival</title>
+
+    <!-- Step 9.6: add-to-home-screen so a phone can launch the game chromeless.
+         The manifest drives Android / Chrome (fullscreen, landscape-locked); the
+         apple-* meta tags do the same job on iOS, where the Fullscreen API is
+         unavailable and the manifest is only partly honoured. -->
+    <meta name="theme-color" content="#0b0e12" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Yeti" />
+    <link rel="apple-touch-icon" href="/app-icon.svg" />
   </head>
   <body>
     <div id="root"></div>
