@@ -6,6 +6,7 @@ import { levelParams, effectiveLevel } from './levels.js'
 import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
+import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import {
@@ -327,7 +328,17 @@ export default function Yeti() {
         a.shedTarget = shelter.shedIndex
         a.mode = 'shed'
       } else if (dist > P.loseRadius) {
-        beginProbe(a.probe, a.lastKnown.x, a.lastKnown.z, P.searchTime)
+        // 7.3: hand the probe the footprint trail from here to the last-known
+        // spot so he tracks along where you actually ran instead of teleporting
+        // his attention there. Empty (you crossed hard ground, or he lost you
+        // point-blank) → he beelines the last-known spot exactly as before.
+        beginProbe(
+          a.probe,
+          a.lastKnown.x,
+          a.lastKnown.z,
+          P.searchTime,
+          trailToFollow(g.position.x, g.position.z),
+        )
         a.mode = 'search'
       }
     } else if (a.mode === 'search') {

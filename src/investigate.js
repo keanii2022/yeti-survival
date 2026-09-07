@@ -8,9 +8,15 @@
 //   - 6.12: the yeti walking over to check the nearest shed
 //   - 6.14: the yeti diverting to a thrown decoy
 //
+// 7.3 threads a footprint trail through the travel phase: given an ordered list
+// of trail points, the yeti walks them in sequence on its way to the point of
+// interest instead of beelining there. Still not pathfinding — it steers
+// straight at each point, the trail just gives it a set of points to string
+// together.
+//
 // Pure and framework-free: it holds no three.js objects and mutates nothing
 // except the probe you hand it, so it's cheap to run every frame and easy to
-// test in isolation. Still not pathfinding — it steers straight at each point.
+// test in isolation.
 
 // Behaviour shape, shared by every caller. "How long to search" is passed in
 // per call (beginProbe's searchTime) because 6.6 scales it with the level.
@@ -39,11 +45,16 @@ export function createProbe() {
     lookTimer: 0,
     searchTimer: 0,
     travelTimer: 0,
+    trail: null, // 7.3: ordered [{x,z}] to walk before closing on the target
+    trailIdx: 0,
   }
 }
 
-// Arm the probe: go to (x, z), then search nearby for `searchTime` seconds.
-export function beginProbe(probe, x, z, searchTime = DEFAULT_SEARCH_TIME) {
+// Arm the probe: walk `trail` (if any), then go to (x, z), then search nearby
+// for `searchTime` seconds. `trail` is an ordered list of {x, z} points — the
+// 7.3 footprint path, oldest reachable print first — or null / empty to beeline
+// straight to (x, z) as the probe did before 7.3.
+export function beginProbe(probe, x, z, searchTime = DEFAULT_SEARCH_TIME, trail = null) {
   probe.active = true
   probe.phase = 'travel'
   probe.targetX = x
@@ -53,6 +64,8 @@ export function beginProbe(probe, x, z, searchTime = DEFAULT_SEARCH_TIME) {
   probe.lookTimer = 0
   probe.searchTimer = searchTime
   probe.travelTimer = TRAVEL_TIMEOUT
+  probe.trail = trail && trail.length ? trail : null
+  probe.trailIdx = 0
 }
 
 // Uniform point inside SEARCH_RADIUS of the target, clamped to the arena.
@@ -82,13 +95,28 @@ export function stepProbe(probe, pos, delta, opts = {}) {
 
   if (probe.phase === 'travel') {
     probe.travelTimer -= delta
-    const dx = probe.targetX - pos.x
-    const dz = probe.targetZ - pos.z
-    if (dx * dx + dz * dz <= ARRIVE_DIST * ARRIVE_DIST || probe.travelTimer <= 0) {
+
+    // 7.3: consume any trail points already within reach, then aim at the next
+    // one; once the trail's walked, aim at the real point of interest. Arriving
+    // there (or the travel timeout firing) tips into the look phase.
+    while (probe.trail && probe.trailIdx < probe.trail.length) {
+      const n = probe.trail[probe.trailIdx]
+      const ndx = n.x - pos.x
+      const ndz = n.z - pos.z
+      if (ndx * ndx + ndz * ndz > ARRIVE_DIST * ARRIVE_DIST) break
+      probe.trailIdx++
+    }
+    const following = probe.trail && probe.trailIdx < probe.trail.length
+    const tx = following ? probe.trail[probe.trailIdx].x : probe.targetX
+    const tz = following ? probe.trail[probe.trailIdx].z : probe.targetZ
+    const dx = tx - pos.x
+    const dz = tz - pos.z
+
+    if ((!following && dx * dx + dz * dz <= ARRIVE_DIST * ARRIVE_DIST) || probe.travelTimer <= 0) {
       probe.phase = 'look'
       pickLookPoint(probe, rng, bound)
     } else {
-      return { done: false, moving: true, speed: TRAVEL_SPEED, aimX: probe.targetX, aimZ: probe.targetZ }
+      return { done: false, moving: true, speed: TRAVEL_SPEED, aimX: tx, aimZ: tz }
     }
   }
 
