@@ -4,9 +4,11 @@
 
 // Drag-look sensitivity, radians of view rotation per CSS pixel dragged. The
 // mouse path (PointerLockControls) turns ~0.002 rad/px off raw movementX; a
-// thumb drag covers far less screen per look, so it's tuned hotter. No inertia
-// — the view stops the instant the thumb does.
-export const DRAG_LOOK_SENSITIVITY = 0.004
+// thumb drag covers far less screen per look, so it's tuned much hotter. No
+// inertia — the view stops the instant the thumb does. Raised from 0.004 after
+// a phone playtest: at 0.004 a 180 turn took ~2 full swipes; at 0.009 one
+// right-zone swipe covers ~170.
+export const DRAG_LOOK_SENSITIVITY = 0.009
 
 // The look zone is the right slice of the viewport. A touch that starts to the
 // left of this (where the movement joystick lands in 9.2) never drives look;

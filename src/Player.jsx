@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { useKeyboardControls } from './hooks/useKeyboardControls.js'
 import { useGame } from './store.js'
 import { applyDragLook, inLookZone, LOOK_CONTROL_SELECTOR } from './touch.js'
+import { touchMove, resetTouchMove } from './joystick.js'
 import { greenEmber } from './greenEmber.js'
 import { mirror, resetMirror } from './mirror.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
@@ -103,9 +104,11 @@ export default function Player() {
   // interrupted by a game-over can't carry its ice into the next run.
   useEffect(() => {
     resetMirror()
+    resetTouchMove()
     document.documentElement.style.setProperty('--frost', '0')
     return () => {
       resetMirror()
+      resetTouchMove()
       document.documentElement.style.setProperty('--frost', '0')
     }
   }, [])
@@ -267,22 +270,37 @@ export default function Player() {
     }
     right.crossVectors(forward, camera.up).normalize()
 
+    // 9.2: on touch the joystick supplies an analog move vector + a latched
+    // sprint flag; on desktop it's the WASD keys and Shift. `analog` (0..1)
+    // scales walk speed so a light push on the stick creeps.
     move.set(0, 0, 0)
-    if (held.forward) move.add(forward)
-    if (held.backward) move.sub(forward)
-    if (held.right) move.add(right)
-    if (held.left) move.sub(right)
+    let analog = 1
+    if (isTouch) {
+      move.addScaledVector(right, touchMove.x)
+      move.addScaledVector(forward, touchMove.y)
+      analog = touchMove.mag
+    } else {
+      if (held.forward) move.add(forward)
+      if (held.backward) move.sub(forward)
+      if (held.right) move.add(right)
+      if (held.left) move.sub(right)
+    }
 
-    // Sprint only lands if you're moving, holding Shift, and not winded.
+    // Sprint only lands if you're moving, asking for it (Shift / the joystick
+    // latch), and not winded.
     const game = useGame.getState()
-    const moving = move.lengthSq() > 0
+    const moving = move.lengthSq() > 1e-6
+    const wantSprint = isTouch ? touchMove.sprint : held.sprint
     const sprinting =
-      moving && held.sprint && !game.sprintLocked && game.stamina > 0
+      moving && wantSprint && !game.sprintLocked && game.stamina > 0
 
     if (moving) {
       const sprintSpeed = greenEmber.boost ? ADRENALINE_SPEED : SPRINT_SPEED
       const speed = sprinting ? sprintSpeed : WALK_SPEED
-      move.normalize().multiplyScalar(speed * Math.min(delta, MAX_STEP))
+      const throttle = isTouch ? Math.min(1, analog) : 1
+      move
+        .normalize()
+        .multiplyScalar(speed * throttle * Math.min(delta, MAX_STEP))
       camera.position.add(move)
     }
 
