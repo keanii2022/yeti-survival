@@ -139,7 +139,7 @@ function formatTime(seconds) {
 // Flat DOM overlay drawn on top of the canvas: warmth meter and score while a
 // run is live, the "click to play" prompt while unlocked, a pause card, and a
 // game-over card — for the yeti or for the cold — once the run ends.
-export default function Hud({ locked }) {
+export default function Hud({ locked, isTouch }) {
   const status = useGame((s) => s.status)
   const score = useGame((s) => s.score)
   const level = useGame((s) => s.level)
@@ -161,10 +161,13 @@ export default function Hud({ locked }) {
   const paused = status === 'paused'
   const over = status === 'caught' || status === 'frozen'
   const won = status === 'won'
-  const showStats = locked && (playing || paused)
+  // 9.1: on a touch device there's no pointer lock to wait for — the run is
+  // "engaged" the moment the game mounts. On desktop it still means locked.
+  const engaged = locked || isTouch
+  const showStats = engaged && (playing || paused)
   // The mute button is only reachable when the pointer isn't captured — i.e.
   // any time you're not mid-run: start screen, pause, game-over.
-  const showMute = !(locked && playing)
+  const showMute = !(engaged && playing)
 
   const warmthPct = Math.max(0, Math.min(100, warmth))
   // 6.13: while the blanket's on, the fill goes a warm amber and the track
@@ -204,19 +207,19 @@ export default function Hud({ locked }) {
 
       {/* 6.13: a soft warm inset glow the whole time the blanket's wrapped —
           the cosy counterpart to the cold vignette. */}
-      {locked && playing && blanketActive && <div className="blanketglow" />}
+      {engaged && playing && blanketActive && <div className="blanketglow" />}
 
-      {locked && playing && <div className="crosshair" />}
+      {engaged && playing && <div className="crosshair" />}
 
-      {locked && playing && <ChaseState />}
+      {engaged && playing && <ChaseState />}
 
-      {locked && playing && <AdrenalineCue />}
+      {engaged && playing && <AdrenalineCue />}
 
-      {locked && playing && <ShelterCue />}
+      {engaged && playing && <ShelterCue />}
 
-      {locked && playing && <ConsumableCue />}
+      {engaged && playing && <ConsumableCue />}
 
-      {locked && playing && <LookHint />}
+      {engaged && playing && <LookHint />}
 
       {showMute && <MuteToggle />}
 
@@ -256,7 +259,7 @@ export default function Hud({ locked }) {
         </>
       )}
 
-      {locked && playing && interlude && (
+      {engaged && playing && interlude && (
         <div className="prompt levelcard">
           <h1>
             {nightfall ? `Nightfall ${level + 1}` : `Level ${level + 1}`}
@@ -313,7 +316,7 @@ export default function Hud({ locked }) {
         </div>
       )}
 
-      {!locked && !over && !paused && !won && (
+      {!engaged && !over && !paused && !won && (
         <div className="prompt">
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>

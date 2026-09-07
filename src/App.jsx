@@ -15,11 +15,25 @@ import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
 import Hud from './Hud.jsx'
 import { useGame } from './store.js'
+import { detectCoarsePointer } from './touch.js'
 import './App.css'
 
 export default function App() {
   const [locked, setLocked] = useState(false)
   const runId = useGame((s) => s.runId)
+  const isTouch = useGame((s) => s.isTouch)
+
+  // Step 9.1: decide once whether this is a touch device. matchMedia catches
+  // phones up front; the one-shot touchstart listener is the fallback for
+  // anything that reports a fine pointer until it's actually touched (some
+  // hybrids, some emulators). Latched in the store, never unset.
+  useEffect(() => {
+    const { setTouch } = useGame.getState()
+    if (detectCoarsePointer()) setTouch()
+    const onTouch = () => setTouch()
+    window.addEventListener('touchstart', onTouch, { once: true, passive: true })
+    return () => window.removeEventListener('touchstart', onTouch)
+  }, [])
 
   // Track pointer-lock state at the document level so the HUD can react to it
   // without reaching into the controls instance.
@@ -82,7 +96,7 @@ export default function App() {
         <Survival />
         <Sound />
       </Canvas>
-      <Hud locked={locked} />
+      <Hud locked={locked} isTouch={isTouch} />
     </>
   )
 }

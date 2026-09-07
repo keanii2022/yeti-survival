@@ -107,6 +107,15 @@ describe('Hud', () => {
     ).toBeInTheDocument()
   })
 
+  it('runs the gameplay HUD on a touch device with no pointer lock', () => {
+    useGame.setState({ score: 250, itemsCollected: 1, level: 1, itemsTotal: 6 })
+    render(<Hud locked={false} isTouch={true} />)
+
+    expect(screen.getByText('Warmth')).toBeInTheDocument()
+    expect(screen.getByText('250')).toBeInTheDocument()
+    expect(screen.queryByText('Click to look around')).not.toBeInTheDocument()
+  })
+
   it('draws the crosshair only while a run is live and locked', () => {
     const { container, rerender } = render(<Hud locked={true} />)
     expect(container.querySelector('.crosshair')).not.toBeNull()

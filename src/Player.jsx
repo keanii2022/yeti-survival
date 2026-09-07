@@ -4,6 +4,7 @@ import { PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useKeyboardControls } from './hooks/useKeyboardControls.js'
 import { useGame } from './store.js'
+import { applyDragLook, inLookZone, LOOK_CONTROL_SELECTOR } from './touch.js'
 import { greenEmber } from './greenEmber.js'
 import { mirror, resetMirror } from './mirror.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
@@ -58,7 +59,14 @@ export default function Player() {
   const keys = useKeyboardControls()
   const { camera } = useThree()
   const status = useGame((s) => s.status)
+  const isTouch = useGame((s) => s.isTouch)
   const over = status === 'caught' || status === 'frozen' || status === 'won'
+
+  // 9.1 touch drag-look accumulator. `yaw`/`pitch` are the view angles the frame
+  // loop writes onto the camera (there's no PointerLockControls doing it on
+  // touch); `active` is the identifier of the one finger currently driving look,
+  // `lastX`/`lastY` its previous position. Untouched on desktop.
+  const look = useRef({ yaw: 0, pitch: 0, active: null, lastX: 0, lastY: 0 })
 
   // 7.2 glance state. phase: 'idle' | 'look' | 'frost' | 'melt' | 'cooldown'.
   // `fwd` is the travel heading captured the instant L was pressed — movement
@@ -127,6 +135,69 @@ export default function Player() {
     return () => window.removeEventListener('keydown', onKey)
   }, [camera])
 
+  // 9.1: drag-look on touch. A finger that lands in the right-hand look zone
+  // (and not on an on-screen control) is claimed; its drag turns the view at
+  // DRAG_LOOK_SENSITIVITY — no pointer lock, no inertia. Fingers in the left
+  // zone fall straight through for the 9.2 movement joystick. Pitch clamps
+  // exactly where the mouse path does (touch.js). Desktop never mounts this.
+  useEffect(() => {
+    if (!isTouch) return
+    // Seed the angles from wherever the camera currently faces (spawn heading,
+    // or a fresh scene after a restart remounts this component).
+    const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ')
+    look.current.yaw = e.y
+    look.current.pitch = e.x
+    look.current.active = null
+
+    const findActive = (list) => {
+      for (const t of list) if (t.identifier === look.current.active) return t
+      return null
+    }
+    const onStart = (ev) => {
+      if (look.current.active !== null) return
+      if (useGame.getState().status !== 'playing') return
+      for (const t of ev.changedTouches) {
+        if (t.target?.closest?.(LOOK_CONTROL_SELECTOR)) continue
+        if (!inLookZone(t.clientX, window.innerWidth)) continue
+        look.current.active = t.identifier
+        look.current.lastX = t.clientX
+        look.current.lastY = t.clientY
+        break
+      }
+    }
+    const onMove = (ev) => {
+      if (look.current.active === null) return
+      const t = findActive(ev.changedTouches)
+      if (!t) return
+      const dx = t.clientX - look.current.lastX
+      const dy = t.clientY - look.current.lastY
+      look.current.lastX = t.clientX
+      look.current.lastY = t.clientY
+      // Freeze the view while paused / between control — just keep the anchor
+      // current so resuming the drag doesn't jump.
+      if (useGame.getState().status !== 'playing') return
+      const next = applyDragLook(look.current.yaw, look.current.pitch, dx, dy)
+      look.current.yaw = next.yaw
+      look.current.pitch = next.pitch
+    }
+    const onEnd = (ev) => {
+      if (look.current.active !== null && findActive(ev.changedTouches)) {
+        look.current.active = null
+      }
+    }
+
+    window.addEventListener('touchstart', onStart, { passive: true })
+    window.addEventListener('touchmove', onMove, { passive: true })
+    window.addEventListener('touchend', onEnd, { passive: true })
+    window.addEventListener('touchcancel', onEnd, { passive: true })
+    return () => {
+      window.removeEventListener('touchstart', onStart)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onEnd)
+      window.removeEventListener('touchcancel', onEnd)
+    }
+  }, [isTouch, camera])
+
   // Trunk / shed colliders for this run — fixed-seed lists shared with World.jsx.
   const trees = useMemo(() => generateTrees(), [])
   const sheds = useMemo(() => generateSheds(), [])
@@ -143,8 +214,16 @@ export default function Player() {
   )
 
   useFrame((_, delta) => {
-    if (!controls.current?.isLocked) return
+    // Desktop waits for pointer lock; touch is always "in control" once playing.
+    if (!isTouch && !controls.current?.isLocked) return
     if (useGame.getState().status !== 'playing') return
+
+    // On touch, the drag-look handlers have accumulated yaw/pitch — write them
+    // onto the camera here, before the heading is read for movement below.
+    if (isTouch) {
+      camera.rotation.order = 'YXZ'
+      camera.rotation.set(look.current.pitch, look.current.yaw, 0)
+    }
 
     const held = keys.current
     const { forward, right, move, hit } = scratch
@@ -221,6 +300,9 @@ export default function Player() {
     camera.position.y = EYE_HEIGHT
   })
 
-  // Unmount once the run is over so a stray click can't re-capture the mouse.
+  // No pointer lock on touch — iOS Safari won't grant it, and the drag-look
+  // effect drives the camera instead. On desktop, unmount once the run is over
+  // so a stray click can't re-capture the mouse.
+  if (isTouch) return null
   return over ? null : <PointerLockControls ref={controls} />
 }
