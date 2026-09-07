@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { useKeyboardControls } from './hooks/useKeyboardControls.js'
 import { useGame } from './store.js'
 import { greenEmber } from './greenEmber.js'
+import { generateTrees, resolveTreeCollision } from './trees.js'
 
 // First-person controller: mouse look via PointerLockControls, WASD movement
 // on the ground plane. No physics yet — the player floats at a fixed eye
@@ -22,6 +23,7 @@ const SPRINT_DRAIN = 13 // stamina/sec while sprinting — ~7.5s from a full bar
 // before a clean break.
 const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
+const PLAYER_RADIUS = 0.4 // body circle for the 6.9 tree push-out
 
 // Half-width of the walkable arena — a 120x120 square centred on the origin.
 // Step 6.10 grew this from 30: the old 60x60 pen was barely wider than the
@@ -45,12 +47,16 @@ export default function Player() {
     if (over) document.exitPointerLock?.()
   }, [status, over])
 
+  // Trunk colliders for this run — a fixed-seed list shared with World.jsx.
+  const trees = useMemo(() => generateTrees(), [])
+
   // Reused each frame to avoid allocating vectors in the render loop.
   const scratch = useMemo(
     () => ({
       forward: new THREE.Vector3(),
       right: new THREE.Vector3(),
       move: new THREE.Vector3(),
+      hit: { x: 0, z: 0 },
     }),
     [],
   )
@@ -60,7 +66,7 @@ export default function Player() {
     if (useGame.getState().status !== 'playing') return
 
     const held = keys.current
-    const { forward, right, move } = scratch
+    const { forward, right, move, hit } = scratch
 
     // Walk direction is the camera's heading flattened onto the ground.
     camera.getWorldDirection(forward)
@@ -91,10 +97,12 @@ export default function Player() {
     const step = Math.min(delta, MAX_STEP)
     game.tickStamina(sprinting, (sprinting ? SPRINT_DRAIN : STAMINA_REGEN) * step)
 
-    // Keep the player pinned to eye height and inside the arena bounds.
+    // Bump back out of any tree trunk we stepped into (6.9), then keep the
+    // player pinned to eye height and inside the arena bounds.
+    resolveTreeCollision(trees, camera.position.x, camera.position.z, PLAYER_RADIUS, hit)
+    camera.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
+    camera.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
     camera.position.y = EYE_HEIGHT
-    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -ARENA_HALF, ARENA_HALF)
-    camera.position.z = THREE.MathUtils.clamp(camera.position.z, -ARENA_HALF, ARENA_HALF)
   })
 
   // Unmount once the run is over so a stray click can't re-capture the mouse.

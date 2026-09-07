@@ -6,6 +6,7 @@ import { levelParams, effectiveLevel } from './levels.js'
 import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
+import { generateTrees, resolveTreeCollision } from './trees.js'
 
 // Step 3: one yeti with basic chase-detection AI.
 // Step 6.2: spawn point and idle wander are randomized per run.
@@ -39,6 +40,10 @@ import { createProbe, beginProbe, stepProbe } from './investigate.js'
 // escalate stay here.
 const CATCH_RADIUS = 1.9
 const BURST_RADIUS = 6 // inside this the chase switches to the lunge speed
+// Body circle for the 6.9 trunk push-out. Wider than the player's — he's a
+// brute — so he can't tuck fully behind a thin trunk, but still just a collider:
+// he doesn't steer around trees, he bumps off them and keeps grinding forward.
+const YETI_RADIUS = 0.9
 const WANDER_SPEED = 1.6
 const INTERLUDE_WANDER_SPEED = 3.2 // a touch quicker so he clears out visibly
 const INTERLUDE_MIN_DIST = 52 // how far off the player his interlude waypoint sits
@@ -190,12 +195,16 @@ export default function Yeti() {
   })
   const eyeRef = useRef([null, null])
 
+  // Trunk colliders for this run — the same fixed-seed list World.jsx renders.
+  const trees = useMemo(() => generateTrees(), [])
+
   // Reused every frame so the chase loop allocates nothing.
   const scratch = useMemo(
     () => ({
       toPlayer: new THREE.Vector3(),
       toWander: new THREE.Vector3(),
       dir: new THREE.Vector3(),
+      hit: { x: 0, z: 0 },
     }),
     [],
   )
@@ -209,7 +218,7 @@ export default function Yeti() {
 
     const delta = Math.min(rawDelta, 0.1) // guard against tab-switch time jumps
     const a = ai.current
-    const { toPlayer, toWander, dir } = scratch
+    const { toPlayer, toWander, dir, hit } = scratch
 
     // Refresh the per-level curve when the level advances (levels.js). Nightfall
     // shifts the whole run up the curve — effectiveLevel folds that in. Cached
@@ -322,8 +331,12 @@ export default function Yeti() {
     if (moving) {
       a.heading = Math.atan2(dir.x, dir.z)
       g.position.addScaledVector(dir, speed * delta)
-      g.position.x = THREE.MathUtils.clamp(g.position.x, -ARENA_HALF, ARENA_HALF)
-      g.position.z = THREE.MathUtils.clamp(g.position.z, -ARENA_HALF, ARENA_HALF)
+      // Shove back out of any trunk he walked into (6.9), then clamp to the
+      // arena. He keeps aiming straight at the player — the trunk just stops him
+      // passing through, which is what makes trees usable as cover.
+      resolveTreeCollision(trees, g.position.x, g.position.z, YETI_RADIUS, hit)
+      g.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
+      g.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
     }
 
     // Smoothly rotate the body toward the heading (shortest angular path).
