@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
+import { inControl } from './touch.js'
 import { INTERLUDE_SECONDS } from './levels.js'
 
 // Step 6.6: runs the between-levels interlude clock. When collectItem() clears a
@@ -18,7 +19,7 @@ export default function Levels() {
   const wasInterlude = useRef(false)
 
   useFrame((_, rawDelta) => {
-    const { interlude, status, endInterlude } = useGame.getState()
+    const { interlude, status, isTouch, endInterlude } = useGame.getState()
 
     // Edge: the interlude just began — start the clock.
     if (interlude && !wasInterlude.current) timer.current = INTERLUDE_SECONDS
@@ -28,7 +29,7 @@ export default function Levels() {
     // Only burn the clock while the player's actually in control, matching the
     // survival clock — a paused or unlocked interlude doesn't tick away.
     if (status !== 'playing') return
-    if (!document.pointerLockElement) return
+    if (!inControl(isTouch)) return
 
     timer.current -= Math.min(rawDelta, 0.1)
     if (timer.current <= 0) endInterlude()

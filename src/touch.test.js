@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   detectCoarsePointer,
+  inControl,
   inLookZone,
   applyDragLook,
   DRAG_LOOK_SENSITIVITY,
@@ -29,6 +30,22 @@ describe('detectCoarsePointer', () => {
         throw new Error('bad query')
       }),
     ).toBe(false)
+  })
+})
+
+describe('inControl', () => {
+  it('is always true on a touch device, pointer lock or not', () => {
+    expect(inControl(true, {})).toBe(true)
+    expect(inControl(true, { pointerLockElement: {} })).toBe(true)
+  })
+
+  it('needs a live pointer lock on desktop', () => {
+    expect(inControl(false, { pointerLockElement: {} })).toBe(true)
+    expect(inControl(false, { pointerLockElement: null })).toBe(false)
+  })
+
+  it('is false on desktop when there is no document', () => {
+    expect(inControl(false, undefined)).toBe(false)
   })
 })
 

@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { shelter } from './shelter.js'
+import { inControl } from './touch.js'
 
 // The survival clock. Warmth bleeds away the entire time you're out in the
 // arena; embers buy a little of it back. This also advances the run timer that
@@ -27,7 +28,7 @@ const BLANKET_DRAIN_FACTOR = 0.3
 export default function Survival() {
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
-    if (!document.pointerLockElement) return
+    if (!inControl(useGame.getState().isTouch)) return
     const delta = Math.min(rawDelta, 0.1)
     // The run clock keeps counting through the 6.6 interlude, but warmth doesn't
     // drain during the breather — that's what makes it a breather.

@@ -7,6 +7,7 @@ import { greenEmber } from './greenEmber.js'
 import { decoy, resetDecoy } from './decoy.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
+import { inControl } from './touch.js'
 import { ARENA_HALF } from './arena.js'
 
 // Step 6.14: the decoy — a throwable that hard-resets a chase. Two halves:
@@ -99,14 +100,14 @@ function DecoyPickup({ trees, sheds }) {
   const [spot, setSpot] = useState(null)
 
   useFrame((_, rawDelta) => {
-    const { status, interlude, hasDecoy } = useGame.getState()
+    const { status, interlude, isTouch, hasDecoy } = useGame.getState()
     if (status !== 'playing') return
     const delta = Math.min(rawDelta, 0.1)
 
     if (phase.current === 'waiting') {
       // Don't burn the fuse on the start prompt / a pause, or while one's
       // already in hand — you don't need a second panic button.
-      if (!document.pointerLockElement || hasDecoy) return
+      if (!inControl(isTouch) || hasDecoy) return
       fuse.current -= delta
       if (fuse.current <= 0) {
         // Fuse is spent — but hold here until a green ember is out to spawn
@@ -244,9 +245,10 @@ export default function Decoy() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.code !== 'KeyF' || e.repeat) return
-      const { status, hasDecoy, interlude, throwDecoy } = useGame.getState()
+      const { status, hasDecoy, interlude, isTouch, throwDecoy } =
+        useGame.getState()
       if (status !== 'playing' || interlude || !hasDecoy) return
-      if (!document.pointerLockElement) return
+      if (!inControl(isTouch)) return
 
       // Flatten the camera heading onto the ground and throw that way.
       const fwd = new THREE.Vector3()

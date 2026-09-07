@@ -51,6 +51,20 @@ export function inLookZone(
   return clientX >= viewportWidth * (1 - fraction)
 }
 
+// True when the player has the controls for real. On desktop that's a live
+// pointer lock; on touch (9.1) there's no pointer lock to hold — iOS Safari
+// won't grant one — so being a touch device *is* the "in control" state. The
+// frame-loop clocks (warmth, run timer, interlude, consumable/decoy fuses) all
+// gated on `document.pointerLockElement`, which is permanently null on a phone;
+// they go through here instead so they actually tick on touch.
+export function inControl(
+  isTouch,
+  doc = typeof document !== 'undefined' ? document : undefined,
+) {
+  if (isTouch) return true
+  return !!doc && doc.pointerLockElement != null
+}
+
 // Apply a drag delta (dx, dy in CSS px) to the current yaw/pitch. Yaw wraps
 // freely; pitch clamps to +/-PITCH_LIMIT. Signs match the mouse path: drag
 // right -> look right, drag down -> look down.
