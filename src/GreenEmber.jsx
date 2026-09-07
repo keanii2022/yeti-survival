@@ -76,11 +76,14 @@ export default function GreenEmber() {
   const [active, setActive] = useState(false)
   const [spawnAt, setSpawnAt] = useState([0, 0])
 
-  // greenEmber is a module singleton, so make sure a fresh run starts unboosted.
+  // greenEmber is a module singleton, so make sure a fresh run starts unboosted
+  // and with no stale position published for the decoy spawner.
   useEffect(() => {
     greenEmber.boost = false
+    greenEmber.present = false
     return () => {
       greenEmber.boost = false
+      greenEmber.present = false
     }
   }, [])
 
@@ -108,6 +111,7 @@ export default function GreenEmber() {
     const { status, interlude } = useGame.getState()
     if (status !== 'playing') {
       greenEmber.boost = false
+      greenEmber.present = false
       return
     }
     const delta = Math.min(rawDelta, 0.1)
@@ -133,11 +137,13 @@ export default function GreenEmber() {
         setActive(false)
       }
       greenEmber.boost = false
+      greenEmber.present = false
       return
     }
 
     if (phase.current === 'waiting') {
       greenEmber.boost = esc.current.timer > 0
+      greenEmber.present = false
       respawn.current -= delta
       if (respawn.current <= 0 && Number.isFinite(threat.yetiX)) {
         setSpawnAt(placeNearYeti())
@@ -151,6 +157,7 @@ export default function GreenEmber() {
     if (!root.current) {
       // state lag: phase flipped, the group isn't mounted yet — next frame.
       greenEmber.boost = esc.current.timer > 0
+      greenEmber.present = false
       return
     }
     age.current += delta
@@ -181,6 +188,12 @@ export default function GreenEmber() {
     }
     root.current.position.x = pos.current.x
     root.current.position.z = pos.current.z
+
+    // 6.14: publish where it is so the decoy pickup can drop in the same
+    // danger zone out by the yeti.
+    greenEmber.x = pos.current.x
+    greenEmber.z = pos.current.z
+    greenEmber.present = true
 
     const pdx = camera.position.x - pos.current.x
     const pdz = camera.position.z - pos.current.z
@@ -217,6 +230,7 @@ export default function GreenEmber() {
       esc.current = { timer: ESCAPE_WINDOW, done: false }
       respawn.current = RESPAWN_DELAY
       phase.current = 'waiting'
+      greenEmber.present = false
       setActive(false)
     }
   })

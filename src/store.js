@@ -106,6 +106,12 @@ export const useGame = create((set) => ({
   snackActive: false,
   blanketActive: false,
 
+  // 6.14 decoy. Carried one at a time like the consumables, but there's no
+  // active window — throwing it (F) just drops it from the hand and Decoy.jsx
+  // takes over: it picks the landing spot and pokes the yeti into a divert
+  // (decoy.js / Yeti.jsx). Pure utility, no score, no warmth.
+  hasDecoy: false,
+
   // Grab an ember: score + counts, a small warmth top-up, and — when it's the
   // one that clears the level — the transition. Clearing the final level wins
   // the run (the first win, or the end of nightfall); any earlier level opens
@@ -154,6 +160,7 @@ export const useGame = create((set) => ({
       if (s.status !== 'playing') return {}
       if (kind === 'snack' && !s.hasSnack) return { hasSnack: true }
       if (kind === 'blanket' && !s.hasBlanket) return { hasBlanket: true }
+      if (kind === 'decoy' && !s.hasDecoy) return { hasDecoy: true }
       return {}
     }),
 
@@ -181,6 +188,12 @@ export const useGame = create((set) => ({
         : { hasBlanket: false, blanketActive: true },
     ),
   endBlanket: () => set((s) => (s.blanketActive ? { blanketActive: false } : {})),
+
+  // Throw a carried decoy (F): drop it from the hand. Decoy.jsx's throw handler
+  // does the rest — picks the landing spot from where you're facing and pokes
+  // the yeti into a divert. No-op without one.
+  throwDecoy: () =>
+    set((s) => (s.status !== 'playing' || !s.hasDecoy ? {} : { hasDecoy: false })),
 
   // Called by Levels.jsx when the interlude timer runs out: advance to the next
   // level and spawn its wave.
@@ -217,6 +230,7 @@ export const useGame = create((set) => ({
         hasBlanket: false,
         snackActive: false,
         blanketActive: false,
+        hasDecoy: false,
       }
     }),
 
@@ -285,5 +299,6 @@ export const useGame = create((set) => ({
       hasBlanket: false,
       snackActive: false,
       blanketActive: false,
+      hasDecoy: false,
     })),
 }))

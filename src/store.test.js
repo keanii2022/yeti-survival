@@ -183,12 +183,19 @@ describe('consumables (6.13)', () => {
 
     get().grabConsumable('blanket')
     expect(get().hasBlanket).toBe(true)
+
+    get().grabConsumable('decoy')
+    expect(get().hasDecoy).toBe(true)
+    get().grabConsumable('decoy') // already carrying — no change
+    expect(get().hasDecoy).toBe(true)
   })
 
   it('grabConsumable is a no-op once the run is over', () => {
     useGame.setState({ status: 'frozen' })
     get().grabConsumable('snack')
     expect(get().hasSnack).toBe(false)
+    get().grabConsumable('decoy')
+    expect(get().hasDecoy).toBe(false)
   })
 
   it('useSnack spends the snack, pins stamina full, and clears the sprint lock', () => {
@@ -234,12 +241,26 @@ describe('consumables (6.13)', () => {
     expect(get().blanketActive).toBe(false)
   })
 
+  it('throwDecoy empties the hand, and only with one in it and a live run', () => {
+    get().throwDecoy()
+    expect(get().hasDecoy).toBe(false) // nothing to throw — no-op
+
+    useGame.setState({ hasDecoy: true })
+    get().throwDecoy()
+    expect(get().hasDecoy).toBe(false)
+
+    useGame.setState({ hasDecoy: true, status: 'caught' })
+    get().throwDecoy()
+    expect(get().hasDecoy).toBe(true) // run's over — no-op
+  })
+
   it('reset clears every consumable flag', () => {
     useGame.setState({
       hasSnack: true,
       hasBlanket: true,
       snackActive: true,
       blanketActive: true,
+      hasDecoy: true,
     })
     get().reset()
     expect(get()).toMatchObject({
@@ -247,6 +268,7 @@ describe('consumables (6.13)', () => {
       hasBlanket: false,
       snackActive: false,
       blanketActive: false,
+      hasDecoy: false,
     })
   })
 })
@@ -294,6 +316,7 @@ describe('reset', () => {
       hasBlanket: true,
       snackActive: true,
       blanketActive: true,
+      hasDecoy: true,
     })
     const before = get().runId
 
@@ -318,6 +341,7 @@ describe('reset', () => {
       hasBlanket: false,
       snackActive: false,
       blanketActive: false,
+      hasDecoy: false,
       runId: before + 1,
     })
   })

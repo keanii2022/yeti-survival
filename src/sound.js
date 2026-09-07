@@ -680,6 +680,41 @@ class Atmosphere {
     })
   }
 
+  // 6.14: throwing the decoy — a short airy whoosh (bandpass noise sweeping
+  // down and out) with a soft low thud a beat later for it landing. No pitch,
+  // so it doesn't read as a pickup or an alert.
+  decoyThrow() {
+    const { ctx } = this
+    const t = ctx.currentTime
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(0.6)
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(1400, t)
+    bp.frequency.exponentialRampToValueAtTime(320, t + 0.34)
+    bp.Q.value = 0.9
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.22, t + 0.03)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.38)
+    n.connect(bp).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + 0.42)
+
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(120, t + 0.34)
+    o.frequency.exponentialRampToValueAtTime(52, t + 0.5)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t + 0.34)
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.37)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6)
+    o.connect(g).connect(this.master)
+    o.start(t + 0.34)
+    o.stop(t + 0.62)
+  }
+
   // 6.13: a quiet two-note fall when a snack or blanket window runs out — the
   // "that wore off" tell so the effect ending isn't silent.
   effectEnd() {

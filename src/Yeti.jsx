@@ -6,6 +6,7 @@ import { levelParams, effectiveLevel } from './levels.js'
 import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
+import { decoy } from './decoy.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import {
   generateSheds,
@@ -18,6 +19,8 @@ import { shelter } from './shelter.js'
 // Step 3: one yeti with basic chase-detection AI.
 // Step 6.2: spawn point and idle wander are randomized per run.
 // Step 6.11: a 'search' state sits between chase and idle — the yeti has a memory.
+// Step 6.14: a 'decoy' state — a thrown decoy yanks him off anything, a live
+// chase included, to go investigate where it landed (decoy.js drives it).
 //
 // Each run the yeti spawns somewhere random in the arena, always far enough
 // from the player's start that no run begins already in a chase. It idles by
@@ -47,6 +50,12 @@ import { shelter } from './shelter.js'
 // escalate stay here.
 const CATCH_RADIUS = 1.9
 const BURST_RADIUS = 6 // inside this the chase switches to the lunge speed
+// 6.14: seconds the yeti pokes around a thrown decoy once he reaches it. The
+// walk over stacks on top, so the whole divert is longer than this — long
+// enough to shake a chase if you cut away while he's still committed to it.
+// Flat, not level-scaled: the deep-level pressure comes from how fast he
+// re-commits afterwards, not from a shorter look.
+const DECOY_LOOK_TIME = 3
 // Body circle for the 6.9 trunk push-out. Wider than the player's — he's a
 // brute — so he can't tuck fully behind a thin trunk, but still just a collider:
 // he doesn't steer around trees, he bumps off them and keeps grinding forward.
@@ -196,7 +205,7 @@ export default function Yeti() {
 
   // Per-frame state kept off React so the chase loop never triggers a re-render.
   const ai = useRef({
-    mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed'
+    mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed' | 'decoy'
     heading: 0, // yaw the yeti is turning toward, radians
     wander: new THREE.Vector3(spawn[0], 0, spawn[2]), // current idle target
     wanderTimer: 0,
@@ -210,6 +219,7 @@ export default function Yeti() {
     shedCheckTimer: levelParams(1).shedCheckInterval,
     shedCooldowns: sheds.map(() => 0),
     shedTarget: -1,
+    decoyId: 0, // the decoy.throwId he's already diverted for (6.14)
   })
   const eyeRef = useRef([null, null])
 
@@ -272,6 +282,19 @@ export default function Yeti() {
       }
     }
 
+    // 6.14: a freshly thrown decoy trumps every other state, a live chase
+    // included — he breaks off and stalks to where it landed, then pokes around
+    // it (same probe as the 6.11 last-known search / the 6.12 shed check). One
+    // divert per throw: latch the id so he doesn't re-trigger every frame it's
+    // still on the ground. Never mid-interlude — he's already been sent wide.
+    if (!interlude && decoy.live && decoy.throwId !== a.decoyId) {
+      a.decoyId = decoy.throwId
+      beginProbe(a.probe, decoy.x, decoy.z, DECOY_LOOK_TIME)
+      a.mode = 'decoy'
+      a.spotTimer = 0
+      a.shedTarget = -1
+    }
+
     if (interlude) {
       // Calm breather: drop everything and back off to a far wander. No
       // re-aggro until the next level spawns.
@@ -283,6 +306,7 @@ export default function Yeti() {
       a.spotTimer = 0
       a.shedTarget = -1
       a.shedCheckTimer = P.shedCheckInterval
+      decoy.live = false // a decoy thrown right before the breather is spent
     } else if (a.mode === 'chase') {
       // Lost sight — over the lose ring, or he ducked into a shed. Don't reset;
       // go hunt where they were last seen (or the shed door they vanished into).
@@ -304,6 +328,17 @@ export default function Yeti() {
       if (!hidden && dist < P.reacquireRadius) {
         a.probe.active = false // reacquired — straight back to the chase
         a.mode = 'chase'
+      }
+    } else if (a.mode === 'decoy') {
+      // Diverted to the decoy. He only snaps back onto you once he's actually
+      // reached it (probe in its 'look' phase) AND you're close — while he's
+      // still stalking over he's fully committed, and that's the head start the
+      // throw is for. Same tight reacquire ring as a shaken search.
+      if (!hidden && a.probe.phase === 'look' && dist < P.reacquireRadius) {
+        a.probe.active = false
+        a.mode = 'chase'
+        a.spotTimer = 0
+        decoy.live = false
       }
     } else if (a.mode === 'shed') {
       // Mid shed-check: the player breaking cover close by still yanks him into
@@ -397,10 +432,10 @@ export default function Yeti() {
       dir.copy(toPlayer).normalize()
       speed = dist < BURST_RADIUS ? P.burstSpeed : P.chaseSpeed
       moving = true
-    } else if (a.mode === 'search' || a.mode === 'shed') {
-      // Same motion for both: stalk to the point (last-known spot, or a shed
-      // door), cast around it, then give up — see investigate.js. Keep the
-      // pokes off the arena wall like the waypoints.
+    } else if (a.mode === 'search' || a.mode === 'shed' || a.mode === 'decoy') {
+      // Same motion for all three: stalk to the point (last-known spot, a shed
+      // door, or a thrown decoy), cast around it, then give up — see
+      // investigate.js. Keep the pokes off the arena wall like the waypoints.
       const r = stepProbe(a.probe, g.position, delta, { bound: ARENA_HALF - EDGE_MARGIN })
       if (r.done) {
         if (a.mode === 'shed' && a.shedTarget >= 0) {
@@ -408,6 +443,7 @@ export default function Yeti() {
           a.shedCooldowns[a.shedTarget] = P.shedCheckInterval * 1.5
           a.shedTarget = -1
         }
+        if (a.mode === 'decoy') decoy.live = false // done with it
         a.mode = 'idle'
         a.wanderTimer = 0 // pick a fresh waypoint next frame
       } else {
@@ -457,7 +493,11 @@ export default function Yeti() {
     // Menacing bob while moving; eyes flare when locked on.
     g.position.y = moving ? Math.abs(Math.sin(performance.now() * 0.006)) * 0.12 : 0
     const glow =
-      a.mode === 'chase' ? 1.6 : a.mode === 'search' || a.mode === 'shed' ? 0.7 : 0.15
+      a.mode === 'chase'
+        ? 1.6
+        : a.mode === 'search' || a.mode === 'shed' || a.mode === 'decoy'
+          ? 0.7
+          : 0.15
     for (const m of eyeRef.current) {
       if (m) m.emissiveIntensity += (glow - m.emissiveIntensity) * Math.min(delta * 6, 1)
     }
