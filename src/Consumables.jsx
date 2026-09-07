@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useGame, SNACK_SECONDS, BLANKET_SECONDS } from './store.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
+import { inControl } from './touch.js'
 import { ARENA_HALF } from './arena.js'
 
 // Step 6.13: the two rare consumables — a snack and a blanket. Both scatter like
@@ -111,13 +112,13 @@ function Pickup({ kind, slot }) {
   }
 
   useFrame((_, rawDelta) => {
-    const { status, interlude } = useGame.getState()
+    const { status, interlude, isTouch } = useGame.getState()
     if (status !== 'playing') return
     const delta = Math.min(rawDelta, 0.1)
 
     if (phase.current === 'waiting') {
       // Don't burn the fuse on the start prompt or a pause.
-      if (!document.pointerLockElement) return
+      if (!inControl(isTouch)) return
       fuse.current -= delta
       if (fuse.current <= 0) {
         setSpot(rollSpot())
@@ -226,15 +227,22 @@ export default function Consumables() {
   }, [])
 
   useFrame((_, rawDelta) => {
-    const { status, interlude, snackActive, blanketActive, endSnack, endBlanket } =
-      useGame.getState()
+    const {
+      status,
+      interlude,
+      isTouch,
+      snackActive,
+      blanketActive,
+      endSnack,
+      endBlanket,
+    } = useGame.getState()
 
     if (snackActive && !wasSnack.current) snackWin.current = SNACK_SECONDS
     wasSnack.current = snackActive
     if (blanketActive && !wasBlanket.current) blanketWin.current = BLANKET_SECONDS
     wasBlanket.current = blanketActive
 
-    if (status !== 'playing' || interlude || !document.pointerLockElement) return
+    if (status !== 'playing' || interlude || !inControl(isTouch)) return
     const delta = Math.min(rawDelta, 0.1)
 
     if (snackActive) {
