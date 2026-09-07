@@ -43,7 +43,9 @@ const PIC_Y = 1.5
 const BACK_Z = -(SHED_HALF - WALL_THICK) + 0.07
 
 function Picture({ index }) {
-  const tex = useTexture(`/shed-picture-${index}.jpg`)
+  // BASE_URL keeps this correct when the app is served under a sub-path
+  // (GitHub Pages: /yeti-survival/); it's "/" in local dev.
+  const tex = useTexture(`${import.meta.env.BASE_URL}shed-picture-${index}.jpg`)
   tex.colorSpace = THREE.SRGBColorSpace
   return (
     <group position={[0, PIC_Y, BACK_Z]}>
