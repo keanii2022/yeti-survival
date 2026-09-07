@@ -56,6 +56,14 @@ export const useGame = create((set) => ({
   // on the <Canvas> so a fresh scene rebuilds from scratch.
   runId: 0,
 
+  // Step 9.1: coarse-pointer device. Set once — at startup from matchMedia, or
+  // on the first touchstart — and never cleared: a device that's seen one touch
+  // is a touch device for the session. The whole mobile layer (drag-look, the
+  // 9.2 joystick, 9.3 buttons, the 9.5 perf tier) mounts off this. Not run
+  // state, so reset() leaves it alone.
+  isTouch: false,
+  setTouch: () => set((s) => (s.isTouch ? {} : { isTouch: true })),
+
   score: 0,
 
   // 6.6: `itemsCollected` / `itemsTotal` are now per-LEVEL — embers grabbed in
