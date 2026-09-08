@@ -64,6 +64,40 @@ describe('useKeyboardControls', () => {
     expect(result.current.current.sprint).toBe(false)
   })
 
+  it('a single firm forward press never counts as sprint', () => {
+    const { result } = renderHook(() => useKeyboardControls())
+
+    press('KeyW')
+    expect(result.current.current.forward).toBe(true)
+    expect(result.current.current.sprint).toBe(false)
+  })
+
+  it('double-tapping forward and keeping it held latches sprint until release', () => {
+    const { result } = renderHook(() => useKeyboardControls())
+
+    press('KeyW') // first tap
+    release('KeyW')
+    press('KeyW') // second tap, well inside the window, still held
+    expect(result.current.current.sprint).toBe(true)
+    expect(result.current.current.forward).toBe(true)
+
+    release('KeyW') // let go of forward -> back to a walk
+    expect(result.current.current.sprint).toBe(false)
+  })
+
+  it('a blur clears a latched double-tap sprint', () => {
+    const { result } = renderHook(() => useKeyboardControls())
+
+    press('KeyW')
+    release('KeyW')
+    press('KeyW')
+    expect(result.current.current.sprint).toBe(true)
+
+    window.dispatchEvent(new Event('blur'))
+    expect(result.current.current.sprint).toBe(false)
+    expect(result.current.current.forward).toBe(false)
+  })
+
   it('stops listening after unmount', () => {
     const { result, unmount } = renderHook(() => useKeyboardControls())
     const ref = result.current

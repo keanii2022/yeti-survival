@@ -120,36 +120,52 @@ export default function Player() {
     }
   }, [])
 
-  // 7.2: L starts a look-behind glance. Edge-triggered with a cooldown (the
+  // 7.2 / 7.4: start a look-behind glance. Edge-triggered with a cooldown (the
   // phase machine in the frame loop owns the timing), not a held movement
-  // intent, so it lives here rather than in useKeyboardControls.
+  // intent, so it lives here rather than in useKeyboardControls. Desktop fires
+  // it on a left mouse-click — your hand's already on the mouse steering, and
+  // the L key was too far to reach mid-sprint (playtest). Touch fires it from
+  // the 9.3 on-screen L button, which dispatches a KeyL keydown.
+  const startGlance = useCallback(() => {
+    if (useGame.getState().status !== 'playing') return
+    // Desktop needs the mouse captured (so the click that *acquires* pointer
+    // lock doesn't also spend itself on a glance); touch has no lock and is
+    // always "in control" while playing.
+    if (!isTouch && !controls.current?.isLocked) return
+    const gl = glance.current
+    if (gl.phase !== 'idle') return
+    // Freeze the travel heading, spin the view 180°, cut mouse-look. On touch
+    // the frame loop does the spin (a Math.PI yaw offset while gl.phase is
+    // 'look'/'frost') and there's no PointerLockControls to disable.
+    camera.getWorldDirection(gl.fwd)
+    gl.fwd.y = 0
+    if (gl.fwd.lengthSq() < 1e-6) gl.fwd.set(0, 0, -1)
+    gl.fwd.normalize()
+    if (!isTouch) {
+      camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
+      controls.current.enabled = false
+    }
+    gl.phase = 'look'
+    gl.t = 0
+    mirror.ready = false
+  }, [camera, isTouch])
+
   useEffect(() => {
     const onKey = (e) => {
-      if (e.code !== 'KeyL' || e.repeat) return
-      if (useGame.getState().status !== 'playing') return
-      // Desktop needs the mouse captured; touch (9.3's on-screen L button) has
-      // no pointer lock and is always "in control" while playing.
-      if (!isTouch && !controls.current?.isLocked) return
-      const gl = glance.current
-      if (gl.phase !== 'idle') return
-      // Freeze the travel heading, spin the view 180°, cut mouse-look. On touch
-      // the frame loop does the spin (a Math.PI yaw offset while gl.phase is
-      // 'look'/'frost') and there's no PointerLockControls to disable.
-      camera.getWorldDirection(gl.fwd)
-      gl.fwd.y = 0
-      if (gl.fwd.lengthSq() < 1e-6) gl.fwd.set(0, 0, -1)
-      gl.fwd.normalize()
-      if (!isTouch) {
-        camera.rotateOnWorldAxis(WORLD_UP, Math.PI)
-        controls.current.enabled = false
-      }
-      gl.phase = 'look'
-      gl.t = 0
-      mirror.ready = false
+      if (e.code === 'KeyL' && !e.repeat) startGlance()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [camera, isTouch])
+  }, [startGlance])
+
+  useEffect(() => {
+    if (isTouch) return
+    const onMouseDown = (e) => {
+      if (e.button === 0) startGlance()
+    }
+    window.addEventListener('mousedown', onMouseDown)
+    return () => window.removeEventListener('mousedown', onMouseDown)
+  }, [isTouch, startGlance])
 
   // 9.1: drag-look on touch. A finger that lands in the right-hand look zone
   // (and not on an on-screen control) is claimed; its drag turns the view at

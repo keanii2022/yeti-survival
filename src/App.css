@@ -261,40 +261,6 @@
   }
 }
 
-/* 7.2 look-back key prompt — bottom-left corner (the mute button's spot, hidden
-   mid-run). A quiet standing reminder that L exists; it fades back further while
-   the glance is on cooldown, then returns to full once it's ready again. */
-.lookhint {
-  position: absolute;
-  left: 1.25rem;
-  bottom: 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  pointer-events: none;
-  color: #cfe9ff;
-  opacity: 0.6;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
-  transition: opacity 0.25s linear;
-}
-
-.lookhint.cooling {
-  opacity: 0.22;
-}
-
-.lookhint kbd {
-  font: inherit;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(11, 14, 18, 0.55);
-  letter-spacing: 0.1em;
-}
-
 .prompt {
   padding: 2rem 3rem;
   border-radius: 12px;
@@ -801,13 +767,6 @@
 }
 
 /* --- 9.4 responsive HUD + full-bleed threat wash --- */
-
-/* On touch there's a dedicated on-screen L button (9.3), so the bottom-left
-   "L look back" chip is dead weight — and it lands right where the joystick
-   plants. Drop it. */
-.hud.touch .lookhint {
-  display: none;
-}
 
 /* The proximity vignette is a tasteful red *frame* on desktop: a clear centre,
    colour only at the edges. On a phone-sized screen that band is a sliver you
