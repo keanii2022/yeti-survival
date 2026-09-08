@@ -8,7 +8,6 @@ import {
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
 import { shelter } from './shelter.js'
-import { mirror } from './mirror.js'
 import { ITEM_LABEL } from './inventory.js'
 import MuteToggle from './MuteToggle.jsx'
 
@@ -77,28 +76,6 @@ function ShelterCue() {
     return <div className="shelter rattled">he&rsquo;s at the door</div>
   if (state === 'hidden') return <div className="shelter">hidden</div>
   return null
-}
-
-// 7.2: a standing "L look back" chip so the glance is discoverable — it dims for
-// the glance-plus-cooldown span (mirror.ready) so you can also see when it's
-// back. Not the hint system: it's a key prompt, never a yeti bearing. Same
-// rAF-polled, render-only-on-change shape as the cues above.
-function LookHint() {
-  const [ready, setReady] = useState(true)
-  const raf = useRef()
-  useEffect(() => {
-    const tick = () => {
-      setReady(mirror.ready)
-      raf.current = requestAnimationFrame(tick)
-    }
-    raf.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf.current)
-  }, [])
-  return (
-    <div className={`lookhint${ready ? '' : ' cooling'}`}>
-      <kbd>L</kbd> look back
-    </div>
-  )
 }
 
 // 7.4: bottom-left inventory strip. One chip per carried item; the selected one
@@ -237,9 +214,6 @@ export default function Hud({ locked, isTouch }) {
 
       {engaged && playing && <InventoryCue />}
 
-      {engaged && playing && <LookHint />}
-
-
       {showMute && <MuteToggle />}
 
       {showStats && (
@@ -357,7 +331,7 @@ export default function Hud({ locked, isTouch }) {
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>
           <p className="keys">
-            WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; L look back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+            WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
           </p>
           <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
         </div>
