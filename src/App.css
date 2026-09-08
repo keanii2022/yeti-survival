@@ -90,6 +90,41 @@
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
 }
 
+/* 7.5: dropped-item hint pip — a soft arrow that circles the crosshair to point
+   the rough way back to whatever you dropped. Blurred and semi-transparent on
+   purpose: a hint, not a HUD marker. The container is pinned to screen centre
+   and rotated inline each frame by the fuzzy (8-sector) bearing; the arrow is
+   pushed out along the +Y (facing) axis so the rotation orbits it. The
+   transition softens the sector-to-sector snap into a glide. */
+.droppip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  transition: transform 0.2s ease-out;
+}
+
+.droppip-arrow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 12px solid rgba(255, 233, 178, 0.72);
+  transform: translate(-50%, -50%) translateY(-46px);
+  filter: blur(1.1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .droppip {
+    transition: none;
+  }
+}
+
 /* Chase-state line — low centre, in view without a look-back. Shown only mid-
    run: .chasing pulses red while he's locked on, .searching sits steady amber
    once you've broken his line of sight; nothing at all once he gives up. */
@@ -882,6 +917,12 @@
   .consumable {
     font-size: 0.62rem;
     letter-spacing: 0.18em;
+  }
+
+  /* Pull the hint pip in tight to the crosshair on a short screen. */
+  .droppip-arrow {
+    transform: translate(-50%, -50%) translateY(-36px);
+    border-bottom-width: 10px;
   }
 
   /* Prompt cards — trim the padding and type so the game-over tally fits inside

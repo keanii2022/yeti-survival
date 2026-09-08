@@ -228,16 +228,21 @@ describe('inventory (7.4)', () => {
     expect(get().slots).toEqual([null, null, null, null])
   })
 
-  it('dropSlot empties one slot, leaving the rest', () => {
-    useGame.setState({ slots: ['snack', 'blanket', null, null] })
+  it('dropSlot empties one slot and flags the drop for Drops.jsx', () => {
+    useGame.setState({ slots: ['snack', 'blanket', null, null], selectedSlot: 0 })
+    const before = get().dropReq
     get().dropSlot(0)
     expect(get().slots).toEqual([null, 'blanket', null, null])
+    expect(get().selectedSlot).toBe(1) // selection falls to what's still carried
+    expect(get().pendingDrop).toBe('snack')
+    expect(get().dropReq).toBe(before + 1)
   })
 
   it('dropSlot is a no-op on an empty slot, an interlude, or a finished run', () => {
     useGame.setState({ slots: ['snack', null, null, null] })
     get().dropSlot(1)
     expect(get().slots).toEqual(['snack', null, null, null])
+    expect(get().dropReq).toBe(0)
 
     useGame.setState({ interlude: true })
     get().dropSlot(0)
@@ -246,6 +251,7 @@ describe('inventory (7.4)', () => {
     useGame.setState({ interlude: false, status: 'caught' })
     get().dropSlot(0)
     expect(get().slots).toEqual(['snack', null, null, null])
+    expect(get().dropReq).toBe(0)
   })
 
   it('useSlot on a snack spends it, pins stamina full, and clears the sprint lock', () => {

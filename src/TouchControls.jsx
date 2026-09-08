@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGame } from './store.js'
 import { mirror } from './mirror.js'
-import { ITEM_LABEL, lockWalk } from './inventory.js'
+import { ITEM_LABEL, lockWalk, DROP_HOLD_MS } from './inventory.js'
 import {
   joystickVector,
   sprintLatch,
@@ -183,16 +183,51 @@ function ActionButton({ code, label, sub, className = '' }) {
 
 // 7.4: a carried item as a thumb button — one per filled slot, tap to use it.
 // (Desktop cycles with E and commits with Q; touch has the screen room to show
-// every item and tap the one you want directly.) Wired straight to the store —
-// a synthetic touch has no keyup to route a tap through the desktop handler.
+// every item and tap the one you want directly.) 7.5: hold it past DROP_HOLD_MS
+// to drop the item into the world instead — the same tap-or-hold split E gets
+// on desktop. Wired straight to the store — a synthetic touch has no keyup to
+// route through the desktop handler.
 function SlotButton({ index, kind }) {
   const lastTouch = useRef(0)
+  const holdTimer = useRef(null)
+  const consumed = useRef(false) // the hold fired a drop — swallow the release tap
 
-  const use = () => {
+  const usable = () => {
     const s = useGame.getState()
-    if (s.status !== 'playing' || s.interlude || s.slots[index] == null) return
-    s.useSlot(index)
-    lockWalk()
+    return s.status === 'playing' && !s.interlude && s.slots[index] != null
+  }
+  const spend = () => {
+    if (!usable()) return
+    useGame.getState().useSlot(index)
+    lockWalk() // using ties up both hands for a beat; dropping doesn't
+  }
+  const drop = () => {
+    if (!usable()) return
+    useGame.getState().dropSlot(index)
+    navigator.vibrate?.(12)
+  }
+
+  const startHold = () => {
+    consumed.current = false
+    holdTimer.current = setTimeout(() => {
+      holdTimer.current = null
+      consumed.current = true
+      drop()
+    }, DROP_HOLD_MS)
+  }
+  const clearHold = () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current)
+      holdTimer.current = null
+    }
+  }
+  const endHold = () => {
+    clearHold()
+    if (consumed.current) {
+      consumed.current = false
+      return
+    }
+    spend()
   }
 
   return (
@@ -202,11 +237,16 @@ function SlotButton({ index, kind }) {
       className={`touch-btn slot ${kind}`}
       onTouchStart={() => {
         lastTouch.current = Date.now()
-        use()
+        startHold()
+      }}
+      onTouchEnd={endHold}
+      onTouchCancel={() => {
+        clearHold()
+        consumed.current = false
       }}
       onClick={() => {
         if (Date.now() - lastTouch.current < 700) return
-        use()
+        spend()
       }}
     >
       <small>{ITEM_LABEL[kind]}</small>

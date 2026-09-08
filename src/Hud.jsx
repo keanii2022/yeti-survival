@@ -8,6 +8,7 @@ import {
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
 import { shelter } from './shelter.js'
+import { drops } from './drops.js'
 import { ITEM_LABEL } from './inventory.js'
 import MuteToggle from './MuteToggle.jsx'
 
@@ -78,6 +79,31 @@ function ShelterCue() {
   return null
 }
 
+// 7.5: a soft arrow that orbits the crosshair, pointing the rough way back to
+// the nearest item you've dropped (hold E / long-press a slot). Direction only,
+// no distance — and the bearing is snapped to 8 headings, so it reads as "that
+// way", not a precise vector. Polls the off-React `drops.bearing`, which
+// Drops.jsx writes each frame; a CSS transition smooths the sector-to-sector
+// jumps. Nothing dropped -> bearing is null -> nothing rendered.
+function DropPip() {
+  const [bearing, setBearing] = useState(null)
+  const raf = useRef()
+  useEffect(() => {
+    const tick = () => {
+      setBearing(drops.bearing) // React bails the render when unchanged
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [])
+  if (bearing == null) return null
+  return (
+    <div className="droppip" style={{ transform: `rotate(${bearing}rad)` }}>
+      <span className="droppip-arrow" />
+    </div>
+  )
+}
+
 // 7.4: bottom-left inventory strip. One chip per carried item; the selected one
 // (Q acts on it) is lit and carries a Q prompt, the rest are dimmed. An E prompt
 // shows once there's more than one item to cycle between. An active effect
@@ -101,9 +127,14 @@ function InventoryCue() {
       {blanketActive && (
         <div className="consumable blanket active">blanket wrapped</div>
       )}
-      {filled.length > 1 && (
+      {filled.length > 0 && (
         <div className="consumable cycle">
-          <kbd>E</kbd> cycle
+          {filled.length > 1 && (
+            <>
+              <kbd>E</kbd> cycle &nbsp;·&nbsp;{' '}
+            </>
+          )}
+          <kbd>hold&nbsp;E</kbd> drop
         </div>
       )}
       {filled.map(({ kind, i }) => (
@@ -211,6 +242,8 @@ export default function Hud({ locked, isTouch }) {
       {engaged && playing && <AdrenalineCue />}
 
       {engaged && playing && <ShelterCue />}
+
+      {engaged && playing && <DropPip />}
 
       {engaged && playing && <InventoryCue />}
 
@@ -331,7 +364,7 @@ export default function Hud({ locked, isTouch }) {
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>
           <p className="keys">
-            WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+            WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; hold E drop item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
           </p>
           <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
         </div>
