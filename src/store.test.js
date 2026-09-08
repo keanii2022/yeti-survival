@@ -167,7 +167,7 @@ describe('green ember (6.7)', () => {
   })
 })
 
-describe('consumables (6.13)', () => {
+describe('inventory (7.4)', () => {
   it('exposes short, positive effect windows', () => {
     expect(SNACK_SECONDS).toBeGreaterThan(0)
     expect(SNACK_SECONDS).toBeLessThan(20)
@@ -175,42 +175,128 @@ describe('consumables (6.13)', () => {
     expect(BLANKET_SECONDS).toBeLessThan(20)
   })
 
-  it('grabConsumable pockets one of each kind, never two', () => {
-    get().grabConsumable('snack')
-    expect(get().hasSnack).toBe(true)
-    get().grabConsumable('snack') // already carrying — no change, no error
-    expect(get().hasSnack).toBe(true)
-
-    get().grabConsumable('blanket')
-    expect(get().hasBlanket).toBe(true)
-
-    get().grabConsumable('decoy')
-    expect(get().hasDecoy).toBe(true)
-    get().grabConsumable('decoy') // already carrying — no change
-    expect(get().hasDecoy).toBe(true)
+  it('starts with four empty slots and the selection at 0', () => {
+    expect(get().slots).toEqual([null, null, null, null])
+    expect(get().selectedSlot).toBe(0)
   })
 
-  it('grabConsumable is a no-op once the run is over', () => {
+  it('grabItem fills the first free slot, and stacks duplicates', () => {
+    get().grabItem('snack')
+    get().grabItem('blanket')
+    get().grabItem('snack')
+    expect(get().slots).toEqual(['snack', 'blanket', 'snack', null])
+  })
+
+  it('grabItem points the selection at the first item, then leaves it alone', () => {
+    get().grabItem('blanket')
+    expect(get().selectedSlot).toBe(0) // was pointing at nothing -> snaps to it
+
+    useGame.setState({ selectedSlot: 0 })
+    get().grabItem('snack') // slot 0 still holds the blanket -> selection stays
+    expect(get().selectedSlot).toBe(0)
+  })
+
+  it('cycleSlot walks the selection through the filled slots, wrapping', () => {
+    useGame.setState({ slots: ['snack', null, 'blanket', 'decoy'], selectedSlot: 0 })
+    get().cycleSlot()
+    expect(get().selectedSlot).toBe(2)
+    get().cycleSlot()
+    expect(get().selectedSlot).toBe(3)
+    get().cycleSlot()
+    expect(get().selectedSlot).toBe(0)
+  })
+
+  it('cycleSlot is a no-op with fewer than two items, or a paused/over run', () => {
+    useGame.setState({ slots: ['snack', null, null, null], selectedSlot: 0 })
+    get().cycleSlot()
+    expect(get().selectedSlot).toBe(0)
+
+    useGame.setState({ slots: ['snack', 'blanket', null, null], status: 'caught' })
+    get().cycleSlot()
+    expect(get().selectedSlot).toBe(0)
+  })
+
+  it('grabItem is a no-op when the inventory is full', () => {
+    useGame.setState({ slots: ['snack', 'blanket', 'decoy', 'snack'] })
+    get().grabItem('blanket')
+    expect(get().slots).toEqual(['snack', 'blanket', 'decoy', 'snack'])
+  })
+
+  it('grabItem is a no-op once the run is over', () => {
     useGame.setState({ status: 'frozen' })
-    get().grabConsumable('snack')
-    expect(get().hasSnack).toBe(false)
-    get().grabConsumable('decoy')
-    expect(get().hasDecoy).toBe(false)
+    get().grabItem('snack')
+    expect(get().slots).toEqual([null, null, null, null])
   })
 
-  it('useSnack spends the snack, pins stamina full, and clears the sprint lock', () => {
-    useGame.setState({ hasSnack: true, stamina: 10, sprintLocked: true })
-    get().useSnack()
+  it('dropSlot empties one slot, leaving the rest', () => {
+    useGame.setState({ slots: ['snack', 'blanket', null, null] })
+    get().dropSlot(0)
+    expect(get().slots).toEqual([null, 'blanket', null, null])
+  })
 
-    expect(get().hasSnack).toBe(false)
+  it('dropSlot is a no-op on an empty slot, an interlude, or a finished run', () => {
+    useGame.setState({ slots: ['snack', null, null, null] })
+    get().dropSlot(1)
+    expect(get().slots).toEqual(['snack', null, null, null])
+
+    useGame.setState({ interlude: true })
+    get().dropSlot(0)
+    expect(get().slots).toEqual(['snack', null, null, null])
+
+    useGame.setState({ interlude: false, status: 'caught' })
+    get().dropSlot(0)
+    expect(get().slots).toEqual(['snack', null, null, null])
+  })
+
+  it('useSlot on a snack spends it, pins stamina full, and clears the sprint lock', () => {
+    useGame.setState({ slots: [null, 'snack', null, null], stamina: 10, sprintLocked: true })
+    get().useSlot(1)
+
+    expect(get().slots).toEqual([null, null, null, null])
     expect(get().snackActive).toBe(true)
     expect(get().stamina).toBe(100)
     expect(get().sprintLocked).toBe(false)
   })
 
-  it('useSnack is a no-op without a snack in hand', () => {
-    get().useSnack()
+  it('useSlot on a blanket spends it and arms the slower-drain flag', () => {
+    useGame.setState({ slots: ['blanket', null, null, null] })
+    get().useSlot(0)
+
+    expect(get().slots).toEqual([null, null, null, null])
+    expect(get().blanketActive).toBe(true)
+
+    get().endBlanket()
+    expect(get().blanketActive).toBe(false)
+  })
+
+  it('useSlot on a decoy clears the slot and bumps throwReq for Decoy.jsx', () => {
+    useGame.setState({ slots: [null, null, 'decoy', null] })
+    const before = get().throwReq
+    get().useSlot(2)
+
+    expect(get().slots).toEqual([null, null, null, null])
+    expect(get().throwReq).toBe(before + 1)
+  })
+
+  it('useSlot drops the selection onto whatever is still carried', () => {
+    useGame.setState({ slots: ['snack', 'blanket', null, null], selectedSlot: 0 })
+    get().useSlot(0)
+    expect(get().slots).toEqual([null, 'blanket', null, null])
+    expect(get().selectedSlot).toBe(1)
+  })
+
+  it('useSlot is a no-op on an empty slot, an interlude, or a finished run', () => {
+    get().useSlot(0) // empty
     expect(get().snackActive).toBe(false)
+
+    useGame.setState({ slots: ['snack', null, null, null], interlude: true })
+    get().useSlot(0)
+    expect(get().snackActive).toBe(false)
+    expect(get().slots).toEqual(['snack', null, null, null])
+
+    useGame.setState({ interlude: false, status: 'caught' })
+    get().useSlot(0)
+    expect(get().slots).toEqual(['snack', null, null, null])
   })
 
   it('tickStamina holds the bar at full while a snack is active, whatever the drain', () => {
@@ -230,45 +316,19 @@ describe('consumables (6.13)', () => {
     expect(get().stamina).toBe(40)
   })
 
-  it('useBlanket spends the blanket and arms the slower-drain flag', () => {
-    useGame.setState({ hasBlanket: true })
-    get().useBlanket()
-
-    expect(get().hasBlanket).toBe(false)
-    expect(get().blanketActive).toBe(true)
-
-    get().endBlanket()
-    expect(get().blanketActive).toBe(false)
-  })
-
-  it('throwDecoy empties the hand, and only with one in it and a live run', () => {
-    get().throwDecoy()
-    expect(get().hasDecoy).toBe(false) // nothing to throw — no-op
-
-    useGame.setState({ hasDecoy: true })
-    get().throwDecoy()
-    expect(get().hasDecoy).toBe(false)
-
-    useGame.setState({ hasDecoy: true, status: 'caught' })
-    get().throwDecoy()
-    expect(get().hasDecoy).toBe(true) // run's over — no-op
-  })
-
-  it('reset clears every consumable flag', () => {
+  it('reset clears the slots, the selection, and both effect flags', () => {
     useGame.setState({
-      hasSnack: true,
-      hasBlanket: true,
+      slots: ['snack', 'blanket', 'decoy', 'snack'],
+      selectedSlot: 2,
       snackActive: true,
       blanketActive: true,
-      hasDecoy: true,
     })
     get().reset()
     expect(get()).toMatchObject({
-      hasSnack: false,
-      hasBlanket: false,
+      slots: [null, null, null, null],
+      selectedSlot: 0,
       snackActive: false,
       blanketActive: false,
-      hasDecoy: false,
     })
   })
 })
@@ -312,11 +372,10 @@ describe('reset', () => {
       warmth: 3,
       stamina: 0,
       sprintLocked: true,
-      hasSnack: true,
-      hasBlanket: true,
+      slots: ['snack', 'blanket', 'decoy', 'snack'],
+      selectedSlot: 3,
       snackActive: true,
       blanketActive: true,
-      hasDecoy: true,
     })
     const before = get().runId
 
@@ -337,11 +396,10 @@ describe('reset', () => {
       warmth: 100,
       stamina: 100,
       sprintLocked: false,
-      hasSnack: false,
-      hasBlanket: false,
+      slots: [null, null, null, null],
+      selectedSlot: 0,
       snackActive: false,
       blanketActive: false,
-      hasDecoy: false,
       runId: before + 1,
     })
   })
@@ -417,7 +475,16 @@ describe('levels (6.6)', () => {
     get().startNightfall()
     expect(get().status).toBe('caught') // no-op — not a win
 
-    useGame.setState({ status: 'won', level: LEVEL_COUNT, score: 900, warmth: 4, embersTotal: 60 })
+    useGame.setState({
+      status: 'won',
+      level: LEVEL_COUNT,
+      score: 900,
+      warmth: 4,
+      embersTotal: 60,
+      slots: ['snack', 'decoy', null, null],
+      selectedSlot: 1,
+      blanketActive: true,
+    })
     const before = get().runId
     get().startNightfall()
 
@@ -430,6 +497,9 @@ describe('levels (6.6)', () => {
       score: 900,
       embersTotal: 60,
       warmth: 100,
+      slots: [null, null, null, null],
+      selectedSlot: 0,
+      blanketActive: false,
       runId: before + 1,
     })
   })

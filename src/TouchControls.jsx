@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGame } from './store.js'
 import { mirror } from './mirror.js'
+import { ITEM_LABEL, lockWalk } from './inventory.js'
 import {
   joystickVector,
   sprintLatch,
@@ -152,8 +153,8 @@ export default function TouchControls() {
 // down, so with `onClick` the buttons went dead the whole time you were driving
 // the movement joystick. `touchstart` is delivered per-finger, always. The
 // trailing ghost `click` is swallowed by the timestamp guard; `onClick` stays
-// as the path for any non-touch input that reaches here. Each press just
-// re-dispatches the desktop keydown so the L / E / Q / F handlers stay the one
+// as the path for any non-touch input that reaches here. The L button
+// re-dispatches its desktop keydown so Player's glance handler stays the one
 // source of truth.
 function ActionButton({ code, label, sub, className = '' }) {
   const lastTouch = useRef(0)
@@ -180,16 +181,47 @@ function ActionButton({ code, label, sub, className = '' }) {
   )
 }
 
+// 7.4: a carried item as a thumb button — one per filled slot, tap to use it.
+// (Desktop cycles with E and commits with Q; touch has the screen room to show
+// every item and tap the one you want directly.) Wired straight to the store —
+// a synthetic touch has no keyup to route a tap through the desktop handler.
+function SlotButton({ index, kind }) {
+  const lastTouch = useRef(0)
+
+  const use = () => {
+    const s = useGame.getState()
+    if (s.status !== 'playing' || s.interlude || s.slots[index] == null) return
+    s.useSlot(index)
+    lockWalk()
+  }
+
+  return (
+    <button
+      type="button"
+      data-touch-control="button"
+      className={`touch-btn slot ${kind}`}
+      onTouchStart={() => {
+        lastTouch.current = Date.now()
+        use()
+      }}
+      onClick={() => {
+        if (Date.now() - lastTouch.current < 700) return
+        use()
+      }}
+    >
+      <small>{ITEM_LABEL[kind]}</small>
+    </button>
+  )
+}
+
 // Step 9.3: the right-thumb action buttons. One stack in the bottom-right,
 // clear of where a look-drag or the joystick lands. L is always up while
-// playing (dimmed through its cooldown); E/Q/F only mount while that item is
-// carried. Tagged data-touch-control so a press can't leak into the 9.1
-// drag-look zone.
+// playing (dimmed through its cooldown); a slot button mounts for each filled
+// V/B/N/M slot (7.4). Tagged data-touch-control so a press can't leak into the
+// 9.1 drag-look zone.
 function TouchButtons() {
   const status = useGame((s) => s.status)
-  const hasSnack = useGame((s) => s.hasSnack)
-  const hasBlanket = useGame((s) => s.hasBlanket)
-  const hasDecoy = useGame((s) => s.hasDecoy)
+  const slots = useGame((s) => s.slots)
   // mirror.ready is an off-React singleton — poll it so the L button can dim
   // for the glance-plus-cooldown span, same tell as the HUD's LookHint chip.
   const [glanceReady, setGlanceReady] = useState(true)
@@ -213,9 +245,9 @@ function TouchButtons() {
         sub="look"
         className={glanceReady ? '' : 'cooling'}
       />
-      {hasSnack && <ActionButton code="KeyE" label="E" sub="snack" />}
-      {hasBlanket && <ActionButton code="KeyQ" label="Q" sub="blanket" />}
-      {hasDecoy && <ActionButton code="KeyF" label="F" sub="decoy" />}
+      {slots.map((kind, i) =>
+        kind ? <SlotButton key={i} index={i} kind={kind} /> : null,
+      )}
     </div>
   )
 }

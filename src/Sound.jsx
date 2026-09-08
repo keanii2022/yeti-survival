@@ -39,7 +39,7 @@ export default function Sound() {
   const prevSheltered = useRef(false)
   const prevSnack = useRef(false)
   const prevBlanket = useRef(false)
-  const prevDecoy = useRef(false)
+  const prevThrow = useRef(0)
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -69,7 +69,7 @@ export default function Sound() {
     prevSheltered.current = false
     prevSnack.current = false
     prevBlanket.current = false
-    prevDecoy.current = false
+    prevThrow.current = useGame.getState().throwReq
     getAtmosphere()?.revive()
     const root = document.documentElement.style
     root.setProperty('--threat', '0')
@@ -94,7 +94,7 @@ export default function Sound() {
       nightfall,
       snackActive,
       blanketActive,
-      hasDecoy,
+      throwReq,
     } = useGame.getState()
 
     // --- state-change one-shots ---
@@ -144,10 +144,10 @@ export default function Sound() {
     else if (!blanketActive && prevBlanket.current) eng.effectEnd()
     prevBlanket.current = blanketActive
 
-    // Decoy (6.14): the hand emptying while the run's live is a throw — whoosh.
-    // (A grab fills the hand and is deliberately silent, like the other pickups.)
-    if (!hasDecoy && prevDecoy.current) eng.decoyThrow()
-    prevDecoy.current = hasDecoy
+    // Decoy (6.14): every throwReq bump is a fling — whoosh. (A grab just fills
+    // a slot and is deliberately silent, like the other pickups.)
+    if (throwReq > prevThrow.current) eng.decoyThrow()
+    prevThrow.current = throwReq
 
     // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
     // muffles for as long as you're inside — the "cold's eased" cue for the

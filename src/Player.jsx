@@ -8,6 +8,7 @@ import { applyDragLook, inLookZone, LOOK_CONTROL_SELECTOR } from './touch.js'
 import { touchMove, resetTouchMove } from './joystick.js'
 import { greenEmber } from './greenEmber.js'
 import { mirror, resetMirror } from './mirror.js'
+import { inventory, resetInventory } from './inventory.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { qualityFor } from './quality.js'
@@ -109,10 +110,12 @@ export default function Player() {
   useEffect(() => {
     resetMirror()
     resetTouchMove()
+    resetInventory()
     document.documentElement.style.setProperty('--frost', '0')
     return () => {
       resetMirror()
       resetTouchMove()
+      resetInventory()
       document.documentElement.style.setProperty('--frost', '0')
     }
   }, [])
@@ -308,13 +311,24 @@ export default function Player() {
       if (held.left) move.sub(right)
     }
 
+    // 7.4: using or dropping an item pins you to walk speed for a beat — both
+    // hands busy. The lock counts down here (in the frame loop) so a pause
+    // freezes it.
+    if (inventory.walkLock > 0) {
+      inventory.walkLock = Math.max(0, inventory.walkLock - delta)
+    }
+
     // Sprint only lands if you're moving, asking for it (Shift / the joystick
-    // latch), and not winded.
+    // latch), not winded, and not mid item-fumble.
     const game = useGame.getState()
     const moving = move.lengthSq() > 1e-6
     const wantSprint = isTouch ? touchMove.sprint : held.sprint
     const sprinting =
-      moving && wantSprint && !game.sprintLocked && game.stamina > 0
+      moving &&
+      wantSprint &&
+      !game.sprintLocked &&
+      game.stamina > 0 &&
+      inventory.walkLock === 0
 
     if (moving) {
       const sprintSpeed = greenEmber.boost ? ADRENALINE_SPEED : SPRINT_SPEED

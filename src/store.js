@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
+import { nextFilledSlot, firstFilledSlot } from './inventory.js'
 
 // Game state. A live run tracks warmth, stamina, score, and — since 6.6 — a
 // level. The run is a climb: clear each level's ember target, take a calm
@@ -38,13 +39,19 @@ export const WARMTH_PER_EMBER = 8
 const SPRINT_UNLOCK = 30
 
 // Step 6.13: the two rare consumables (Consumables.jsx scatters them like embers,
-// only far rarer). Both are carried, then triggered by hand — E for the snack,
-// Q for the blanket (App.jsx). The snack pins stamina at full so you can sprint
-// flat-out through the window; the blanket cuts the warmth drain hard (see
-// BLANKET_DRAIN_FACTOR in Survival.jsx). Windows are short — one grab is a
-// single get-out-of-trouble play, not a standing buff.
+// only far rarer). Since 7.4 they ride the generic inventory — carried in one of
+// four slots, triggered by that slot's key (V/B/N/M, App.jsx). The snack pins
+// stamina at full so you can sprint flat-out through the window; the blanket
+// cuts the warmth drain hard (see BLANKET_DRAIN_FACTOR in Survival.jsx). Windows
+// are short — one grab is a single get-out-of-trouble play, not a standing buff.
 export const SNACK_SECONDS = 8
 export const BLANKET_SECONDS = 12
+
+// Step 7.4: four generic carry slots. A slot holds an item kind ('snack' |
+// 'blanket' | 'decoy') or null. A pickup lands in the first free slot; E cycles
+// the selected slot, Q spends it.
+export const SLOT_COUNT = 4
+const emptySlots = () => new Array(SLOT_COUNT).fill(null)
 
 export const useGame = create((set) => ({
   // 'playing' while the run is live (this covers the between-levels interlude
@@ -105,20 +112,22 @@ export const useGame = create((set) => ({
   stamina: START_STAMINA,
   sprintLocked: false,
 
-  // 6.13 consumables. `hasSnack` / `hasBlanket`: one of each is carried at most.
-  // `snackActive` pins stamina at full (see tickStamina); `blanketActive` slows
-  // the warmth drain (see Survival.jsx). Consumables.jsx counts the windows down
-  // and calls endSnack / endBlanket.
-  hasSnack: false,
-  hasBlanket: false,
+  // 7.4 inventory. `slots` is four entries, each an item kind or null. A pickup
+  // (Consumables.jsx / Decoy.jsx) calls grabItem to take the first free one;
+  // `selectedSlot` is the one Q acts on and E advances. useSlot / dropSlot
+  // spend or ditch a slot. `snackActive` pins stamina at full (see
+  // tickStamina); `blanketActive` slows the warmth drain (Survival.jsx).
+  // Consumables.jsx counts those windows down and calls endSnack / endBlanket.
+  slots: emptySlots(),
+  selectedSlot: 0,
   snackActive: false,
   blanketActive: false,
 
-  // 6.14 decoy. Carried one at a time like the consumables, but there's no
-  // active window — throwing it (F) just drops it from the hand and Decoy.jsx
-  // takes over: it picks the landing spot and pokes the yeti into a divert
-  // (decoy.js / Yeti.jsx). Pure utility, no score, no warmth.
-  hasDecoy: false,
+  // Bumped every time a decoy leaves a slot (useSlot). Decoy.jsx subscribes to
+  // it and does the actual throw — the arc needs the camera heading, which only
+  // exists inside the Canvas. Not reset between runs: it's an opaque edge
+  // counter and the consumers re-seed their "last seen" on mount.
+  throwReq: 0,
 
   // Grab an ember: score + counts, a small warmth top-up, and — when it's the
   // one that clears the level — the transition. Clearing the final level wins
@@ -160,48 +169,71 @@ export const useGame = create((set) => ({
         : { score: s.score + GREEN_ESCAPE_BONUS, escapes: s.escapes + 1 },
     ),
 
-  // Walk over a snack or a blanket (Consumables.jsx): pocket it, unless you're
-  // already carrying that kind — you can't stack two, so the second sits and
-  // waits until the first is spent.
-  grabConsumable: (kind) =>
+  // Walk over a snack / blanket / decoy (Consumables.jsx, Decoy.jsx): drop it
+  // into the first free slot. Inventory full → no-op, and the pickup stays out
+  // in the world. Duplicates are allowed (two snacks is a fair use of two
+  // slots); the pickups' own respawn cooldowns keep that from flooding. If the
+  // selection was pointing at nothing, snap it to the new item so a fresh grab
+  // is usable with one Q press.
+  grabItem: (kind) =>
     set((s) => {
       if (s.status !== 'playing') return {}
-      if (kind === 'snack' && !s.hasSnack) return { hasSnack: true }
-      if (kind === 'blanket' && !s.hasBlanket) return { hasBlanket: true }
-      if (kind === 'decoy' && !s.hasDecoy) return { hasDecoy: true }
-      return {}
+      const i = s.slots.indexOf(null)
+      if (i === -1) return {}
+      const slots = s.slots.slice()
+      slots[i] = kind
+      const selectedSlot = s.slots[s.selectedSlot] == null ? i : s.selectedSlot
+      return { slots, selectedSlot }
     }),
 
-  // Eat the snack (E): stamina jumps to full and stays pinned there for the
-  // window — sprint is free and unlockable the whole time. No-op without one.
-  useSnack: () =>
-    set((s) =>
-      s.status !== 'playing' || !s.hasSnack
-        ? {}
-        : {
-            hasSnack: false,
-            snackActive: true,
-            stamina: START_STAMINA,
-            sprintLocked: false,
-          },
-    ),
+  // E: move the selection to the next filled slot, wrapping. No-op with fewer
+  // than two items, a finished run, or during the interlude.
+  cycleSlot: () =>
+    set((s) => {
+      if (s.status !== 'playing' || s.interlude) return {}
+      const selectedSlot = nextFilledSlot(s.slots, s.selectedSlot)
+      return selectedSlot === s.selectedSlot ? {} : { selectedSlot }
+    }),
+
+  // Q: spend whatever's in the given slot (App.jsx passes selectedSlot; the
+  // touch buttons pass their own index). Snack → stamina welds to full for the
+  // window; blanket → warmth drain drops for the window; decoy → the slot
+  // clears and throwReq bumps for Decoy.jsx to fling. The selection then falls
+  // to whatever's still carried. No-op on an empty slot, a finished run, or the
+  // interlude.
+  useSlot: (i) =>
+    set((s) => {
+      if (s.status !== 'playing' || s.interlude) return {}
+      const kind = s.slots[i]
+      if (!kind) return {}
+      const slots = s.slots.slice()
+      slots[i] = null
+      const base = { slots, selectedSlot: firstFilledSlot(slots, s.selectedSlot) }
+      if (kind === 'snack')
+        return {
+          ...base,
+          snackActive: true,
+          stamina: START_STAMINA,
+          sprintLocked: false,
+        }
+      if (kind === 'blanket') return { ...base, blanketActive: true }
+      if (kind === 'decoy') return { ...base, throwReq: s.throwReq + 1 }
+      return base
+    }),
+
+  // Ditch a slot's item back into the world (7.5's pip then points you back to
+  // it). Built now, bound to nothing yet — you can't fill four slots until 7.7+.
+  // No-op on an empty slot / finished run / interlude.
+  dropSlot: (i) =>
+    set((s) => {
+      if (s.status !== 'playing' || s.interlude || !s.slots[i]) return {}
+      const slots = s.slots.slice()
+      slots[i] = null
+      return { slots, selectedSlot: firstFilledSlot(slots, s.selectedSlot) }
+    }),
+
   endSnack: () => set((s) => (s.snackActive ? { snackActive: false } : {})),
-
-  // Wrap the blanket (Q): warmth drains much slower for the window. No-op
-  // without one.
-  useBlanket: () =>
-    set((s) =>
-      s.status !== 'playing' || !s.hasBlanket
-        ? {}
-        : { hasBlanket: false, blanketActive: true },
-    ),
   endBlanket: () => set((s) => (s.blanketActive ? { blanketActive: false } : {})),
-
-  // Throw a carried decoy (F): drop it from the hand. Decoy.jsx's throw handler
-  // does the rest — picks the landing spot from where you're facing and pokes
-  // the yeti into a divert. No-op without one.
-  throwDecoy: () =>
-    set((s) => (s.status !== 'playing' || !s.hasDecoy ? {} : { hasDecoy: false })),
 
   // Called by Levels.jsx when the interlude timer runs out: advance to the next
   // level and spawn its wave.
@@ -234,11 +266,10 @@ export const useGame = create((set) => ({
         warmth: START_WARMTH,
         stamina: START_STAMINA,
         sprintLocked: false,
-        hasSnack: false,
-        hasBlanket: false,
+        slots: emptySlots(),
+        selectedSlot: 0,
         snackActive: false,
         blanketActive: false,
-        hasDecoy: false,
       }
     }),
 
@@ -303,10 +334,9 @@ export const useGame = create((set) => ({
       warmth: START_WARMTH,
       stamina: START_STAMINA,
       sprintLocked: false,
-      hasSnack: false,
-      hasBlanket: false,
+      slots: emptySlots(),
+      selectedSlot: 0,
       snackActive: false,
       blanketActive: false,
-      hasDecoy: false,
     })),
 }))
