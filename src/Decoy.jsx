@@ -8,6 +8,7 @@ import { decoy, resetDecoy } from './decoy.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { inControl } from './touch.js'
+import { hasFreeSlot } from './inventory.js'
 import { ARENA_HALF } from './arena.js'
 
 // Step 6.14: the decoy — a throwable that hard-resets a chase. Two halves:
@@ -100,14 +101,15 @@ function DecoyPickup({ trees, sheds }) {
   const [spot, setSpot] = useState(null)
 
   useFrame((_, rawDelta) => {
-    const { status, interlude, isTouch, hasDecoy } = useGame.getState()
+    const { status, interlude, isTouch, slots } = useGame.getState()
     if (status !== 'playing') return
     const delta = Math.min(rawDelta, 0.1)
+    const carryingDecoy = slots.includes('decoy')
 
     if (phase.current === 'waiting') {
       // Don't burn the fuse on the start prompt / a pause, or while one's
-      // already in hand — you don't need a second panic button.
-      if (!inControl(isTouch) || hasDecoy) return
+      // already in a slot — you don't need a second panic button.
+      if (!inControl(isTouch) || carryingDecoy) return
       fuse.current -= delta
       if (fuse.current <= 0) {
         // Fuse is spent — but hold here until a green ember is out to spawn
@@ -158,8 +160,9 @@ function DecoyPickup({ trees, sheds }) {
     if (beam.current) beam.current.material.opacity = (0.12 + far * 0.2) * pulse
 
     if (pdist * pdist > PICKUP_RADIUS * PICKUP_RADIUS) return
-    if (hasDecoy || interlude) return
-    useGame.getState().grabConsumable('decoy')
+    // In range: take it if a slot's free and we're not already holding one.
+    if (carryingDecoy || interlude || !hasFreeSlot(slots)) return
+    useGame.getState().grabItem('decoy')
     phase.current = 'waiting'
     fuse.current = RESPAWN
     setSpot(null)
@@ -240,15 +243,18 @@ export default function Decoy() {
     return () => resetDecoy()
   }, [])
 
-  // F throws a carried decoy. Handled here (not App.jsx) because the throw needs
-  // the camera heading, which only lives inside the Canvas.
+  // The throw fires here (not App.jsx) because the arc needs the camera heading,
+  // which only lives inside the Canvas. 7.4 routes it through the store: using a
+  // slot that holds a decoy clears the slot and bumps `throwReq`; this
+  // subscription catches that edge and flings from wherever the camera is. The
+  // "can I throw" gate (playing, one in hand, not mid-interlude) is already
+  // spent in useSlot, so all that's left is the geometry.
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.code !== 'KeyF' || e.repeat) return
-      const { status, hasDecoy, interlude, isTouch, throwDecoy } =
-        useGame.getState()
-      if (status !== 'playing' || interlude || !hasDecoy) return
-      if (!inControl(isTouch)) return
+    let seen = useGame.getState().throwReq
+    return useGame.subscribe((s) => {
+      if (s.throwReq === seen) return
+      seen = s.throwReq
+      if (s.status !== 'playing') return
 
       // Flatten the camera heading onto the ground and throw that way.
       const fwd = new THREE.Vector3()
@@ -282,10 +288,7 @@ export default function Decoy() {
       decoy.z = z
       decoy.throwId += 1
       decoy.live = true
-      throwDecoy()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    })
   }, [camera, trees, sheds])
 
   useFrame((_, rawDelta) => {

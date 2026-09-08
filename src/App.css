@@ -204,11 +204,39 @@
 }
 
 .consumable {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.72rem;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   white-space: nowrap;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}
+
+/* 7.4: carried items sit dim; the selected one (and any live effect) is lit. */
+.consumables .consumable {
+  opacity: 0.5;
+}
+
+.consumables .consumable.selected,
+.consumables .consumable.active {
+  opacity: 1;
+}
+
+/* 7.4: the E / Q prompt on an inventory chip, styled like the old look-back
+   key prompt. */
+.consumable kbd {
+  font: inherit;
+  letter-spacing: 0.1em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(11, 14, 18, 0.55);
+}
+
+.consumable.cycle {
+  color: #cfe9ff;
 }
 
 .consumable.snack {
@@ -753,6 +781,23 @@
     animation: none;
     transform: scaleY(0);
   }
+}
+
+/* 7.4: tint each slot button to its item so a glance down the stack reads. */
+.touch-btn.slot small {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.95;
+}
+.touch-btn.slot.snack {
+  border-color: rgba(255, 176, 102, 0.6);
+}
+.touch-btn.slot.blanket {
+  border-color: rgba(159, 188, 255, 0.6);
+}
+.touch-btn.slot.decoy {
+  border-color: rgba(185, 141, 255, 0.6);
 }
 
 /* --- 9.4 responsive HUD + full-bleed threat wash --- */

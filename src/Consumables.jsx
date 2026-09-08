@@ -5,15 +5,16 @@ import { useGame, SNACK_SECONDS, BLANKET_SECONDS } from './store.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { inControl } from './touch.js'
+import { hasFreeSlot } from './inventory.js'
 import { ARENA_HALF } from './arena.js'
 
 // Step 6.13: the two rare consumables — a snack and a blanket. Both scatter like
 // embers but far scarcer: up to two of each loose in the arena at a time (on
 // staggered fuses so they don't refresh in lockstep), a long cooldown after a
 // grab before that slot refills, and you still only carry one of a kind at once
-// — a second pickup just sits until the one in hand is spent. Walk over one to
-// pocket it (store: grabConsumable); trigger it by hand later — E eats the
-// snack, Q wraps the blanket (App.jsx). The effects live in the store
+// — a second pickup just sits until a slot frees up. Walk over one to pocket it
+// (store: grabItem drops it in the first free V/B/N/M slot); trigger it by hand
+// later with that slot's key (App.jsx / 7.4). The effects live in the store
 // (snackActive pins stamina) and Survival.jsx (blanketActive slows the drain);
 // this file just spawns the pickups and counts the two windows down.
 //
@@ -158,10 +159,10 @@ function Pickup({ kind, slot }) {
 
     if (dx * dx + dz * dz > PICKUP_RADIUS * PICKUP_RADIUS) return
 
-    // In range. Pocket it only if a hand is free — otherwise it sits and waits.
-    const carrying = kind === 'snack' ? useGame.getState().hasSnack : useGame.getState().hasBlanket
-    if (carrying || interlude) return
-    useGame.getState().grabConsumable(kind)
+    // In range. Pocket it only if a slot's free — otherwise it sits and waits.
+    // 7.4: duplicates are fine, so no "already carrying this kind" check.
+    if (interlude || !hasFreeSlot(useGame.getState().slots)) return
+    useGame.getState().grabItem(kind)
     phase.current = 'waiting'
     fuse.current = SPAWN[kind].respawn + slot * SLOT_STAGGER
     setSpot(null)

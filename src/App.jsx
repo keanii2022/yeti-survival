@@ -18,6 +18,7 @@ import TouchControls from './TouchControls.jsx'
 import OrientationNudge from './OrientationNudge.jsx'
 import { useGame } from './store.js'
 import { detectCoarsePointer } from './touch.js'
+import { lockWalk } from './inventory.js'
 import { requestFullscreen } from './orientation.js'
 import { qualityFor } from './quality.js'
 import './App.css'
@@ -63,8 +64,10 @@ export default function App() {
   }, [])
 
   // Global keys that aren't movement: Space toggles pause, R restarts once the
-  // run is over. Handled here rather than in the pointer-lock controller so they
-  // work whether or not the mouse is currently captured.
+  // run is over, N takes the nightfall from the win screen, and — Step 7.4 —
+  // E cycles the selected inventory slot while Q spends it. Handled here rather
+  // than in the pointer-lock controller so they work whether or not the mouse
+  // is currently captured.
   useEffect(() => {
     const onKey = (e) => {
       if (e.code === 'Space') {
@@ -78,15 +81,20 @@ export default function App() {
       } else if (e.code === 'KeyN') {
         const { status, nightfall, startNightfall } = useGame.getState()
         if (status === 'won' && !nightfall) startNightfall()
-      } else if (e.code === 'KeyE') {
-        // 6.13: eat a carried snack (no-op without one).
-        useGame.getState().useSnack()
-      } else if (e.code === 'KeyQ') {
-        // 6.13: wrap a carried blanket (no-op without one).
-        useGame.getState().useBlanket()
+      } else if (e.code === 'KeyE' && !e.repeat) {
+        const s = useGame.getState()
+        if (s.status === 'playing' && !s.interlude) s.cycleSlot()
+      } else if (e.code === 'KeyQ' && !e.repeat) {
+        const s = useGame.getState()
+        if (
+          s.status === 'playing' &&
+          !s.interlude &&
+          s.slots[s.selectedSlot] != null
+        ) {
+          s.useSlot(s.selectedSlot)
+          lockWalk()
+        }
       }
-      // 6.14's F (throw decoy) is handled in Decoy.jsx — it needs the camera
-      // heading, which only exists inside the Canvas.
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

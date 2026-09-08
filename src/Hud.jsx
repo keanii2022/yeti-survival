@@ -9,6 +9,7 @@ import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
 import { shelter } from './shelter.js'
 import { mirror } from './mirror.js'
+import { ITEM_LABEL } from './inventory.js'
 import MuteToggle from './MuteToggle.jsx'
 
 // A glanceable read on the yeti's attention so you don't have to swing the
@@ -100,30 +101,42 @@ function LookHint() {
   )
 }
 
-// 6.13: bottom-left chips for the two consumables — a carried item shows its
-// key prompt, an active one pulses its effect. Plain store selectors (they only
-// re-render on a flag flip), unlike the rAF-polled cues above.
-function ConsumableCue() {
-  const hasSnack = useGame((s) => s.hasSnack)
-  const hasBlanket = useGame((s) => s.hasBlanket)
+// 7.4: bottom-left inventory strip. One chip per carried item; the selected one
+// (Q acts on it) is lit and carries a Q prompt, the rest are dimmed. An E prompt
+// shows once there's more than one item to cycle between. An active effect
+// (snack / blanket window) pulses above the strip. Plain store selectors —
+// `slots` is a fresh array on every grab / use / drop, so this re-renders
+// exactly when the inventory changes.
+function InventoryCue() {
+  const slots = useGame((s) => s.slots)
+  const selectedSlot = useGame((s) => s.selectedSlot)
   const snackActive = useGame((s) => s.snackActive)
   const blanketActive = useGame((s) => s.blanketActive)
-  const hasDecoy = useGame((s) => s.hasDecoy)
-  if (!hasSnack && !hasBlanket && !snackActive && !blanketActive && !hasDecoy)
-    return null
+  const filled = slots
+    .map((kind, i) => ({ kind, i }))
+    .filter((entry) => entry.kind)
+  if (!filled.length && !snackActive && !blanketActive) return null
   return (
     <div className="consumables">
-      {snackActive ? (
+      {snackActive && (
         <div className="consumable snack active">stamina locked</div>
-      ) : hasSnack ? (
-        <div className="consumable snack">Snack &middot; press E</div>
-      ) : null}
-      {blanketActive ? (
+      )}
+      {blanketActive && (
         <div className="consumable blanket active">blanket wrapped</div>
-      ) : hasBlanket ? (
-        <div className="consumable blanket">Blanket &middot; press Q</div>
-      ) : null}
-      {hasDecoy ? <div className="consumable decoy">Decoy &middot; press F</div> : null}
+      )}
+      {filled.length > 1 && (
+        <div className="consumable cycle">
+          <kbd>E</kbd> cycle
+        </div>
+      )}
+      {filled.map(({ kind, i }) => (
+        <div
+          key={i}
+          className={`consumable ${kind}${i === selectedSlot ? ' selected' : ''}`}
+        >
+          {i === selectedSlot && <kbd>Q</kbd>} {ITEM_LABEL[kind]}
+        </div>
+      ))}
     </div>
   )
 }
@@ -222,9 +235,10 @@ export default function Hud({ locked, isTouch }) {
 
       {engaged && playing && <ShelterCue />}
 
-      {engaged && playing && <ConsumableCue />}
+      {engaged && playing && <InventoryCue />}
 
       {engaged && playing && <LookHint />}
+
 
       {showMute && <MuteToggle />}
 
@@ -343,7 +357,7 @@ export default function Hud({ locked, isTouch }) {
           <h1>Yeti Survival</h1>
           <p>Click to look around</p>
           <p className="keys">
-            WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; E snack &nbsp;·&nbsp; Q blanket &nbsp;·&nbsp; F decoy &nbsp;·&nbsp; L look back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+            WASD move &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; L look back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
           </p>
           <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
         </div>
