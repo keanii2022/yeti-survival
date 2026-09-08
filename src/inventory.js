@@ -12,10 +12,17 @@
 
 export const SLOT_COUNT = 4
 
-// Using — or dropping — an item pins you to walk speed for this many seconds:
-// the "both hands busy for a beat" cost the README floats. Player.jsx counts it
-// down off the `inventory` singleton so a pause freezes it. Playtest-tunable.
+// Using an item pins you to walk speed for this many seconds: the "both hands
+// busy for a beat" cost the README floats. (Dropping doesn't — a playtest call:
+// you can ditch a thing without breaking stride.) Player.jsx counts it down off
+// the `inventory` singleton so a pause freezes it. Playtest-tunable.
 export const USE_WALK_LOCK_SECONDS = 0.8
+
+// 7.5: E is a tap-or-hold key — a tap cycles the selected slot, a hold past this
+// many milliseconds drops it into the world instead. Touch mirrors it as a
+// long-press on a slot button. Long enough that a quick cycle never drops,
+// short enough that a deliberate ditch isn't a chore.
+export const DROP_HOLD_MS = 450
 
 // Short human labels for the HUD chips / on-screen buttons, keyed by item kind.
 export const ITEM_LABEL = { snack: 'Snack', blanket: 'Blanket', decoy: 'Decoy' }

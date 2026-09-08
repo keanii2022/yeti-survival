@@ -123,6 +123,14 @@ export const useGame = create((set) => ({
   snackActive: false,
   blanketActive: false,
 
+  // 7.5: the drop handoff. dropSlot stamps `pendingDrop` with the item kind and
+  // bumps `dropReq`; Drops.jsx subscribes to the edge and places a world marker
+  // at the camera position (which only exists inside the Canvas). Same opaque
+  // edge-counter shape as `throwReq` — reset() / startNightfall() clear the
+  // pair, and Drops.jsx re-seeds its "seen" on mount.
+  dropReq: 0,
+  pendingDrop: null,
+
   // Bumped every time a decoy leaves a slot (useSlot). Decoy.jsx subscribes to
   // it and does the actual throw — the arc needs the camera heading, which only
   // exists inside the Canvas. Not reset between runs: it's an opaque edge
@@ -221,15 +229,23 @@ export const useGame = create((set) => ({
       return base
     }),
 
-  // Ditch a slot's item back into the world (7.5's pip then points you back to
-  // it). Built now, bound to nothing yet — you can't fill four slots until 7.7+.
-  // No-op on an empty slot / finished run / interlude.
+  // Ditch a slot's item back into the world. Since 7.5 this is bound: hold E
+  // (App.jsx) or long-press a slot button (TouchControls). The slot clears, the
+  // selection falls to whatever's still carried, and `pendingDrop` / `dropReq`
+  // flag the drop for Drops.jsx to mark on the ground — the 7.5 pip then points
+  // you back to it. No-op on an empty slot / finished run / interlude.
   dropSlot: (i) =>
     set((s) => {
       if (s.status !== 'playing' || s.interlude || !s.slots[i]) return {}
       const slots = s.slots.slice()
+      const kind = slots[i]
       slots[i] = null
-      return { slots, selectedSlot: firstFilledSlot(slots, s.selectedSlot) }
+      return {
+        slots,
+        selectedSlot: firstFilledSlot(slots, s.selectedSlot),
+        pendingDrop: kind,
+        dropReq: s.dropReq + 1,
+      }
     }),
 
   endSnack: () => set((s) => (s.snackActive ? { snackActive: false } : {})),
@@ -270,6 +286,8 @@ export const useGame = create((set) => ({
         selectedSlot: 0,
         snackActive: false,
         blanketActive: false,
+        dropReq: 0,
+        pendingDrop: null,
       }
     }),
 
@@ -338,5 +356,7 @@ export const useGame = create((set) => ({
       selectedSlot: 0,
       snackActive: false,
       blanketActive: false,
+      dropReq: 0,
+      pendingDrop: null,
     })),
 }))

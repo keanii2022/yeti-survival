@@ -10,6 +10,7 @@ import Items from './Items.jsx'
 import GreenEmber from './GreenEmber.jsx'
 import Consumables from './Consumables.jsx'
 import Decoy from './Decoy.jsx'
+import Drops from './Drops.jsx'
 import Levels from './Levels.jsx'
 import Survival from './Survival.jsx'
 import Sound from './Sound.jsx'
@@ -18,7 +19,7 @@ import TouchControls from './TouchControls.jsx'
 import OrientationNudge from './OrientationNudge.jsx'
 import { useGame } from './store.js'
 import { detectCoarsePointer } from './touch.js'
-import { lockWalk } from './inventory.js'
+import { lockWalk, DROP_HOLD_MS } from './inventory.js'
 import { requestFullscreen } from './orientation.js'
 import { qualityFor } from './quality.js'
 import './App.css'
@@ -65,9 +66,8 @@ export default function App() {
 
   // Global keys that aren't movement: Space toggles pause, R restarts once the
   // run is over, N takes the nightfall from the win screen, and — Step 7.4 —
-  // E cycles the selected inventory slot while Q spends it. Handled here rather
-  // than in the pointer-lock controller so they work whether or not the mouse
-  // is currently captured.
+  // Q spends the selected inventory slot. Handled here rather than in the
+  // pointer-lock controller so they work whether or not the mouse is captured.
   useEffect(() => {
     const onKey = (e) => {
       if (e.code === 'Space') {
@@ -81,9 +81,6 @@ export default function App() {
       } else if (e.code === 'KeyN') {
         const { status, nightfall, startNightfall } = useGame.getState()
         if (status === 'won' && !nightfall) startNightfall()
-      } else if (e.code === 'KeyE' && !e.repeat) {
-        const s = useGame.getState()
-        if (s.status === 'playing' && !s.interlude) s.cycleSlot()
       } else if (e.code === 'KeyQ' && !e.repeat) {
         const s = useGame.getState()
         if (
@@ -98,6 +95,60 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // 7.4 / 7.5: E is tap-or-hold. A tap (released before DROP_HOLD_MS) cycles the
+  // selected slot; holding it past that window drops that slot's item into the
+  // world for the 7.5 pip to point back at. No walk-lock on a drop — you can
+  // ditch a thing without breaking stride (playtest call). The keyup half is
+  // why this sits apart from the keydown-only globals above.
+  useEffect(() => {
+    let holdTimer = null
+    let consumed = false // the hold fired a drop — swallow the pending tap
+    const clearHold = () => {
+      if (holdTimer) {
+        clearTimeout(holdTimer)
+        holdTimer = null
+      }
+    }
+    const onDown = (e) => {
+      if (e.code !== 'KeyE' || e.repeat || holdTimer || consumed) return
+      holdTimer = setTimeout(() => {
+        holdTimer = null
+        consumed = true
+        const s = useGame.getState()
+        if (
+          s.status === 'playing' &&
+          !s.interlude &&
+          s.slots[s.selectedSlot] != null
+        ) {
+          s.dropSlot(s.selectedSlot)
+        }
+      }, DROP_HOLD_MS)
+    }
+    const onUp = (e) => {
+      if (e.code !== 'KeyE') return
+      clearHold()
+      if (consumed) {
+        consumed = false
+        return
+      }
+      const s = useGame.getState()
+      if (s.status === 'playing' && !s.interlude) s.cycleSlot()
+    }
+    const onBlur = () => {
+      clearHold()
+      consumed = false
+    }
+    window.addEventListener('keydown', onDown)
+    window.addEventListener('keyup', onUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onDown)
+      window.removeEventListener('keyup', onUp)
+      window.removeEventListener('blur', onBlur)
+      clearHold()
+    }
   }, [])
 
   return (
@@ -120,6 +171,7 @@ export default function App() {
         <GreenEmber />
         <Consumables />
         <Decoy />
+        <Drops />
         <Levels />
         <Survival />
         <Sound />
