@@ -203,8 +203,8 @@ describe('levelParams — difficulty', () => {
 })
 
 describe('LEVEL_COUNT', () => {
-  it('is the tuned climb length (playtest: 10 → 6 → 8)', () => {
-    expect(LEVEL_COUNT).toBe(8)
+  it('is the tuned climb length (playtest: 10 → 6 → 8 → 6, a run that can be finished)', () => {
+    expect(LEVEL_COUNT).toBe(6)
   })
 })
 

@@ -73,13 +73,14 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
   survived, then a flat per-ember bonus; embers still top up warmth (only a
   little). Groundwork for 6.6.
 - **6.6 Levels / waves** *(needs 6.5, 6.10, 6.11)* — replaces the fixed seed +
-  count of six. The run is a climb through ~10 levels; each = clear ~6–8
-  off-screen embers, then a ~12 s calm interlude, then the next. Embers are
-  mostly score, tiny warmth top-up. Escalation: L1–4 speed + detection radius
-  creep; L5+ speed caps just under sprint (≈9 vs 10) and the dial moves to
+  count of six. The run is a climb through LEVEL_COUNT levels (playtest-tuned
+  10 → 6 → 8 → 6; currently **6** — a run the family can actually finish); each =
+  clear ~6–8 off-screen embers, then a ~8 s calm interlude, then the next.
+  Embers are mostly score, tiny warmth top-up. Escalation: L1–4 speed + detection
+  radius creep; L5+ speed caps just under sprint (≈9 vs 10) and the dial moves to
   detection, faster chase commit, longer last-known search, faster shed checks,
-  tighter wander — past ~L5 you must break line of sight, not outrun. Clear 10 →
-  win screen; unlocks an endless "nightfall" mode.
+  tighter wander — past ~L5 you must break line of sight, not outrun. Clear them
+  all → win screen; unlocks an endless "nightfall" mode.
 - **6.7 Green ember** *(needs 6.6)* — one at a time near the yeti, worth much
   more; sprint inside its radius boosts 10 → ~11; escape bonus for getting clear.
 - **6.8 Environment mood** — more trees (instanced past a few dozen); slow

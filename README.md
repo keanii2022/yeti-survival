@@ -120,10 +120,12 @@ into a session, no commit spanning two items.
     commit-to-chase, longer last-known-position search (6.11), more frequent and
     faster shed checks (6.12), and tighter wander around the player. Past ~L5,
     surviving means breaking line of sight and using cover, not out-footing him.
-  - LEVEL_COUNT levels to a "dawn breaks — you made it" win screen — 8, after a
-    playtest walk from ~10 down to 6 (proved the loop) and back up to 8 (wanted
-    more climb). Clearing them unlocks "nightfall": the same climb replayed, every
-    level pinned NIGHTFALL_OFFSET rungs higher on the curve and capped at
+  - LEVEL_COUNT levels to a "dawn breaks — you made it" win screen — **6**, after
+    a playtest walk ~10 → 6 → 8 → 6: eight had two levels the family playtest was
+    never reaching (stalling around L2–3), so the win line is back at a climb that
+    can actually be finished. The escalation curve is untouched; only where the
+    run ends moved. Clearing them unlocks "nightfall": the same climb replayed,
+    every level pinned NIGHTFALL_OFFSET rungs higher on the curve and capped at
     LEVEL_COUNT, with its own win screen. (Playtest change from the original
     "endless, no interludes" plan.) Nightfall still wants a proper pass —
     progressive escalation paired with the player getting more agile / new
