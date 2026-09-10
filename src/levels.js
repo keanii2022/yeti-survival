@@ -8,6 +8,13 @@
 // and the yeti re-aggros. Clear LEVEL_COUNT levels for the win screen; past
 // that the run continues in endless "nightfall" mode (no interludes, the curve
 // keeps climbing — `levelParams` is defined for any level).
+//
+// `levelParams` also takes a difficulty (difficulty.js). The numbers below are
+// the HARD curve; 'medium' / 'easy' scale the yeti's speed, its detection range
+// and its commit delay down by a flat factor. A bare levelParams(L) call still
+// reads the raw HARD curve.
+
+import { difficultyMods } from './difficulty.js'
 
 // Playtest walked this 10 → 6 → 8. Six proved the loop was fun and left the
 // player wanting more climb; eight adds two levels of new, harder territory off
@@ -51,23 +58,28 @@ export function levelTarget(level) {
 // and the dial shifts onto detection range, commit time and the wander leash.
 const SPRINT = 10
 
-export function levelParams(level) {
+export function levelParams(level, difficulty) {
   const L = Math.max(1, level)
+
+  // HARD is identity (all mods 1); 'medium' / 'easy' pull these three levers in.
+  const mod = difficultyMods(difficulty)
 
   // Sustained chase speed: 5.2 at L1 (a smudge under the old 6.1 value of 5.4,
   // from playtest — a hair more room to walk away early), ~9.0 by L5, then a
   // slow creep that the min() pins below sprint forever.
   const chaseSpeed =
-    L <= 5 ? 5.2 + (L - 1) * 0.95 : Math.min(SPRINT - 0.3, 9.0 + (L - 5) * 0.12)
+    (L <= 5 ? 5.2 + (L - 1) * 0.95 : Math.min(SPRINT - 0.3, 9.0 + (L - 5) * 0.12)) *
+    mod.yetiSpeed
 
   // Close-range lunge (6.1's BURST): 7 at L1, climbing a shade faster than the
   // sustained speed so a corner is always deadlier than the open, and clamped
   // just below sprint so a desperate dash isn't mathematically hopeless.
-  const burstSpeed = Math.min(SPRINT - 0.15, 7 + (L - 1) * 0.55)
+  const burstSpeed = Math.min(SPRINT - 0.15, 7 + (L - 1) * 0.55) * mod.yetiSpeed
 
   // Detection radius — the main dial once speed is capped. Gentle creep to L4,
   // then it opens up fast.
-  const detectRadius = L <= 4 ? 18 + (L - 1) * 1.2 : 21.6 + (L - 4) * 2.2
+  const detectRadius =
+    (L <= 4 ? 18 + (L - 1) * 1.2 : 21.6 + (L - 4) * 2.2) * mod.detectRadius
 
   // 6u of hysteresis, kept from 6.11 so the chase/search flip can't chatter at
   // the boundary; re-spot range sits inside detection so a shaken chase stays
@@ -78,7 +90,7 @@ export function levelParams(level) {
   // Seconds the player must stay inside detectRadius before the yeti commits to
   // the chase. 0.7s at L1 — you can dart across his sightline and get away with
   // it — shrinking to an instant lock by L9.
-  const commitDelay = Math.max(0, 0.7 - (L - 1) * 0.09)
+  const commitDelay = Math.max(0, (0.7 - (L - 1) * 0.09) * mod.commitDelay)
 
   // How long the yeti hunts your last-known spot before giving up (6.11's
   // SEARCH_TIME baseline was 4). Longer every level, capped so a search can't

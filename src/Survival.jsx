@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { shelter } from './shelter.js'
 import { inControl } from './touch.js'
+import { difficultyMods } from './difficulty.js'
 
 // The survival clock. Warmth bleeds away the entire time you're out in the
 // arena; embers buy a little of it back. This also advances the run timer that
@@ -36,7 +37,10 @@ export default function Survival() {
     // drain during the breather — that's what makes it a breather.
     useGame.getState().tickTime(delta)
     if (useGame.getState().interlude) return
-    let rate = DRAIN_PER_SECOND
+    // 'medium' / 'easy' bleed warmth slower than the base HARD rate.
+    let rate =
+      DRAIN_PER_SECOND *
+      difficultyMods(useGame.getState().difficulty).warmthDrain
     if (shelter.inside) rate *= SHED_DRAIN_FACTOR
     if (useGame.getState().blanketActive) rate *= BLANKET_DRAIN_FACTOR
     useGame.getState().tickWarmth(rate * delta)

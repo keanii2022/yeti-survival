@@ -78,6 +78,11 @@ export default function App() {
       } else if (e.code === 'KeyR') {
         const { status, reset } = useGame.getState()
         if (status === 'caught' || status === 'frozen' || status === 'won') reset()
+      } else if (e.code === 'KeyC') {
+        // One-time second chance offered on the first death screen (Hud.jsx).
+        const { status, reviveUsed, revivePlayer } = useGame.getState()
+        if ((status === 'caught' || status === 'frozen') && !reviveUsed)
+          revivePlayer()
       } else if (e.code === 'KeyN') {
         const { status, nightfall, startNightfall } = useGame.getState()
         if (status === 'won' && !nightfall) startNightfall()

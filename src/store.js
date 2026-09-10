@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
 import { nextFilledSlot, firstFilledSlot } from './inventory.js'
+import { loadDifficulty, saveDifficulty } from './difficulty.js'
 
 // Game state. A live run tracks warmth, stamina, score, and — since 6.6 — a
 // level. The run is a climb: clear each level's ember target, take a calm
@@ -56,6 +57,17 @@ export const SNACK_SECONDS = 8
 export const SLOT_COUNT = 4
 const emptySlots = () => new Array(SLOT_COUNT).fill(null)
 
+// One-time second chance. On the FIRST death of a run the game-over card offers
+// "keep going" instead of only a full restart: respawn at the arena start with
+// warmth and stamina refilled and the yeti thrown wide, the run and score
+// intact. Spend it (or die again after) and the next death is a plain restart.
+// The grace window is a breath right after respawn where the cold can't kill
+// you and the yeti can't catch you — mostly it just covers the desktop
+// click-to-recapture-the-mouse beat.
+export const REVIVE_GRACE_MS = 3000
+const now = () =>
+  typeof performance !== 'undefined' ? performance.now() : Date.now()
+
 export const useGame = create((set) => ({
   // 'playing' while the run is live (this covers the between-levels interlude
   // too — see `interlude`), 'paused' on Space, then 'caught' / 'frozen' / 'won'
@@ -73,6 +85,19 @@ export const useGame = create((set) => ({
   // state, so reset() leaves it alone.
   isTouch: false,
   setTouch: () => set((s) => (s.isTouch ? {} : { isTouch: true })),
+
+  // 'easy' | 'medium' | 'hard' (difficulty.js). Chosen from the start screen or
+  // a game-over card, persisted to localStorage, and — like isTouch — a session
+  // preference, not run state: reset() / startNightfall() leave it alone. 'hard'
+  // is the original playtested curve; 'medium' (default) and 'easy' ease the
+  // warmth drain (Survival.jsx) and the yeti's speed / senses (levels.js).
+  difficulty: loadDifficulty(),
+  setDifficulty: (difficulty) =>
+    set((s) => {
+      if (s.difficulty === difficulty) return {}
+      saveDifficulty(difficulty)
+      return { difficulty }
+    }),
 
   score: 0,
 
@@ -143,6 +168,16 @@ export const useGame = create((set) => ({
   // exists inside the Canvas. Not reset between runs: it's an opaque edge
   // counter and the consumers re-seed their "last seen" on mount.
   throwReq: 0,
+
+  // One-time second chance (see REVIVE_GRACE_MS). `reviveUsed` flips true once
+  // the run's revive is spent — reset() / startNightfall() clear it. `reviveReq`
+  // is the opaque edge counter Player.jsx and Yeti.jsx watch to snap the camera
+  // back to spawn and throw the yeti wide (same shape as throwReq — untouched
+  // between runs, consumers re-seed on mount). `graceUntil` is a performance.now
+  // stamp before which tickWarmth / catchPlayer no-op.
+  reviveUsed: false,
+  reviveReq: 0,
+  graceUntil: 0,
 
   // Grab an ember: score + counts, a small warmth top-up, and — when it's the
   // one that clears the level — the transition. Clearing the final level wins
@@ -311,6 +346,8 @@ export const useGame = create((set) => ({
         dropReq: 0,
         pendingDrop: null,
         pendingDropPlaced: false,
+        reviveUsed: false,
+        graceUntil: 0,
       }
     }),
 
@@ -320,10 +357,12 @@ export const useGame = create((set) => ({
     set((s) => (s.status === 'playing' ? { elapsed: s.elapsed + delta } : {})),
 
   // Called every frame while you're in control. Drains warmth by `amount` and
-  // ends the run the moment it runs out.
+  // ends the run the moment it runs out — unless a just-revived player is still
+  // in their grace window, when the cold holds off entirely.
   tickWarmth: (amount) =>
     set((s) => {
       if (s.status !== 'playing') return {}
+      if (now() < s.graceUntil) return {}
       const warmth = s.warmth - amount
       if (warmth <= 0) return { warmth: 0, status: 'frozen' }
       return { warmth }
@@ -356,7 +395,33 @@ export const useGame = create((set) => ({
   resume: () => set((s) => (s.status === 'paused' ? { status: 'playing' } : {})),
 
   catchPlayer: () =>
-    set((s) => (s.status === 'playing' ? { status: 'caught' } : {})),
+    set((s) => {
+      if (s.status !== 'playing') return {}
+      if (now() < s.graceUntil) return {} // just revived — a breath before he can grab you
+      return { status: 'caught' }
+    }),
+
+  // The one-time second chance. Only from a death screen, and only while the
+  // revive is unspent. Warmth + stamina back to full and the fumble / consumable
+  // flags cleared; the run, score, level and ember counts are untouched. Bumping
+  // `reviveReq` tells the scene to put the player back at spawn and send the
+  // yeti wide; `graceUntil` buys a few seconds of safety on the way in.
+  revivePlayer: () =>
+    set((s) => {
+      if ((s.status !== 'caught' && s.status !== 'frozen') || s.reviveUsed)
+        return {}
+      return {
+        status: 'playing',
+        reviveUsed: true,
+        reviveReq: s.reviveReq + 1,
+        graceUntil: now() + REVIVE_GRACE_MS,
+        warmth: START_WARMTH,
+        stamina: START_STAMINA,
+        sprintLocked: false,
+        snackActive: false,
+        blanketActive: false,
+      }
+    }),
 
   reset: () =>
     set((s) => ({
@@ -382,5 +447,7 @@ export const useGame = create((set) => ({
       dropReq: 0,
       pendingDrop: null,
       pendingDropPlaced: false,
+      reviveUsed: false,
+      graceUntil: 0,
     })),
 }))

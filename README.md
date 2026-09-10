@@ -58,6 +58,20 @@ input hook, and the HUD's state-driven rendering.
 Deployed to [GitHub Pages](https://keanii2022.github.io/yeti-survival/); every
 push to `main` redeploys.
 
+## Difficulty modes
+
+Added off the build order after playtests where phone players kept stalling at
+level 2 — the game had only ever had one setting. **Easy / Medium / Hard**,
+chosen on the start screen or any game-over card and remembered across reloads
+(`localStorage`), default **Medium**.
+
+`hard` is the original, fully-playtested curve — its mods are all identity, so
+that path is unchanged. `medium` and `easy` scale four levers down (`difficulty.js`):
+warmth drain (`Survival.jsx`), and the yeti's chase/lunge speed, detection range
+and commit delay (`levelParams` in `levels.js`, read live by `Yeti.jsx`).
+Ember targets, the wander leash, shed checks and the search window are the same
+in all three.
+
 ## Step 6 — polish / stretch
 
 Scoped from a playtest of steps 1–5, then reshaped part-way once the ember loop

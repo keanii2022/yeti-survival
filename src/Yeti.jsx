@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
@@ -223,7 +223,8 @@ export default function Yeti() {
     wanderTimer: 0,
     spotTimer: 0, // seconds the player's been inside detection range (commit delay)
     curveLevel: 0, // effective level the params below were built for
-    params: levelParams(1), // per-level curve, refreshed when the level changes
+    difficulty: null, // difficulty the params below were built for
+    params: levelParams(1), // per-level curve, refreshed when the level / difficulty changes
     lastKnown: new THREE.Vector3(), // where the player was last seen (for 'search')
     probe: createProbe(), // drives the walk-to-a-spot-and-look-around motion
     // 6.12 shed checks: a countdown to the next patrol, a per-shed cooldown so
@@ -247,6 +248,26 @@ export default function Yeti() {
     [],
   )
 
+  // One-time second chance (store.revivePlayer): the scene stays mounted, so
+  // pull the hunt right off the player. Drop every active behaviour, roll an
+  // idle wander well clear of the spawn — the same "back off" the interlude
+  // does — and teleport there, so the player respawns to a breath of room and
+  // not a yeti two steps away.
+  const reviveReq = useGame((s) => s.reviveReq)
+  useEffect(() => {
+    if (!reviveReq) return
+    const a = ai.current
+    a.mode = 'idle'
+    a.spotTimer = 0
+    a.wanderTimer = 0
+    a.shedTarget = -1
+    a.probe.active = false
+    pickWander(a.wander, PLAYER_SPAWN.x, PLAYER_SPAWN.y, 999, true)
+    a.lastKnown.copy(a.wander)
+    a.heading = Math.atan2(-a.wander.x, -a.wander.z)
+    if (group.current) group.current.position.set(a.wander.x, 0, a.wander.z)
+  }, [reviveReq])
+
   useFrame((_, rawDelta) => {
     const g = group.current
     if (!g) return
@@ -261,11 +282,12 @@ export default function Yeti() {
     // Refresh the per-level curve when the level advances (levels.js). Nightfall
     // shifts the whole run up the curve — effectiveLevel folds that in. Cached
     // on `a` so the frame loop still allocates nothing on a steady level.
-    const { interlude, level, nightfall } = useGame.getState()
+    const { interlude, level, nightfall, difficulty } = useGame.getState()
     const curveLevel = effectiveLevel(level, nightfall)
-    if (curveLevel !== a.curveLevel) {
+    if (curveLevel !== a.curveLevel || difficulty !== a.difficulty) {
       a.curveLevel = curveLevel
-      a.params = levelParams(curveLevel)
+      a.difficulty = difficulty
+      a.params = levelParams(curveLevel, difficulty)
     }
     const P = a.params
 
