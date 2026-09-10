@@ -53,7 +53,7 @@ input hook, and the HUD's state-driven rendering.
 - [x] Step 6 — polish / stretch (6.1–6.14)
 - [ ] Step 7 — chase-fair, inventory, controls, world (see below)
 - [ ] Step 8 — AI escalation & replay (see below)
-- [ ] Step 9 — Mobile / touch — pulled forward ahead of Step 7's remainder (see below)
+- [x] Step 9 — Mobile / touch (9.1–9.6) — pulled forward ahead of Step 7's remainder (see below)
 
 Deployed to [GitHub Pages](https://keanii2022.github.io/yeti-survival/); every
 push to `main` redeploys.
@@ -187,68 +187,70 @@ The through-line: Step 6 gave the yeti a memory, but the chase is still unfair �
 it re-aims at your exact position every frame, so juking does nothing. 7.1–7.3
 fix that; the rest builds the hide-and-seek toolkit on top.
 
-- **7.1 Yeti max turn rate** — a hard cap on how fast the yeti's heading changes.
-  A 90° cut now opens a gap it has to arc back from, so a chase reads as a chase.
-  Prerequisite for the whole group; hiding / juking / decoys all feel unfair
-  without it.
-- **7.2 Mirror / look-behind (L)** — press **L**, the camera glances behind you,
-  the view frosts over after ~1–2 s, maybe a short cooldown. The coarse feedback
-  that makes 7.1 legible — you cut, then check. Stays outside the hint system: no
-  yeti bearing on the HUD, ever. (Was "M" in early notes; M is an inventory slot
-  now.)
-- **7.3 Footprints** — the player leaves tracks in snow. An investigating yeti
-  (6.11) follows them toward your last-known instead of teleporting its attention
-  there. Tracks fade over time; hard ground — shed floor now, pond ice and rock
-  later — leaves none. Adds the surface-type hook 7.13 and 7.15 reuse.
-- **7.4 Inventory** — 4 generic carried slots. Pick an item into whatever slot
-  is free, not one key per type. Full inventory → drop one (stays in the world,
-  found via 7.5) to pick another. Migrates snack / blanket / decoy onto this
-  system and retires their 6.13 E/Q bindings. Using an item may briefly lock you
-  to walk speed.
+- [x] **7.1 Yeti max turn rate** — a hard cap on how fast the yeti's heading
+  changes. A 90° cut now opens a gap it has to arc back from, so a chase reads as
+  a chase. Prerequisite for the whole group; hiding / juking / decoys all feel
+  unfair without it.
+- [x] **7.2 Mirror / look-behind** — the camera glances behind you, the view
+  frosts over after ~1–2 s, on a cooldown so it can't be held open as a mirror.
+  The coarse feedback that makes 7.1 legible — you cut, then check. Stays outside
+  the hint system: no yeti bearing on the HUD, ever. (7.4's controls pass moved
+  the trigger from **L** to a left mouse-click.)
+- [x] **7.3 Footprints** — the player leaves tracks in snow. An investigating
+  yeti (6.11) follows them toward your last-known instead of teleporting its
+  attention there. Tracks fade over time; hard ground — shed floor now, pond ice
+  and rock later — leaves none. Adds the surface-type hook 7.13 and 7.15 reuse.
+- [x] **7.4 Inventory** — 4 generic carried slots. Pick an item into whatever
+  slot is free, not one key per type. Full inventory → drop one (stays in the
+  world, found via 7.5) to pick another. Migrates snack / blanket / decoy onto
+  this system and retires their 6.13 E/Q bindings. Using an item may briefly lock
+  you to walk speed.
   - _Shipped control map_ (playtest-revised twice): **1–4** use the item in that
     slot directly, **E** moves the highlight to the next carried item, **Q** uses
     the highlighted one, **R** drops it (while playing — R is still restart on a
     game-over card). Touch: tap a slot button to use, long-press to drop. The
     earlier "E cycles / hold-E drops" scheme was pulled — cycling was a silent
     no-op with fewer than two items and the 450 ms hold fought it.
-- **7.5 Dropped-item hint pip** — a fuzzy HUD direction pip, no distance, back
-  toward anything you've dropped. Mainly for the blanket (7.6); applies to any
-  dropped slot item.
-- **7.6 Placeable blanket** — the blanket becomes placeable: set it down, warmth
-  drains slower while you stand on it, 7.5 points you back to it.
-- **7.7 Snack / water-bottle merge** — snack stays the **day** version (locks
+- [x] **7.5 Dropped-item hint pip** — a fuzzy HUD direction pip, no distance,
+  back toward anything you've dropped. Mainly for the blanket (7.6); applies to
+  any dropped slot item.
+- [x] **7.6 Placeable blanket** — the blanket becomes placeable: set it down,
+  warmth drains slower while you stand on it, 7.5 points you back to it.
+- [ ] **7.7 Snack / water-bottle merge** — snack stays the **day** version (locks
   stamina at full for a window). Water bottle is the **night** version: locked
   stamina + a small speed boost. Same slot; time of day picks which spawns.
-- **7.8 Throwables — duck & poop** — both reuse 6.11's investigate-a-point.
+- [ ] **7.8 Throwables — duck & poop** — both reuse 6.11's investigate-a-point.
   Squeaky duck: loud squeak on landing, a short snappy lure. Poop: squish on
   landing, the yeti walks over, sniffs, recoils, leaves — a longer window than
   the duck, no repeat interest. Ship both; the humour is the point for playing
   with a kid.
-- **7.9 Flare (throwable)** — lights an area and makes the yeti avoid that zone
-  for a while — area denial, the inverse of the duck. Doubles as vision through
-  fog / dusk. Rare.
-- **7.10 Pause** — **Esc** opens a pause menu and releases the mouse in one press
-  (the browser drops pointer-lock on the first Esc, so a two-press design isn't
-  reliable). Click **Resume** to re-lock.
-- **7.11 Sprint rebind** — move sprint off the pinky: **Mouse4** (thumb button),
-  Shift kept as an alias. Still hold-to-sprint, no behaviour change. The toggle /
-  fixed-burst model stays parked pending this playtest.
-- **7.12 Jump** — **Space**, with its own small bar so it can't be spammed. Low
-  obstacles (logs): the player hops them, the yeti has no jump and a wider
+- [ ] **7.9 Flare (throwable)** — lights an area and makes the yeti avoid that
+  zone for a while — area denial, the inverse of the duck. Doubles as vision
+  through fog / dusk. Rare.
+- [ ] **7.10 Pause** — **Esc** opens a pause menu and releases the mouse in one
+  press (the browser drops pointer-lock on the first Esc, so a two-press design
+  isn't reliable). Click **Resume** to re-lock. (Space-to-pause exists today; the
+  Esc menu doesn't.)
+- [ ] **7.11 Sprint rebind** — move sprint off the pinky. A variant shipped in
+  7.4's controls pass — sprint is **double-tap-and-hold W**, Shift kept as an
+  alias — but the intended **Mouse4** (thumb-button) bind is still open. The
+  toggle / fixed-burst model stays parked pending this playtest.
+- [ ] **7.12 Jump** — **Space**, with its own small bar so it can't be spammed.
+  Low obstacles (logs): the player hops them, the yeti has no jump and a wider
   collision so it detours around. Pairs with the 6.9 tree colliders; the yeti
   stays dumb.
-- **7.13 Frozen pond** — fast to cross, but **cracks if you sprint** across:
+- [ ] **7.13 Frozen pond** — fast to cross, but **cracks if you sprint** across:
   falling in is a big warmth hit plus ~1 s immobilised. The yeti avoids the ice
   and detours. A shortcut with a risk. Ice counts as hard ground for 7.3.
-- **7.14 Campfire** — stand in the radius for warmth regen, but **while lit your
-  detection range balloons**. A direct risk / reward on the core stat.
-- **7.15 Shed extension** — entering a shed **unseen** is still safe (6.12).
+- [ ] **7.14 Campfire** — stand in the radius for warmth regen, but **while lit
+  your detection range balloons**. A direct risk / reward on the core stat.
+- [ ] **7.15 Shed extension** — entering a shed **unseen** is still safe (6.12).
   Entering **while chased**: the yeti waits outside a few seconds, then loses
   interest — it can't open the door. Shed floor is hard ground: no footprints
   (7.3).
-- **7.16 Weather events** — discrete events, not a system. Wind gust: directional,
-  accelerates warmth drain when you move into it, readable in the snow particles.
-  Sleet: cuts vision for a window.
+- [ ] **7.16 Weather events** — discrete events, not a system. Wind gust:
+  directional, accelerates warmth drain when you move into it, readable in the
+  snow particles. Sleet: cuts vision for a window.
 
 **Groups and order:**
 
