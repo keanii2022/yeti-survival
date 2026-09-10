@@ -278,6 +278,10 @@
   color: #ffb066;
 }
 
+.consumable.water {
+  color: #8fe6ff;
+}
+
 .consumable.blanket {
   color: #9fbcff;
 }

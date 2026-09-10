@@ -221,9 +221,20 @@ fix that; the rest builds the hide-and-seek toolkit on top.
   any dropped slot item.
 - [x] **7.6 Placeable blanket** — the blanket becomes placeable: set it down,
   warmth drains slower while you stand on it, 7.5 points you back to it.
-- [ ] **7.7 Snack / water-bottle merge** — snack stays the **day** version (locks
-  stamina at full for a window). Water bottle is the **night** version: locked
-  stamina + a small speed boost. Same slot; time of day picks which spawns.
+- [x] **7.7 Snack / water-bottle merge** — snack is the base consumable (locks
+  stamina at full for a window). The water bottle is its **Nightfall** upgrade:
+  same slot, only spawns in place of the snack on a post-win Nightfall run once
+  it's properly dark.
+  - _Shipped:_ the day dial goes off-React through `daylight.js`; a snack-family
+    pickup (`Consumables.jsx`) becomes a water bottle only when `nightfall` is on
+    **and** `night ≥ 0.8` (deep blue hour — a Nightfall run opens above that),
+    decided each time its fuse fires. Spending one sets its own `waterActive`
+    flag: `tickStamina` welds stamina on either flag, `Consumables.jsx` runs the
+    longer `WATER_SECONDS` (12 vs the snack's 8) window, and `Player.jsx` adds
+    `WATER_SPEED_BONUS` +2 to walk / sprint — sprint 10 → 12, past the
+    green-ember dash and clear of anything the yeti has, sustained for the window.
+    Playtest call: it's a reward for beating the base game, so it's allowed to be
+    strong.
 - [ ] **7.8 Throwables — duck & poop** — both reuse 6.11's investigate-a-point.
   Squeaky duck: loud squeak on landing, a short snappy lure. Poop: squish on
   landing, the yeti walks over, sniffs, recoils, leaves — a longer window than

@@ -38,6 +38,7 @@ export default function Sound() {
   const shedTellPhase = useRef(0) // countdown between shed-tell knocks
   const prevSheltered = useRef(false)
   const prevSnack = useRef(false)
+  const prevWater = useRef(false)
   const prevBlanket = useRef(false)
   const prevThrow = useRef(0)
 
@@ -68,6 +69,7 @@ export default function Sound() {
     shedTellPhase.current = 0
     prevSheltered.current = false
     prevSnack.current = false
+    prevWater.current = false
     prevBlanket.current = false
     prevThrow.current = useGame.getState().throwReq
     getAtmosphere()?.revive()
@@ -93,6 +95,7 @@ export default function Sound() {
       interlude,
       nightfall,
       snackActive,
+      waterActive,
       blanketActive,
       throwReq,
     } = useGame.getState()
@@ -140,6 +143,10 @@ export default function Sound() {
     if (snackActive && !prevSnack.current) eng.snackEat()
     else if (!snackActive && prevSnack.current) eng.effectEnd()
     prevSnack.current = snackActive
+    // 7.7: the water bottle reuses the snack's chew/wear-off cues.
+    if (waterActive && !prevWater.current) eng.snackEat()
+    else if (!waterActive && prevWater.current) eng.effectEnd()
+    prevWater.current = waterActive
     if (blanketActive && !prevBlanket.current) eng.blanketWrap()
     else if (!blanketActive && prevBlanket.current) eng.effectEnd()
     prevBlanket.current = blanketActive

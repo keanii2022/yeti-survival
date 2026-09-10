@@ -6,6 +6,7 @@ import { ARENA_HALF } from './Player.jsx'
 import { generateTrees, TREE_COUNT } from './trees.js'
 import { useGame } from './store.js'
 import { qualityFor } from './quality.js'
+import { daylight, resetDaylight } from './daylight.js'
 
 // Small deterministic PRNG so the tree scatter is the same on every reload.
 function mulberry32(seed) {
@@ -271,6 +272,15 @@ function DayCycle({ quality }) {
   // per run, so a fresh mount is a fresh run).
   const u0 = useMemo(() => rollDayStart(useGame.getState().nightfall), [])
 
+  // Publish the dial off-React (daylight.js) so the 7.7 consumable picker can
+  // tell day from night. Seed it from the roll now — Consumables can fire on the
+  // first frame — and wipe it when this run's scene unmounts.
+  useEffect(() => {
+    daylight.u = u0
+    daylight.night = nightAmount(u0)
+    return resetDaylight
+  }, [u0])
+
   // Initial values for the first painted frame, before useFrame first runs.
   const init = useMemo(() => {
     const p = dialParams(u0)
@@ -302,6 +312,9 @@ function DayCycle({ quality }) {
     elapsed.current += Math.min(delta, 0.1)
     const u = Math.min(0.985, u0 + elapsed.current * TOD_DRIFT)
     const p = dialParams(u)
+
+    daylight.u = u
+    daylight.night = p.night
 
     if (sky.current) {
       const un = sky.current.material.uniforms

@@ -24,6 +24,12 @@ const SPRINT_SPEED = 10
 // after grabbing it) runs at this instead — a hair over the yeti's hardest
 // close-range lunge, so the risky grab-and-run is survivable.
 const ADRENALINE_SPEED = 11
+// 7.7: the water bottle (Nightfall-only) adds this flat to whatever you're doing
+// — walk or sprint — for its WATER_SECONDS window. Bigger than the snack ever
+// gave: a sprint goes 10 → 12, past the green-ember adrenaline dash (11) and
+// clear of anything the yeti can do, and the same window welds stamina to full,
+// so it's a sustained "get out of here" you earned by beating the base game.
+const WATER_SPEED_BONUS = 2
 const SPRINT_DRAIN = 13 // stamina/sec while sprinting — ~7.5s from a full bar.
 // Eased from 16 in 6.6: enough runway to clear the yeti's ~24u lose-radius (L1)
 // and cut sideways into cover, but a flat-out straight sprint still runs dry
@@ -365,7 +371,8 @@ export default function Player() {
 
     if (moving) {
       const sprintSpeed = greenEmber.boost ? ADRENALINE_SPEED : SPRINT_SPEED
-      const speed = sprinting ? sprintSpeed : WALK_SPEED
+      let speed = sprinting ? sprintSpeed : WALK_SPEED
+      if (game.waterActive) speed += WATER_SPEED_BONUS
       const throttle = isTouch ? Math.min(1, analog) : 1
       move
         .normalize()
