@@ -268,8 +268,25 @@ describe('inventory (7.4)', () => {
 
     expect(get().slots).toEqual([null, null, null, null])
     expect(get().snackActive).toBe(true)
+    expect(get().waterActive).toBe(false)
     expect(get().stamina).toBe(100)
     expect(get().sprintLocked).toBe(false)
+  })
+
+  it('useSlot on a water bottle (7.7): its own flag, and the stamina weld that tickStamina honours', () => {
+    useGame.setState({ slots: ['water', null, null, null], stamina: 10, sprintLocked: true })
+    get().useSlot(0)
+
+    expect(get().slots).toEqual([null, null, null, null])
+    expect(get().waterActive).toBe(true)
+    expect(get().snackActive).toBe(false) // water is its own window now, not a snack
+    expect(get().stamina).toBe(100)
+    expect(get().sprintLocked).toBe(false)
+
+    // tickStamina welds on either flag
+    useGame.setState({ stamina: 20 })
+    get().tickStamina(true, 999)
+    expect(get().stamina).toBe(100)
   })
 
   it('useSlot on a blanket sets it down: clears the slot, flags a placed drop', () => {
@@ -342,21 +359,25 @@ describe('inventory (7.4)', () => {
     expect(get().sprintLocked).toBe(false)
   })
 
-  it('endSnack lifts the effect so normal stamina drain resumes', () => {
-    useGame.setState({ snackActive: true })
+  it('endSnack / endWater each lift their own window so normal stamina drain resumes', () => {
+    useGame.setState({ snackActive: true, waterActive: true })
     get().endSnack()
     expect(get().snackActive).toBe(false)
+    expect(get().waterActive).toBe(true) // endSnack leaves water alone
+    get().endWater()
+    expect(get().waterActive).toBe(false)
 
     useGame.setState({ stamina: 50 })
     get().tickStamina(true, 10)
     expect(get().stamina).toBe(40)
   })
 
-  it('reset clears the slots, the selection, and both effect flags', () => {
+  it('reset clears the slots, the selection, and every effect flag', () => {
     useGame.setState({
-      slots: ['snack', 'blanket', 'decoy', 'snack'],
+      slots: ['snack', 'blanket', 'decoy', 'water'],
       selectedSlot: 2,
       snackActive: true,
+      waterActive: true,
       blanketActive: true,
       pendingDrop: 'blanket',
       pendingDropPlaced: true,
@@ -366,6 +387,7 @@ describe('inventory (7.4)', () => {
       slots: [null, null, null, null],
       selectedSlot: 0,
       snackActive: false,
+      waterActive: false,
       blanketActive: false,
       pendingDrop: null,
       pendingDropPlaced: false,
@@ -406,6 +428,7 @@ describe('revivePlayer — one-time second chance', () => {
       stamina: 0,
       sprintLocked: true,
       snackActive: true,
+      waterActive: true,
       blanketActive: true,
     })
     const beforeReq = get().reviveReq
@@ -423,6 +446,7 @@ describe('revivePlayer — one-time second chance', () => {
       stamina: 100,
       sprintLocked: false,
       snackActive: false,
+      waterActive: false,
       blanketActive: false,
     })
     expect(get().graceUntil).toBeGreaterThan(performance.now())

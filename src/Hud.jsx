@@ -114,16 +114,20 @@ function DropPip() {
 function InventoryCue() {
   const slots = useGame((s) => s.slots)
   const snackActive = useGame((s) => s.snackActive)
+  const waterActive = useGame((s) => s.waterActive)
   const blanketActive = useGame((s) => s.blanketActive)
   const isTouch = useGame((s) => s.isTouch)
   const filled = slots
     .map((kind, i) => ({ kind, i }))
     .filter((entry) => entry.kind)
-  if (!filled.length && !snackActive && !blanketActive) return null
+  if (!filled.length && !snackActive && !waterActive && !blanketActive)
+    return null
   return (
     <div className="consumables">
-      {snackActive && (
-        <div className="consumable snack active">stamina locked</div>
+      {(snackActive || waterActive) && (
+        <div className={`consumable ${waterActive ? 'water' : 'snack'} active`}>
+          {waterActive ? 'stamina locked · fast' : 'stamina locked'}
+        </div>
       )}
       {blanketActive && (
         <div className="consumable blanket active">on blanket</div>
@@ -236,6 +240,7 @@ export default function Hud({ locked, isTouch }) {
   const interlude = useGame((s) => s.interlude)
   const nightfall = useGame((s) => s.nightfall)
   const snackActive = useGame((s) => s.snackActive)
+  const waterActive = useGame((s) => s.waterActive)
   const blanketActive = useGame((s) => s.blanketActive)
   // 9.x: touch has no keyboard, so the "press R / N" end-screen prompts need
   // tap targets. Store actions are stable references.
@@ -273,13 +278,15 @@ export default function Hud({ locked, isTouch }) {
         : '#6fd3ff'
 
   const staminaPct = Math.max(0, Math.min(100, stamina))
-  const staminaColor = snackActive
-    ? '#7dffb0'
-    : sprintLocked
-      ? '#ff5a4a'
-      : staminaPct < 30
-        ? '#ffd27a'
-        : '#cfe9ff'
+  const staminaColor = waterActive
+    ? '#8fe6ff'
+    : snackActive
+      ? '#7dffb0'
+      : sprintLocked
+        ? '#ff5a4a'
+        : staminaPct < 30
+          ? '#ffd27a'
+          : '#cfe9ff'
 
   return (
     <div className={`hud${isTouch ? ' touch' : ''}`}>
@@ -334,9 +341,17 @@ export default function Hud({ locked, isTouch }) {
             </div>
           </div>
 
-          <div className={`gauge stamina${snackActive ? ' shielded' : ''}`}>
+          <div
+            className={`gauge stamina${snackActive || waterActive ? ' shielded' : ''}`}
+          >
             <span className="gauge-label">
-              {snackActive ? 'Stamina · snack' : sprintLocked ? 'Winded' : 'Stamina'}
+              {waterActive
+                ? 'Stamina · water'
+                : snackActive
+                  ? 'Stamina · snack'
+                  : sprintLocked
+                    ? 'Winded'
+                    : 'Stamina'}
             </span>
             <div className="gauge-track">
               <div

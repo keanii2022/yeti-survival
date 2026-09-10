@@ -25,7 +25,12 @@ export const USE_WALK_LOCK_SECONDS = 0.8
 export const DROP_HOLD_MS = 450
 
 // Short human labels for the HUD chips / on-screen buttons, keyed by item kind.
-export const ITEM_LABEL = { snack: 'Snack', blanket: 'Blanket', decoy: 'Decoy' }
+export const ITEM_LABEL = {
+  snack: 'Snack',
+  water: 'Water',
+  blanket: 'Blanket',
+  decoy: 'Decoy',
+}
 
 // Index of the first empty (null / undefined) slot in `slots`, or -1 when the
 // inventory is full. Where a fresh pickup lands.

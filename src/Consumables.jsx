@@ -1,23 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useGame, SNACK_SECONDS } from './store.js'
+import { useGame, SNACK_SECONDS, WATER_SECONDS } from './store.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { inControl } from './touch.js'
 import { hasFreeSlot } from './inventory.js'
 import { ARENA_HALF } from './arena.js'
+import { isNight } from './daylight.js'
 
 // Step 6.13: the two rare consumables — a snack and a blanket. Both scatter like
 // embers but far scarcer: up to two of each loose in the arena at a time (on
 // staggered fuses so they don't refresh in lockstep), a long cooldown after a
-// grab before that slot refills, and you still only carry one of a kind at once
-// — a second pickup just sits until a slot frees up. Walk over one to pocket it
-// (store: grabItem drops it in the first free V/B/N/M slot); trigger it by hand
-// later with that slot's key (App.jsx / 7.4). The snack's effect is a timed
-// window this file counts down (snackActive pins stamina); the blanket (7.6) is
-// set down in the world and its eased drain is proximity-driven in Drops.jsx —
-// no window here.
+// grab before that slot refills. Walk over one to pocket it (store: grabItem
+// into the first free slot); spend it with that slot's number key (App.jsx /
+// 7.4). The snack's effect is a timed window this file counts down (snackActive
+// pins stamina); the blanket (7.6) is set down in the world and its eased drain
+// is proximity-driven in Drops.jsx — no window here.
+//
+// Step 7.7: on a Nightfall run, once it's properly dark, a snack-family pickup
+// comes out as a water bottle instead — a longer window (WATER_SECONDS) and a
+// bigger speed bump (Player.WATER_SPEED_BONUS). This file runs that window too.
 //
 // No physics — a plain distance check to the camera each frame, same as
 // Items.jsx. Not tied to the yeti or a level, so they ride through the interlude
@@ -58,7 +61,8 @@ const RELOCATE_AFTER = 32
 const RELOCATE_MIN_DIST = 62
 
 // Distinct silhouettes so a glance tells them apart through the murk: the snack
-// a small upright ration bar in warm amber, the blanket a wide flat fold in
+// a small upright ration bar in warm amber, the water bottle (7.7, the night
+// face of the snack) a taller one in cold cyan, the blanket a wide flat fold in
 // cold blue.
 const LOOK = {
   snack: {
@@ -67,6 +71,13 @@ const LOOK = {
     emissive: '#4a2a0c',
     glow: '#ffbe80',
     light: '#ffb066',
+  },
+  water: {
+    box: [0.34, 0.62, 0.34],
+    color: '#4fb8c8',
+    emissive: '#0c3a44',
+    glow: '#9ff0ff',
+    light: '#8fe6ff',
   },
   blanket: {
     box: [0.74, 0.18, 0.5],
@@ -78,8 +89,12 @@ const LOOK = {
 }
 
 // One pickup: rolls a spot, waits out its fuse, mounts the mesh, and hands off
-// to the store on walk-over. `kind` is 'snack' | 'blanket'; `slot` (0 | 1) just
-// staggers this instance's timers off the other one of its kind.
+// to the store on walk-over. `kind` is the family — 'snack' | 'blanket'; `slot`
+// (0 | 1) just staggers this instance's timers off the other one of its kind.
+// 7.7: a 'snack'-family pickup resolves to a snack by day and a water bottle by
+// night (daylight.js), decided fresh each time its fuse fires. The resolved kind
+// rides in `spot` ([x, z, kind]) so what the player sees and picks up stays in
+// sync; the fuse timing still keys off the family.
 function Pickup({ kind, slot }) {
   const { camera } = useThree()
   const mesh = useRef()
@@ -92,7 +107,7 @@ function Pickup({ kind, slot }) {
   const phase = useRef('waiting') // 'waiting' = counting to spawn, 'active' = out there
   const fuse = useRef(SPAWN[kind].first + slot * SLOT_STAGGER)
   const age = useRef(0) // seconds this active pickup has gone unclaimed
-  const [spot, setSpot] = useState(null) // [x, z] once active
+  const [spot, setSpot] = useState(null) // [x, z, resolvedKind] once active
 
   // A point in a band out from the player, pulled inside the mountain ring and
   // nudged clear of any tree trunk or shed wall so it never lands stuck in
@@ -114,7 +129,7 @@ function Pickup({ kind, slot }) {
   }
 
   useFrame((_, rawDelta) => {
-    const { status, interlude, isTouch } = useGame.getState()
+    const { status, interlude, isTouch, nightfall } = useGame.getState()
     if (status !== 'playing') return
     const delta = Math.min(rawDelta, 0.1)
 
@@ -123,7 +138,11 @@ function Pickup({ kind, slot }) {
       if (!inControl(isTouch)) return
       fuse.current -= delta
       if (fuse.current <= 0) {
-        setSpot(rollSpot())
+        // 7.7: a snack-family pickup becomes a water bottle only on a Nightfall
+        // run (post-win) and only once it's properly dark out (daylight.js).
+        const served =
+          kind === 'snack' && nightfall && isNight() ? 'water' : kind
+        setSpot([...rollSpot(), served])
         age.current = 0
         phase.current = 'active'
       }
@@ -139,8 +158,9 @@ function Pickup({ kind, slot }) {
     const pdist = Math.hypot(dx, dz)
 
     // Stranded across the arena and forgotten — quietly move it back into reach.
+    // Keep whatever kind it spawned as (spot[2]); a relocate isn't a fresh roll.
     if (age.current > RELOCATE_AFTER && pdist > RELOCATE_MIN_DIST) {
-      setSpot(rollSpot())
+      setSpot([...rollSpot(), spot[2]])
       age.current = 0
       return
     }
@@ -163,14 +183,14 @@ function Pickup({ kind, slot }) {
     // In range. Pocket it only if a slot's free — otherwise it sits and waits.
     // 7.4: duplicates are fine, so no "already carrying this kind" check.
     if (interlude || !hasFreeSlot(useGame.getState().slots)) return
-    useGame.getState().grabItem(kind)
+    useGame.getState().grabItem(spot[2])
     phase.current = 'waiting'
     fuse.current = SPAWN[kind].respawn + slot * SLOT_STAGGER
     setSpot(null)
   })
 
   if (!spot) return null
-  const look = LOOK[kind]
+  const look = LOOK[spot[2]]
   return (
     <group ref={mesh} position={[spot[0], HOVER_HEIGHT, spot[1]]}>
       <mesh castShadow>
@@ -213,23 +233,30 @@ function Pickup({ kind, slot }) {
 }
 
 export default function Consumables() {
-  // The snack window. Seeded on the rising edge of snackActive and burned down
-  // while the player's in control (paused / interlude / start-screen frames
-  // don't count against it). At zero, hand back to the store.
+  // The snack and water windows. Each is seeded on the rising edge of its store
+  // flag and burned down while the player's in control (paused / interlude /
+  // start-screen frames don't count against it). At zero, hand back to the
+  // store. 7.7: the water bottle runs the longer WATER_SECONDS.
   const snackWin = useRef(0)
   const wasSnack = useRef(false)
+  const waterWin = useRef(0)
+  const wasWater = useRef(false)
 
   useEffect(() => {
     snackWin.current = 0
     wasSnack.current = false
+    waterWin.current = 0
+    wasWater.current = false
   }, [])
 
   useFrame((_, rawDelta) => {
-    const { status, interlude, isTouch, snackActive, endSnack } =
+    const { status, interlude, isTouch, snackActive, waterActive, endSnack, endWater } =
       useGame.getState()
 
     if (snackActive && !wasSnack.current) snackWin.current = SNACK_SECONDS
     wasSnack.current = snackActive
+    if (waterActive && !wasWater.current) waterWin.current = WATER_SECONDS
+    wasWater.current = waterActive
 
     if (status !== 'playing' || interlude || !inControl(isTouch)) return
     const delta = Math.min(rawDelta, 0.1)
@@ -237,6 +264,10 @@ export default function Consumables() {
     if (snackActive) {
       snackWin.current -= delta
       if (snackWin.current <= 0) endSnack()
+    }
+    if (waterActive) {
+      waterWin.current -= delta
+      if (waterWin.current <= 0) endWater()
     }
   })
 

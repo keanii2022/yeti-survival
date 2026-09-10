@@ -49,11 +49,19 @@ const SPRINT_UNLOCK = 30
 // `placed`); `blanketActive` is now the live "standing on it" state Drops.jsx
 // toggles by proximity, and it eases the warmth drain (BLANKET_DRAIN_FACTOR in
 // Survival.jsx) for exactly as long as you stay on the spot.
+//
+// Step 7.7: the water bottle is a Nightfall-only upgrade of the snack — the
+// picker in Consumables.jsx only swaps it in when the run is Nightfall *and* the
+// day dial is properly dark (daylight.js). It welds stamina the same way (via
+// `waterActive`, which tickStamina honours alongside `snackActive`), runs a
+// longer window, and Player.jsx reads `waterActive` for a bigger flat speed bump
+// (WATER_SPEED_BONUS) than the snack ever gave.
 export const SNACK_SECONDS = 8
+export const WATER_SECONDS = 12
 
 // Step 7.4: four generic carry slots. A slot holds an item kind ('snack' |
-// 'blanket' | 'decoy') or null. A pickup lands in the first free slot; a number
-// key spends that slot, R drops the first.
+// 'water' | 'blanket' | 'decoy') or null. A pickup lands in the first free slot;
+// a number key spends that slot, R drops the first.
 export const SLOT_COUNT = 4
 const emptySlots = () => new Array(SLOT_COUNT).fill(null)
 
@@ -153,13 +161,15 @@ export const useGame = create((set) => ({
   // 7.4 inventory. `slots` is four entries, each an item kind or null, kept
   // left-packed (store `compact`). A pickup (Consumables.jsx / Decoy.jsx) calls
   // grabItem to take the first free one; useSlot / dropSlot spend or ditch one.
-  // `snackActive` pins stamina at full (see tickStamina); Consumables.jsx counts
-  // that window down and calls endSnack. `blanketActive` (7.6) is set/cleared by
-  // Drops.jsx from proximity to a set-down blanket, not a timer — it eases the
-  // warmth drain in Survival.jsx while you stand on one.
+  // `snackActive` and `waterActive` (7.7) each pin stamina at full while their
+  // window runs (tickStamina honours either); Consumables.jsx counts the two
+  // windows down and calls endSnack / endWater. `blanketActive` (7.6) is
+  // set/cleared by Drops.jsx from proximity to a set-down blanket, not a timer —
+  // it eases the warmth drain in Survival.jsx while you stand on one.
   slots: emptySlots(),
   selectedSlot: 0,
   snackActive: false,
+  waterActive: false,
   blanketActive: false,
 
   // 7.5: the drop handoff. dropSlot stamps `pendingDrop` with the item kind and
@@ -229,12 +239,10 @@ export const useGame = create((set) => ({
         : { score: s.score + GREEN_ESCAPE_BONUS, escapes: s.escapes + 1 },
     ),
 
-  // Walk over a snack / blanket / decoy (Consumables.jsx, Decoy.jsx): drop it
-  // into the first free slot. Inventory full → no-op, and the pickup stays out
-  // in the world. Duplicates are allowed (two snacks is a fair use of two
-  // slots); the pickups' own respawn cooldowns keep that from flooding. If the
-  // selection was pointing at nothing, snap it to the new item so a fresh grab
-  // is usable with one Q press.
+  // Walk over a snack / water / blanket / decoy (Consumables.jsx, Decoy.jsx):
+  // drop it into the first free slot. Inventory full → no-op, and the pickup
+  // stays out in the world. Duplicates are allowed (two snacks is a fair use of
+  // two slots); the pickups' own respawn cooldowns keep that from flooding.
   grabItem: (kind) =>
     set((s) => {
       if (s.status !== 'playing') return {}
@@ -256,13 +264,15 @@ export const useGame = create((set) => ({
     }),
 
   // Spend the item in slot `i` (App.jsx: a number key, or Q for slot 0; the
-  // touch buttons pass their own index). Snack → stamina welds to full for the
-  // window; blanket → set down in the world (7.6): same drop handoff as a plain
-  // ditch but flagged `placed`, so Drops.jsx drops a marker you can stand on for
-  // the eased drain and walk back to via the pip; decoy → the slot clears and
-  // throwReq bumps for Decoy.jsx to fling. The remaining items pack left
-  // (compact) and the highlight resets to the first. No-op on an empty slot, a
-  // finished run, or the interlude.
+  // touch buttons pass their own index). Snack → `snackActive`, stamina welds to
+  // full for SNACK_SECONDS; water bottle (7.7) → `waterActive`, the same weld
+  // for the longer WATER_SECONDS plus the bigger Player speed bump; blanket →
+  // set down in the world (7.6): same drop handoff as a plain ditch but flagged
+  // `placed`, so Drops.jsx drops a marker you can stand on for the eased drain
+  // and walk back to via the pip; decoy → the slot clears and throwReq bumps for
+  // Decoy.jsx to fling. The remaining items pack left (compact) and the
+  // highlight resets to the first. No-op on an empty slot, a finished run, or
+  // the interlude.
   useSlot: (i) =>
     set((s) => {
       if (s.status !== 'playing' || s.interlude) return {}
@@ -275,6 +285,13 @@ export const useGame = create((set) => ({
         return {
           ...base,
           snackActive: true,
+          stamina: START_STAMINA,
+          sprintLocked: false,
+        }
+      if (kind === 'water')
+        return {
+          ...base,
+          waterActive: true,
           stamina: START_STAMINA,
           sprintLocked: false,
         }
@@ -311,7 +328,9 @@ export const useGame = create((set) => ({
       }
     }),
 
+  // Consumables.jsx counts each window down and calls these when it's up.
   endSnack: () => set((s) => (s.snackActive ? { snackActive: false } : {})),
+  endWater: () => set((s) => (s.waterActive ? { waterActive: false } : {})),
 
   // 7.6: Drops.jsx calls this on the frame the player steps onto / off a
   // set-down blanket. No timer behind it — the flag tracks the spot.
@@ -352,6 +371,7 @@ export const useGame = create((set) => ({
         slots: emptySlots(),
         selectedSlot: 0,
         snackActive: false,
+        waterActive: false,
         blanketActive: false,
         dropReq: 0,
         pendingDrop: null,
@@ -383,9 +403,9 @@ export const useGame = create((set) => ({
   tickStamina: (draining, amount) =>
     set((s) => {
       if (s.status !== 'playing') return {}
-      // 6.13: while a snack is working, the bar is welded to full and sprint
-      // never locks — the whole point of eating one.
-      if (s.snackActive) {
+      // 6.13 / 7.7: while a snack or a water bottle is working, the bar is welded
+      // to full and sprint never locks — the whole point of spending one.
+      if (s.snackActive || s.waterActive) {
         return s.stamina === START_STAMINA && !s.sprintLocked
           ? {}
           : { stamina: START_STAMINA, sprintLocked: false }
@@ -429,6 +449,7 @@ export const useGame = create((set) => ({
         stamina: START_STAMINA,
         sprintLocked: false,
         snackActive: false,
+        waterActive: false,
         blanketActive: false,
       }
     }),
@@ -453,6 +474,7 @@ export const useGame = create((set) => ({
       slots: emptySlots(),
       selectedSlot: 0,
       snackActive: false,
+      waterActive: false,
       blanketActive: false,
       dropReq: 0,
       pendingDrop: null,

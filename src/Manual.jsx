@@ -179,6 +179,7 @@ export default function Manual({ open, onClose }) {
           </p>
           <ul>
             <li><strong>Snack</strong> — locks your stamina at full for about 8 seconds. Eat it right before a big sprint.</li>
+            <li><strong>Water bottle</strong> — a <strong>Nightfall</strong> reward: only shows up once you've beaten the game and it's properly dark out, in place of the snack. Locked stamina like a snack, but a longer window and a much bigger speed boost — a real "get clear" button.</li>
             <li><strong>Blanket</strong> — sets down on the ground. Stand on it and your warmth drains much slower. You can walk back to it later.</li>
             <li><strong>Decoy</strong> — throw it and the yeti breaks off to investigate it for a few seconds, resetting a chase.</li>
           </ul>
