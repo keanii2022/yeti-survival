@@ -225,12 +225,12 @@ describe('inventory (7.4)', () => {
     expect(get().slots).toEqual([null, null, null, null])
   })
 
-  it('dropSlot empties one slot and flags a plain drop for Drops.jsx', () => {
+  it('dropSlot empties one slot, packs the rest left, and flags a plain drop for Drops.jsx', () => {
     useGame.setState({ slots: ['snack', 'blanket', null, null], selectedSlot: 0 })
     const before = get().dropReq
     get().dropSlot(0)
-    expect(get().slots).toEqual([null, 'blanket', null, null])
-    expect(get().selectedSlot).toBe(1) // selection falls to what's still carried
+    expect(get().slots).toEqual(['blanket', null, null, null]) // compacted
+    expect(get().selectedSlot).toBe(0)
     expect(get().pendingDrop).toBe('snack')
     expect(get().pendingDropPlaced).toBe(false)
     expect(get().dropReq).toBe(before + 1)
@@ -238,9 +238,10 @@ describe('inventory (7.4)', () => {
 
   it('dropSlot forces pendingDropPlaced false even after a blanket was set down', () => {
     useGame.setState({ slots: ['blanket', 'snack', null, null], selectedSlot: 0 })
-    get().useSlot(0) // set the blanket down -> pendingDropPlaced true
+    get().useSlot(0) // set the blanket down -> pendingDropPlaced true; snack packs to slot 0
     expect(get().pendingDropPlaced).toBe(true)
-    get().dropSlot(1) // now hold-E ditch the snack
+    expect(get().slots).toEqual(['snack', null, null, null])
+    get().dropSlot(0) // now ditch the snack
     expect(get().pendingDrop).toBe('snack')
     expect(get().pendingDropPlaced).toBe(false)
   })
@@ -303,11 +304,21 @@ describe('inventory (7.4)', () => {
     expect(get().throwReq).toBe(before + 1)
   })
 
-  it('useSlot drops the selection onto whatever is still carried', () => {
-    useGame.setState({ slots: ['snack', 'blanket', null, null], selectedSlot: 0 })
-    get().useSlot(0)
-    expect(get().slots).toEqual([null, 'blanket', null, null])
-    expect(get().selectedSlot).toBe(1)
+  it('useSlot packs the remaining items left and anchors the highlight at the first', () => {
+    useGame.setState({ slots: ['snack', 'blanket', 'decoy', null], selectedSlot: 2 })
+    get().useSlot(0) // spend the snack; blanket + decoy slide down
+    expect(get().slots).toEqual(['blanket', 'decoy', null, null])
+    expect(get().selectedSlot).toBe(0)
+  })
+
+  it('carried items always stay packed from slot 0 — no gaps for a number key to miss', () => {
+    useGame.setState({ slots: ['snack', 'blanket', 'decoy', 'snack'] })
+    get().dropSlot(1) // drop the blanket from the middle
+    expect(get().slots).toEqual(['snack', 'decoy', 'snack', null])
+    get().useSlot(0) // spend the first snack
+    expect(get().slots).toEqual(['decoy', 'snack', null, null])
+    get().grabItem('blanket') // a fresh pickup fills the first gap
+    expect(get().slots).toEqual(['decoy', 'snack', 'blanket', null])
   })
 
   it('useSlot is a no-op on an empty slot, an interlude, or a finished run', () => {

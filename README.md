@@ -207,12 +207,15 @@ fix that; the rest builds the hide-and-seek toolkit on top.
   world, found via 7.5) to pick another. Migrates snack / blanket / decoy onto
   this system and retires their 6.13 E/Q bindings. Using an item may briefly lock
   you to walk speed.
-  - _Shipped control map_ (playtest-revised twice): **1–4** use the item in that
-    slot directly, **E** moves the highlight to the next carried item, **Q** uses
-    the highlighted one, **R** drops it (while playing — R is still restart on a
-    game-over card). Touch: tap a slot button to use, long-press to drop. The
-    earlier "E cycles / hold-E drops" scheme was pulled — cycling was a silent
-    no-op with fewer than two items and the 450 ms hold fought it.
+  - _Shipped control map_ (playtest-revised three times): carried items always
+    pack left with no gaps (store `compact`), so **1–4** always line up with the
+    chips and use that item; **Q** is a shorthand for "1"; **R** drops your first
+    item (while playing — R is still restart on a game-over card). Touch: tap a
+    slot button to use, long-press to drop. The dropped scheme before this — "E
+    cycles a hidden selection, R drops the selected one" — missed constantly:
+    with a gap in the slots "press 1" hit nothing, and R dropped whichever item
+    the invisible cursor was on, not the one you meant. (And before that, "E
+    cycles / hold-E drops", pulled for the same class of reason.)
 - [x] **7.5 Dropped-item hint pip** — a fuzzy HUD direction pip, no distance,
   back toward anything you've dropped. Mainly for the blanket (7.6); applies to
   any dropped slot item.
