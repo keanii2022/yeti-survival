@@ -296,6 +296,45 @@
   }
 }
 
+/* Brief confirm flash when you drop / set down an item (Hud DropToast). Sits
+   just above the inventory strip, fades on its own after ~1.6s. */
+.drop-toast {
+  position: absolute;
+  left: 1.25rem;
+  bottom: calc(20% + 4.5rem);
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #eef4f8;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  animation: drop-toast-fade 1.6s ease-out forwards;
+}
+
+@keyframes drop-toast-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drop-toast {
+    animation: none;
+    opacity: 0.9;
+  }
+}
+
 .prompt {
   padding: 2rem 3rem;
   border-radius: 12px;

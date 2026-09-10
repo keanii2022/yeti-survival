@@ -103,11 +103,12 @@ export default function Manual({ open, onClose }) {
               if the yeti's still on your tail. The view frosts over after a
               second, then you're facing forward again. Short cooldown.
             </li>
-            <li><kbd>E</kbd> Cycle which carried item is selected</li>
-            <li><kbd>hold&nbsp;E</kbd> Drop the selected item on the ground</li>
-            <li><kbd>Q</kbd> Use the selected item</li>
+            <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> Use the item in that carry slot</li>
+            <li><kbd>E</kbd> Move the highlight to your next item</li>
+            <li><kbd>Q</kbd> Use the highlighted item</li>
+            <li><kbd>R</kbd> Drop the highlighted item on the ground (while playing)</li>
             <li><kbd>Space</kbd> Pause / resume</li>
-            <li><kbd>R</kbd> Restart (on the game-over screen)</li>
+            <li><kbd>R</kbd> Restart — on the game-over screen (nothing to drop there)</li>
             <li><kbd>Esc</kbd> Release the mouse</li>
           </ul>
         </section>
@@ -172,15 +173,20 @@ export default function Manual({ open, onClose }) {
 
         <section>
           <h2>Items you can carry</h2>
-          <p>You have 4 slots. Walk over an item to pick it up. <kbd>Q</kbd> uses the selected one.</p>
+          <p>
+            You have 4 slots. Walk over an item to pick it up. Press{' '}
+            <kbd>1</kbd>–<kbd>4</kbd> to use whatever's in that slot (on a phone,
+            tap its button).
+          </p>
           <ul>
             <li><strong>Snack</strong> — locks your stamina at full for about 8 seconds. Eat it right before a big sprint.</li>
             <li><strong>Blanket</strong> — sets down on the ground. Stand on it and your warmth drains much slower. You can walk back to it later.</li>
             <li><strong>Decoy</strong> — throw it and the yeti breaks off to investigate it for a few seconds, resetting a chase.</li>
           </ul>
           <p>
-            Drop anything with <kbd>hold&nbsp;E</kbd>. A faint arrow around the
-            crosshair points the rough direction back to your nearest dropped
+            <kbd>R</kbd> drops the highlighted item (<kbd>E</kbd> moves the
+            highlight); on a phone, long-press its button. A faint arrow around
+            the crosshair points the rough direction back to your nearest dropped
             item — walk back over it with a free slot to pick it up again.
           </p>
         </section>

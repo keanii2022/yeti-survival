@@ -118,6 +118,7 @@ function InventoryCue() {
   const selectedSlot = useGame((s) => s.selectedSlot)
   const snackActive = useGame((s) => s.snackActive)
   const blanketActive = useGame((s) => s.blanketActive)
+  const isTouch = useGame((s) => s.isTouch)
   const filled = slots
     .map((kind, i) => ({ kind, i }))
     .filter((entry) => entry.kind)
@@ -130,14 +131,18 @@ function InventoryCue() {
       {blanketActive && (
         <div className="consumable blanket active">on blanket</div>
       )}
-      {filled.length > 0 && (
+      {/* Desktop keymap reminder — each slot has its own number key now, E just
+          moves the highlight, R drops the highlighted one. Touch drives the
+          strip from the on-screen slot buttons, so it skips this line. */}
+      {!isTouch && filled.length > 0 && (
         <div className="consumable cycle">
+          <kbd>1</kbd>–<kbd>4</kbd> use
           {filled.length > 1 && (
             <>
-              <kbd>E</kbd> cycle &nbsp;·&nbsp;{' '}
+              {' '}&nbsp;·&nbsp; <kbd>E</kbd> next
             </>
-          )}
-          <kbd>hold&nbsp;E</kbd> drop
+          )}{' '}
+          &nbsp;·&nbsp; <kbd>R</kbd> drop
         </div>
       )}
       {filled.map(({ kind, i }) => (
@@ -145,11 +150,40 @@ function InventoryCue() {
           key={i}
           className={`consumable ${kind}${i === selectedSlot ? ' selected' : ''}`}
         >
-          {i === selectedSlot && <kbd>Q</kbd>} {ITEM_LABEL[kind]}
+          <kbd>{i + 1}</kbd> {ITEM_LABEL[kind]}
         </div>
       ))}
     </div>
   )
+}
+
+// A brief "dropped X" / "set down X" flash above the inventory strip — the
+// confirm the drop keypress otherwise lacks. Subscribes to `dropReq`, the same
+// edge counter dropSlot / a Q'd blanket bump for Drops.jsx; `pendingDrop` holds
+// the kind and `pendingDropPlaced` tells a set-down blanket from a plain ditch.
+// Store subscription rather than a selector so the message clears on its own
+// timer without a re-render loop.
+function DropToast() {
+  const [msg, setMsg] = useState(null)
+  useEffect(() => {
+    let seen = useGame.getState().dropReq
+    let timer = null
+    const unsub = useGame.subscribe((s) => {
+      if (s.dropReq === seen) return
+      seen = s.dropReq
+      if (!s.pendingDrop) return
+      const label = ITEM_LABEL[s.pendingDrop]?.toLowerCase() ?? 'item'
+      setMsg(s.pendingDropPlaced ? `Set down ${label}` : `Dropped ${label}`)
+      clearTimeout(timer)
+      timer = setTimeout(() => setMsg(null), 1600)
+    })
+    return () => {
+      unsub()
+      clearTimeout(timer)
+    }
+  }, [])
+  if (!msg) return null
+  return <div className="drop-toast">{msg}</div>
 }
 
 // Easy / Medium / Hard, shown on the start screen and every game-over card so
@@ -289,6 +323,8 @@ export default function Hud({ locked, isTouch }) {
 
       {engaged && playing && <InventoryCue />}
 
+      {engaged && playing && <DropToast />}
+
       {showMute && <MuteToggle />}
 
       <Manual open={manualOpen} onClose={() => setManualOpen(false)} />
@@ -418,7 +454,7 @@ export default function Hud({ locked, isTouch }) {
               <h1>Yeti Survival</h1>
               <p>Click to look around</p>
               <p className="keys">
-                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; hold E drop item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; E next item &nbsp;·&nbsp; Q use selected &nbsp;·&nbsp; R drop selected &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
               </p>
               <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
               <DifficultyPicker />
