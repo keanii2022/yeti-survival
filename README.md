@@ -200,12 +200,17 @@ fix that; the rest builds the hide-and-seek toolkit on top.
   (6.11) follows them toward your last-known instead of teleporting its attention
   there. Tracks fade over time; hard ground — shed floor now, pond ice and rock
   later — leaves none. Adds the surface-type hook 7.13 and 7.15 reuse.
-- **7.4 Inventory** — 4 generic carried slots, keys **V B N M**. Pick an item
-  into whatever slot is free, not one key per type. Full inventory → drop one
-  (stays in the world, found via 7.5) to pick another. Migrates snack / blanket /
-  decoy onto this system and retires their 6.13 E/Q bindings. The one-handed
-  V/B/N/M fumble while steering is intentional — don't smooth it; using an item
-  may briefly lock you to walk speed.
+- **7.4 Inventory** — 4 generic carried slots. Pick an item into whatever slot
+  is free, not one key per type. Full inventory → drop one (stays in the world,
+  found via 7.5) to pick another. Migrates snack / blanket / decoy onto this
+  system and retires their 6.13 E/Q bindings. Using an item may briefly lock you
+  to walk speed.
+  - _Shipped control map_ (playtest-revised twice): **1–4** use the item in that
+    slot directly, **E** moves the highlight to the next carried item, **Q** uses
+    the highlighted one, **R** drops it (while playing — R is still restart on a
+    game-over card). Touch: tap a slot button to use, long-press to drop. The
+    earlier "E cycles / hold-E drops" scheme was pulled — cycling was a silent
+    no-op with fewer than two items and the 450 ms hold fought it.
 - **7.5 Dropped-item hint pip** — a fuzzy HUD direction pip, no distance, back
   toward anything you've dropped. Mainly for the blanket (7.6); applies to any
   dropped slot item.
