@@ -6,7 +6,6 @@ import {
   GREEN_EMBER_SCORE,
   GREEN_ESCAPE_BONUS,
   SNACK_SECONDS,
-  BLANKET_SECONDS,
 } from './store.js'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
 
@@ -168,11 +167,9 @@ describe('green ember (6.7)', () => {
 })
 
 describe('inventory (7.4)', () => {
-  it('exposes short, positive effect windows', () => {
+  it('exposes a short, positive snack window', () => {
     expect(SNACK_SECONDS).toBeGreaterThan(0)
     expect(SNACK_SECONDS).toBeLessThan(20)
-    expect(BLANKET_SECONDS).toBeGreaterThan(0)
-    expect(BLANKET_SECONDS).toBeLessThan(20)
   })
 
   it('starts with four empty slots and the selection at 0', () => {
@@ -228,14 +225,24 @@ describe('inventory (7.4)', () => {
     expect(get().slots).toEqual([null, null, null, null])
   })
 
-  it('dropSlot empties one slot and flags the drop for Drops.jsx', () => {
+  it('dropSlot empties one slot and flags a plain drop for Drops.jsx', () => {
     useGame.setState({ slots: ['snack', 'blanket', null, null], selectedSlot: 0 })
     const before = get().dropReq
     get().dropSlot(0)
     expect(get().slots).toEqual([null, 'blanket', null, null])
     expect(get().selectedSlot).toBe(1) // selection falls to what's still carried
     expect(get().pendingDrop).toBe('snack')
+    expect(get().pendingDropPlaced).toBe(false)
     expect(get().dropReq).toBe(before + 1)
+  })
+
+  it('dropSlot forces pendingDropPlaced false even after a blanket was set down', () => {
+    useGame.setState({ slots: ['blanket', 'snack', null, null], selectedSlot: 0 })
+    get().useSlot(0) // set the blanket down -> pendingDropPlaced true
+    expect(get().pendingDropPlaced).toBe(true)
+    get().dropSlot(1) // now hold-E ditch the snack
+    expect(get().pendingDrop).toBe('snack')
+    expect(get().pendingDropPlaced).toBe(false)
   })
 
   it('dropSlot is a no-op on an empty slot, an interlude, or a finished run', () => {
@@ -264,14 +271,26 @@ describe('inventory (7.4)', () => {
     expect(get().sprintLocked).toBe(false)
   })
 
-  it('useSlot on a blanket spends it and arms the slower-drain flag', () => {
+  it('useSlot on a blanket sets it down: clears the slot, flags a placed drop', () => {
     useGame.setState({ slots: ['blanket', null, null, null] })
+    const before = get().dropReq
     get().useSlot(0)
 
     expect(get().slots).toEqual([null, null, null, null])
-    expect(get().blanketActive).toBe(true)
+    expect(get().pendingDrop).toBe('blanket')
+    expect(get().pendingDropPlaced).toBe(true)
+    expect(get().dropReq).toBe(before + 1)
+    // No timer: blanketActive is Drops.jsx's job, off proximity to the marker.
+    expect(get().blanketActive).toBe(false)
+  })
 
-    get().endBlanket()
+  it('setOnBlanket toggles blanketActive and no-ops when unchanged', () => {
+    expect(get().blanketActive).toBe(false)
+    get().setOnBlanket(true)
+    expect(get().blanketActive).toBe(true)
+    get().setOnBlanket(true) // idempotent
+    expect(get().blanketActive).toBe(true)
+    get().setOnBlanket(false)
     expect(get().blanketActive).toBe(false)
   })
 
@@ -328,6 +347,8 @@ describe('inventory (7.4)', () => {
       selectedSlot: 2,
       snackActive: true,
       blanketActive: true,
+      pendingDrop: 'blanket',
+      pendingDropPlaced: true,
     })
     get().reset()
     expect(get()).toMatchObject({
@@ -335,6 +356,8 @@ describe('inventory (7.4)', () => {
       selectedSlot: 0,
       snackActive: false,
       blanketActive: false,
+      pendingDrop: null,
+      pendingDropPlaced: false,
     })
   })
 })
@@ -506,6 +529,7 @@ describe('levels (6.6)', () => {
       slots: [null, null, null, null],
       selectedSlot: 0,
       blanketActive: false,
+      pendingDropPlaced: false,
       runId: before + 1,
     })
   })

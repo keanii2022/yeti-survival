@@ -41,11 +41,14 @@ const SPRINT_UNLOCK = 30
 // Step 6.13: the two rare consumables (Consumables.jsx scatters them like embers,
 // only far rarer). Since 7.4 they ride the generic inventory — carried in one of
 // four slots, triggered by that slot's key (V/B/N/M, App.jsx). The snack pins
-// stamina at full so you can sprint flat-out through the window; the blanket
-// cuts the warmth drain hard (see BLANKET_DRAIN_FACTOR in Survival.jsx). Windows
-// are short — one grab is a single get-out-of-trouble play, not a standing buff.
+// stamina at full so you can sprint flat-out through the window.
+//
+// Step 7.6: the blanket stopped being a timed window. Q sets it down in the
+// world (routed through the same drop handoff as a hold-E ditch, just flagged
+// `placed`); `blanketActive` is now the live "standing on it" state Drops.jsx
+// toggles by proximity, and it eases the warmth drain (BLANKET_DRAIN_FACTOR in
+// Survival.jsx) for exactly as long as you stay on the spot.
 export const SNACK_SECONDS = 8
-export const BLANKET_SECONDS = 12
 
 // Step 7.4: four generic carry slots. A slot holds an item kind ('snack' |
 // 'blanket' | 'decoy') or null. A pickup lands in the first free slot; E cycles
@@ -115,9 +118,10 @@ export const useGame = create((set) => ({
   // 7.4 inventory. `slots` is four entries, each an item kind or null. A pickup
   // (Consumables.jsx / Decoy.jsx) calls grabItem to take the first free one;
   // `selectedSlot` is the one Q acts on and E advances. useSlot / dropSlot
-  // spend or ditch a slot. `snackActive` pins stamina at full (see
-  // tickStamina); `blanketActive` slows the warmth drain (Survival.jsx).
-  // Consumables.jsx counts those windows down and calls endSnack / endBlanket.
+  // spend or ditch a slot. `snackActive` pins stamina at full (see tickStamina);
+  // Consumables.jsx counts that window down and calls endSnack. `blanketActive`
+  // (7.6) is set/cleared by Drops.jsx from proximity to a set-down blanket, not
+  // a timer — it eases the warmth drain in Survival.jsx while you stand on one.
   slots: emptySlots(),
   selectedSlot: 0,
   snackActive: false,
@@ -126,10 +130,13 @@ export const useGame = create((set) => ({
   // 7.5: the drop handoff. dropSlot stamps `pendingDrop` with the item kind and
   // bumps `dropReq`; Drops.jsx subscribes to the edge and places a world marker
   // at the camera position (which only exists inside the Canvas). Same opaque
-  // edge-counter shape as `throwReq` — reset() / startNightfall() clear the
-  // pair, and Drops.jsx re-seeds its "seen" on mount.
+  // edge-counter shape as `throwReq` — reset() / startNightfall() clear it, and
+  // Drops.jsx re-seeds its "seen" on mount. 7.6: `pendingDropPlaced` rides
+  // alongside — true when the handoff is a blanket set down with Q (a marker you
+  // stand on, never auto-re-pocketed), false for a plain hold-E ditch.
   dropReq: 0,
   pendingDrop: null,
+  pendingDropPlaced: false,
 
   // Bumped every time a decoy leaves a slot (useSlot). Decoy.jsx subscribes to
   // it and does the actual throw — the arc needs the camera heading, which only
@@ -205,7 +212,9 @@ export const useGame = create((set) => ({
 
   // Q: spend whatever's in the given slot (App.jsx passes selectedSlot; the
   // touch buttons pass their own index). Snack → stamina welds to full for the
-  // window; blanket → warmth drain drops for the window; decoy → the slot
+  // window; blanket → set down in the world (7.6): same drop handoff as a
+  // hold-E ditch but flagged `placed`, so Drops.jsx drops a marker you can
+  // stand on for the eased drain and walk back to via the pip; decoy → the slot
   // clears and throwReq bumps for Decoy.jsx to fling. The selection then falls
   // to whatever's still carried. No-op on an empty slot, a finished run, or the
   // interlude.
@@ -224,7 +233,13 @@ export const useGame = create((set) => ({
           stamina: START_STAMINA,
           sprintLocked: false,
         }
-      if (kind === 'blanket') return { ...base, blanketActive: true }
+      if (kind === 'blanket')
+        return {
+          ...base,
+          pendingDrop: 'blanket',
+          pendingDropPlaced: true,
+          dropReq: s.dropReq + 1,
+        }
       if (kind === 'decoy') return { ...base, throwReq: s.throwReq + 1 }
       return base
     }),
@@ -233,7 +248,9 @@ export const useGame = create((set) => ({
   // (App.jsx) or long-press a slot button (TouchControls). The slot clears, the
   // selection falls to whatever's still carried, and `pendingDrop` / `dropReq`
   // flag the drop for Drops.jsx to mark on the ground — the 7.5 pip then points
-  // you back to it. No-op on an empty slot / finished run / interlude.
+  // you back to it. `pendingDropPlaced` is forced false: a hold-E ditch is a
+  // plain, re-pocketable drop even for a blanket (only Q sets one down). No-op
+  // on an empty slot / finished run / interlude.
   dropSlot: (i) =>
     set((s) => {
       if (s.status !== 'playing' || s.interlude || !s.slots[i]) return {}
@@ -244,12 +261,17 @@ export const useGame = create((set) => ({
         slots,
         selectedSlot: firstFilledSlot(slots, s.selectedSlot),
         pendingDrop: kind,
+        pendingDropPlaced: false,
         dropReq: s.dropReq + 1,
       }
     }),
 
   endSnack: () => set((s) => (s.snackActive ? { snackActive: false } : {})),
-  endBlanket: () => set((s) => (s.blanketActive ? { blanketActive: false } : {})),
+
+  // 7.6: Drops.jsx calls this on the frame the player steps onto / off a
+  // set-down blanket. No timer behind it — the flag tracks the spot.
+  setOnBlanket: (on) =>
+    set((s) => (s.blanketActive === on ? {} : { blanketActive: on })),
 
   // Called by Levels.jsx when the interlude timer runs out: advance to the next
   // level and spawn its wave.
@@ -288,6 +310,7 @@ export const useGame = create((set) => ({
         blanketActive: false,
         dropReq: 0,
         pendingDrop: null,
+        pendingDropPlaced: false,
       }
     }),
 
@@ -358,5 +381,6 @@ export const useGame = create((set) => ({
       blanketActive: false,
       dropReq: 0,
       pendingDrop: null,
+      pendingDropPlaced: false,
     })),
 }))

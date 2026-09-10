@@ -21,8 +21,10 @@ const DRAIN_PER_SECOND = 4
 // time, it doesn't stop the clock, so camping a shed still freezes you eventually.
 const SHED_DRAIN_FACTOR = 0.45
 
-// 6.13: the blanket's window. Warmth still ticks — a blanket buys a long detour
-// or a shed camp, it doesn't stop the clock either. Stacks with the shed factor.
+// 6.13 / 7.6: the blanket. Warmth still ticks while you stand on the set-down
+// blanket (blanketActive, flipped by Drops.jsx on proximity) — it buys a long
+// hold on one spot, not a stopped clock. No window now: it lasts as long as you
+// stay on it. Stacks with the shed factor if you lay it inside one.
 const BLANKET_DRAIN_FACTOR = 0.3
 
 export default function Survival() {
