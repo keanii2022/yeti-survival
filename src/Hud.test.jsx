@@ -48,6 +48,7 @@ describe('Hud', () => {
   it('leads the game-over card with level, then time survived, then the ember score', () => {
     useGame.setState({
       status: 'caught',
+      reviveUsed: true, // past the one-time second chance — the plain breakdown card
       level: 3,
       elapsed: 95.4,
       score: 400,
@@ -100,7 +101,7 @@ describe('Hud', () => {
   })
 
   it('offers a tap-to-restart button on the game-over card on touch', () => {
-    useGame.setState({ status: 'caught', level: 2 })
+    useGame.setState({ status: 'caught', reviveUsed: true, level: 2 })
     render(<Hud locked={false} isTouch={true} />)
 
     expect(
@@ -110,11 +111,48 @@ describe('Hud', () => {
   })
 
   it('keeps the keyboard prompt (no button) on the game-over card on desktop', () => {
-    useGame.setState({ status: 'caught', level: 2 })
+    useGame.setState({ status: 'caught', reviveUsed: true, level: 2 })
     render(<Hud locked={true} />)
 
     expect(screen.getByText('Press R to try again')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('offers the one-time second chance on the FIRST death — keyboard prompt on desktop', () => {
+    useGame.setState({ status: 'caught', level: 3 })
+    render(<Hud locked={true} />)
+
+    expect(screen.getByText('One more shot?')).toBeInTheDocument()
+    expect(
+      screen.getByText('Press C to keep going · R to start over'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Press R to try again')).not.toBeInTheDocument()
+  })
+
+  it('offers the second chance as Keep going / Start over buttons on touch', () => {
+    useGame.setState({ status: 'frozen', level: 3 })
+    render(<Hud locked={false} isTouch={true} />)
+
+    expect(
+      screen.getByRole('button', { name: 'Keep going' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Start over' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('swaps the start prompt for a "take control" nudge after a revive', () => {
+    useGame.setState({ status: 'playing', reviveUsed: true })
+    render(<Hud locked={false} />)
+
+    expect(
+      screen.getByRole('heading', { name: 'Back in' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Click to take control')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Yeti Survival' }),
+    ).not.toBeInTheDocument()
   })
 
   it('gives the win screen Nightfall + Start over buttons on touch', () => {

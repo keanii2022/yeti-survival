@@ -384,6 +384,90 @@ describe('run status transitions', () => {
   })
 })
 
+describe('revivePlayer — one-time second chance', () => {
+  it('from a death, puts the run back to playing with fresh warmth/stamina and score intact', () => {
+    useGame.setState({
+      status: 'caught',
+      score: 640,
+      level: 3,
+      embersTotal: 22,
+      warmth: 0,
+      stamina: 0,
+      sprintLocked: true,
+      snackActive: true,
+      blanketActive: true,
+    })
+    const beforeReq = get().reviveReq
+
+    get().revivePlayer()
+
+    expect(get()).toMatchObject({
+      status: 'playing',
+      reviveUsed: true,
+      reviveReq: beforeReq + 1,
+      score: 640,
+      level: 3,
+      embersTotal: 22,
+      warmth: 100,
+      stamina: 100,
+      sprintLocked: false,
+      snackActive: false,
+      blanketActive: false,
+    })
+    expect(get().graceUntil).toBeGreaterThan(performance.now())
+  })
+
+  it('works the same from a freeze', () => {
+    useGame.setState({ status: 'frozen' })
+    get().revivePlayer()
+    expect(get().status).toBe('playing')
+    expect(get().reviveUsed).toBe(true)
+  })
+
+  it('only fires once per run', () => {
+    useGame.setState({ status: 'caught' })
+    get().revivePlayer()
+    const reqAfterFirst = get().reviveReq
+
+    useGame.setState({ status: 'caught' }) // died again
+    get().revivePlayer()
+    expect(get().status).toBe('caught') // no second revive
+    expect(get().reviveReq).toBe(reqAfterFirst)
+  })
+
+  it('is a no-op mid-run and on the win screen', () => {
+    get().revivePlayer() // status is 'playing'
+    expect(get().reviveUsed).toBe(false)
+
+    useGame.setState({ status: 'won' })
+    get().revivePlayer()
+    expect(get().status).toBe('won')
+    expect(get().reviveUsed).toBe(false)
+  })
+
+  it('holds off the cold and the yeti during the grace window, then lets them through', () => {
+    useGame.setState({ status: 'playing', warmth: 5, graceUntil: performance.now() + 5000 })
+
+    get().tickWarmth(3)
+    expect(get().warmth).toBe(5) // cold can't bite yet
+    get().catchPlayer()
+    expect(get().status).toBe('playing') // and neither can he
+
+    useGame.setState({ graceUntil: performance.now() - 1 }) // window elapsed
+    get().tickWarmth(3)
+    expect(get().warmth).toBe(2)
+    get().catchPlayer()
+    expect(get().status).toBe('caught')
+  })
+
+  it('reset clears the spent revive so the next run gets its own', () => {
+    useGame.setState({ status: 'caught', reviveUsed: true, graceUntil: 123 })
+    get().reset()
+    expect(get().reviveUsed).toBe(false)
+    expect(get().graceUntil).toBe(0)
+  })
+})
+
 describe('reset', () => {
   it('restores a fresh run and bumps runId so the scene remounts', () => {
     useGame.setState({

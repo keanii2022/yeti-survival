@@ -133,6 +133,75 @@ describe('levelParams — the curve', () => {
   })
 })
 
+describe('levelParams — difficulty', () => {
+  const levels = Array.from({ length: 12 }, (_, i) => i + 1)
+
+  it('a bare call and an explicit "hard" call are the same raw curve', () => {
+    for (const L of levels) {
+      expect(levelParams(L, 'hard')).toEqual(levelParams(L))
+    }
+  })
+
+  it('easy / medium slow the chase, the burst and the detection ring', () => {
+    for (const L of levels) {
+      const hard = levelParams(L)
+      for (const d of ['medium', 'easy']) {
+        const p = levelParams(L, d)
+        expect(p.chaseSpeed).toBeLessThan(hard.chaseSpeed)
+        expect(p.burstSpeed).toBeLessThan(hard.burstSpeed)
+        expect(p.detectRadius).toBeLessThan(hard.detectRadius)
+        expect(p.commitDelay).toBeGreaterThanOrEqual(hard.commitDelay)
+      }
+      // easy is gentler than medium
+      expect(levelParams(L, 'easy').chaseSpeed).toBeLessThan(
+        levelParams(L, 'medium').chaseSpeed,
+      )
+      expect(levelParams(L, 'easy').detectRadius).toBeLessThan(
+        levelParams(L, 'medium').detectRadius,
+      )
+    }
+  })
+
+  it('keeps the burst above the sustained speed at every difficulty', () => {
+    for (const L of levels) {
+      for (const d of ['easy', 'medium', 'hard']) {
+        const p = levelParams(L, d)
+        expect(p.burstSpeed).toBeGreaterThan(p.chaseSpeed)
+      }
+    }
+  })
+
+  it('keeps the lose / reacquire hysteresis (6u / 4u) after the ring is scaled', () => {
+    for (const L of levels) {
+      for (const d of ['easy', 'medium', 'hard']) {
+        const p = levelParams(L, d)
+        expect(p.loseRadius - p.detectRadius).toBeCloseTo(6)
+        expect(p.detectRadius - p.reacquireRadius).toBeCloseTo(4)
+      }
+    }
+  })
+
+  it('still grows chase speed and detection monotonically within easy / medium', () => {
+    for (const d of ['easy', 'medium']) {
+      for (let L = 2; L <= 12; L++) {
+        expect(levelParams(L, d).chaseSpeed).toBeGreaterThanOrEqual(
+          levelParams(L - 1, d).chaseSpeed,
+        )
+        expect(levelParams(L, d).detectRadius).toBeGreaterThan(
+          levelParams(L - 1, d).detectRadius,
+        )
+      }
+    }
+  })
+
+  it('never lets even the hard-mode deep chase reach sprint speed', () => {
+    for (let L = 1; L <= 30; L++) {
+      expect(levelParams(L, 'hard').chaseSpeed).toBeLessThan(SPRINT)
+      expect(levelParams(L, 'hard').burstSpeed).toBeLessThan(SPRINT)
+    }
+  })
+})
+
 describe('LEVEL_COUNT', () => {
   it('is the tuned climb length (playtest: 10 → 6 → 8)', () => {
     expect(LEVEL_COUNT).toBe(8)

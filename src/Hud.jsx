@@ -5,12 +5,14 @@ import {
   GREEN_EMBER_SCORE,
   GREEN_ESCAPE_BONUS,
 } from './store.js'
+import { DIFFICULTIES } from './difficulty.js'
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
 import { shelter } from './shelter.js'
 import { drops } from './drops.js'
 import { ITEM_LABEL } from './inventory.js'
 import MuteToggle from './MuteToggle.jsx'
+import Manual from './Manual.jsx'
 
 // A glanceable read on the yeti's attention so you don't have to swing the
 // camera around mid-chase to check whether you've shaken it. Samples the shared
@@ -150,6 +152,38 @@ function InventoryCue() {
   )
 }
 
+// Easy / Medium / Hard, shown on the start screen and every game-over card so
+// you can dial the run down without digging through a menu. Hard is the original
+// curve; Medium is the default. The choice sticks (localStorage) and reads live
+// on the next frame — Survival.jsx and the Yeti pick it up straight away. Each
+// button stops the click bubbling so it doesn't also grab pointer lock.
+const DIFF_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
+
+function DifficultyPicker() {
+  const difficulty = useGame((s) => s.difficulty)
+  const setDifficulty = useGame((s) => s.setDifficulty)
+  return (
+    <div className="difficulty">
+      <span className="difficulty-label">Difficulty</span>
+      <div className="difficulty-opts">
+        {DIFFICULTIES.map((d) => (
+          <button
+            key={d}
+            type="button"
+            className={`difficulty-opt${d === difficulty ? ' on' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setDifficulty(d)
+            }}
+          >
+            {DIFF_LABEL[d]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Whole seconds -> "M:SS" for the game-over readout.
 function formatTime(seconds) {
   const total = Math.max(0, Math.floor(seconds))
@@ -182,6 +216,13 @@ export default function Hud({ locked, isTouch }) {
   // tap targets. Store actions are stable references.
   const reset = useGame((s) => s.reset)
   const startNightfall = useGame((s) => s.startNightfall)
+  const reviveUsed = useGame((s) => s.reviveUsed)
+  const revivePlayer = useGame((s) => s.revivePlayer)
+
+  // The first-time player's manual, opened from the start screen or the pause
+  // card. Both of those only show while the game is idle or paused, so nothing
+  // is running behind the overlay.
+  const [manualOpen, setManualOpen] = useState(false)
 
   const playing = status === 'playing'
   const paused = status === 'paused'
@@ -249,6 +290,8 @@ export default function Hud({ locked, isTouch }) {
       {engaged && playing && <InventoryCue />}
 
       {showMute && <MuteToggle />}
+
+      <Manual open={manualOpen} onClose={() => setManualOpen(false)} />
 
       {showStats && (
         <>
@@ -362,12 +405,35 @@ export default function Hud({ locked, isTouch }) {
 
       {!engaged && !over && !paused && !won && (
         <div className="prompt">
-          <h1>Yeti Survival</h1>
-          <p>Click to look around</p>
-          <p className="keys">
-            WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; hold E drop item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
-          </p>
-          <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
+          {reviveUsed ? (
+            <>
+              {/* Post-revive: the pointer lock was released when the run ended
+                  and Player.jsx's auto-recapture was refused — one click gets
+                  it back. */}
+              <h1>Back in</h1>
+              <p>Click to take control</p>
+            </>
+          ) : (
+            <>
+              <h1>Yeti Survival</h1>
+              <p>Click to look around</p>
+              <p className="keys">
+                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; E cycle item &nbsp;·&nbsp; hold E drop item &nbsp;·&nbsp; Q use item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+              </p>
+              <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
+              <DifficultyPicker />
+              <button
+                type="button"
+                className="prompt-btn ghost"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setManualOpen(true)
+                }}
+              >
+                How to play
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -375,13 +441,32 @@ export default function Hud({ locked, isTouch }) {
         <div className="prompt">
           <h1>Paused</h1>
           <p>Press Space to resume</p>
+          <button
+            type="button"
+            className="prompt-btn ghost"
+            onClick={() => setManualOpen(true)}
+          >
+            How to play
+          </button>
         </div>
       )}
 
       {over && (
         <div className="prompt caught">
           <h1>{status === 'caught' ? 'The yeti caught you' : 'You froze to death'}</h1>
-          <p className="final">{nightfall ? `Nightfall — level ${level}` : `Level ${level}`}</p>
+          {reviveUsed ? (
+            <p className="final">
+              {nightfall ? `Nightfall — level ${level}` : `Level ${level}`}
+            </p>
+          ) : (
+            <>
+              <p className="final">One more shot?</p>
+              <p className="revive-sub">
+                Pick up where you started — warmth back, the yeti thrown wide.
+                Your run and score carry on. Just this once.
+              </p>
+            </>
+          )}
           <div className="tally">
             <p>
               <span>Survived</span>
@@ -414,12 +499,36 @@ export default function Hud({ locked, isTouch }) {
               <span>{score}</span>
             </p>
           </div>
+          <DifficultyPicker />
           {isTouch ? (
-            <button type="button" className="prompt-btn" onClick={reset}>
-              Try again
-            </button>
+            reviveUsed ? (
+              <button type="button" className="prompt-btn" onClick={reset}>
+                Try again
+              </button>
+            ) : (
+              <div className="prompt-btns">
+                <button
+                  type="button"
+                  className="prompt-btn"
+                  onClick={revivePlayer}
+                >
+                  Keep going
+                </button>
+                <button
+                  type="button"
+                  className="prompt-btn ghost"
+                  onClick={reset}
+                >
+                  Start over
+                </button>
+              </div>
+            )
           ) : (
-            <p>Press R to try again</p>
+            <p>
+              {reviveUsed
+                ? 'Press R to try again'
+                : 'Press C to keep going · R to start over'}
+            </p>
           )}
         </div>
       )}

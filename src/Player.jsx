@@ -105,6 +105,23 @@ export default function Player() {
     if (over) document.exitPointerLock?.()
   }, [status, over, endGlance])
 
+  // One-time second chance (store.revivePlayer): the scene doesn't remount, so
+  // snap the camera back to the spawn mark, facing the arena middle, and drop
+  // any half-finished glance. On desktop the run-over teardown released pointer
+  // lock; PointerLockControls remounts here (status is 'playing' again) and the
+  // "click to take control" prompt (Hud.jsx) walks the player through
+  // re-capturing the mouse — the grace window covers that beat. Touch has no
+  // lock and just carries on.
+  const reviveReq = useGame((s) => s.reviveReq)
+  useEffect(() => {
+    if (!reviveReq) return
+    endGlance()
+    camera.position.set(0, EYE_HEIGHT, 8)
+    camera.rotation.set(0, 0, 0)
+    look.current.yaw = 0
+    look.current.pitch = 0
+  }, [reviveReq, camera, endGlance])
+
   // mirror.frost is a module singleton — clear it for a fresh scene so a glance
   // interrupted by a game-over can't carry its ice into the next run.
   useEffect(() => {
