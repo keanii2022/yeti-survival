@@ -16,12 +16,12 @@
 
 import { difficultyMods } from './difficulty.js'
 
-// Playtest walked this 10 → 6 → 8. Six proved the loop was fun and left the
-// player wanting more climb; eight adds two levels of new, harder territory off
-// the same curve (L7–8: near-instant commit, detection past 30u, the wander
-// leash tight around you) without stretching the ramp thinner. Everything keyed
-// to LEVEL_COUNT or the level number tracks the change automatically.
-export const LEVEL_COUNT = 8
+// Playtest walked this 10 → 6 → 8 → 6. Eight had two levels almost nobody was
+// reaching — the family playtest kept stalling around L2–3 — so the win line is
+// back at six, a climb that can actually be finished. The curve itself is
+// unchanged (levelParams is defined for any level); this is only where the run
+// ends. Everything keyed to LEVEL_COUNT or the level number tracks it.
+export const LEVEL_COUNT = 6
 
 // Seconds of calm between clearing a level and the next wave. Warmth stops
 // draining, the yeti is pushed to a far wander, the music strips to the light
@@ -29,12 +29,12 @@ export const LEVEL_COUNT = 8
 // breathe, short enough not to drag.
 export const INTERLUDE_SECONDS = 8
 
-// Nightfall (unlocked by clearing all 10) replays the same 10-level climb, but
-// every level is pinned this many rungs higher on the curve — nightfall L1
-// already bites like normal L5, and from nightfall L6 on it holds at L10, the
-// hardest you've already beaten. It never climbs past that: the point is a
-// tougher run, not a yeti you can't run from. Interludes and the win screen
-// still happen; it just ends on its own "night is over" card.
+// Nightfall (unlocked by clearing every level) replays the same climb, but every
+// level is pinned this many rungs higher on the curve — nightfall L1 already
+// bites like normal L5, and it holds at LEVEL_COUNT once the offset would push
+// past it, the hardest you've already beaten. It never climbs past that: the
+// point is a tougher run, not a yeti you can't run from. Interludes and the win
+// screen still happen; it just ends on its own "night is over" card.
 export const NIGHTFALL_OFFSET = 4
 
 // The curve rung a run-level actually plays at, given the mode.

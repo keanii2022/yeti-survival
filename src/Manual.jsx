@@ -57,13 +57,13 @@ export default function Manual({ open, onClose }) {
         <section>
           <h2>The point of the game</h2>
           <p>
-            Survive and score. Each run is a climb through <strong>8 levels</strong>.
+            Survive and score. Each run is a climb through <strong>6 levels</strong>.
             To clear a level you have to collect all of that level's embers, then
             you get a short calm breather before the next wave starts and the
             yeti wakes back up.
           </p>
           <p>
-            Clear all 8 and you win — dawn breaks and the yeti gives up. Get
+            Clear all 6 and you win — dawn breaks and the yeti gives up. Get
             caught or freeze first and the run ends on a game-over screen with
             your score: level reached, time survived, and a bonus for every ember
             you grabbed.
@@ -206,9 +206,9 @@ export default function Manual({ open, onClose }) {
           <h2>What the levels bring</h2>
           <ul>
             <li><strong>Levels 1–4</strong> — the yeti gets a bit faster and spots you from a bit further each level, but you can still out-sprint it.</li>
-            <li><strong>Level 5+</strong> — its speed caps just below your sprint. Now it's about detection range, how fast it commits to a chase, and how long it searches. You survive by hiding, not running.</li>
+            <li><strong>Levels 5–6</strong> — its speed caps just below your sprint. Now it's about detection range, how fast it commits to a chase, and how long it searches. You survive by hiding, not running.</li>
             <li><strong>Between levels</strong> — about 8 seconds of calm. Warmth stops draining, the yeti backs off, and the next level number flashes up.</li>
-            <li><strong>Clear all 8</strong> — you win, and it unlocks <strong>Nightfall</strong>: the same 8 levels again but every one starts 4 rungs harder. Level 1 of Nightfall already bites like a normal Level 5.</li>
+            <li><strong>Clear all 6</strong> — you win, and it unlocks <strong>Nightfall</strong>: the same 6 levels again but every one starts 4 rungs harder. Level 1 of Nightfall already bites like a normal Level 5.</li>
           </ul>
         </section>
 
