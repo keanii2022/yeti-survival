@@ -73,17 +73,15 @@ export default function App() {
   //   Space      pause / resume
   //   N          take the nightfall from the win screen
   //   C          the first-death second chance (Hud.jsx)
-  //   R          drop the selected inventory slot while playing; on a game-over
-  //              / win card it's the restart instead — the two never overlap in
-  //              time, so one key covers both
-  //   1..4       use the item in that slot directly (also Numpad 1-4)
-  //   E          select the next carried item
-  //   Q          use the selected item
+  //   R          while playing: drop your first carried item (slot 1); on a
+  //              game-over / win card: restart — the two never overlap in time
+  //   1..4       use the item in that slot (also Numpad 1-4)
+  //   Q          use your first carried item (slot 1) — a shorthand for "1"
   //
-  // The inventory keys replaced the old 7.4 "E cycles / hold-E drops / Q uses"
-  // scheme: cycling was a silent no-op with fewer than two items and the 450 ms
-  // hold-to-drop fought the cycle. Now each slot has its own key and drop is a
-  // single press.
+  // The carried items always pack left with no gaps (store `compact`), so a
+  // number always lines up with the chip it's under and "drop first" is
+  // unambiguous. This replaced the 7.4 "E cycles a hidden selection / hold-E
+  // drops" scheme, which missed a lot in practice.
   useEffect(() => {
     const onKey = (e) => {
       const slotKey = SLOT_KEY.exec(e.code)
@@ -96,12 +94,8 @@ export default function App() {
         const s = useGame.getState()
         if (s.status === 'caught' || s.status === 'frozen' || s.status === 'won')
           s.reset()
-        else if (
-          s.status === 'playing' &&
-          !s.interlude &&
-          s.slots[s.selectedSlot] != null
-        )
-          s.dropSlot(s.selectedSlot)
+        else if (s.status === 'playing' && !s.interlude && s.slots[0] != null)
+          s.dropSlot(0)
       } else if (e.code === 'KeyC') {
         // One-time second chance offered on the first death screen (Hud.jsx).
         const { status, reviveUsed, revivePlayer } = useGame.getState()
@@ -110,12 +104,9 @@ export default function App() {
       } else if (e.code === 'KeyN') {
         const { status, nightfall, startNightfall } = useGame.getState()
         if (status === 'won' && !nightfall) startNightfall()
-      } else if (e.code === 'KeyE' && !e.repeat) {
-        const s = useGame.getState()
-        if (s.status === 'playing' && !s.interlude) s.cycleSlot()
       } else if ((e.code === 'KeyQ' || slotKey) && !e.repeat) {
         const s = useGame.getState()
-        const i = slotKey ? Number(slotKey[1]) - 1 : s.selectedSlot
+        const i = slotKey ? Number(slotKey[1]) - 1 : 0
         if (s.status === 'playing' && !s.interlude && s.slots[i] != null) {
           s.useSlot(i)
           lockWalk()

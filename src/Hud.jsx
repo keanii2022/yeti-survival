@@ -106,16 +106,13 @@ function DropPip() {
   )
 }
 
-// 7.4: bottom-left inventory strip. One chip per carried item; the selected one
-// (Q acts on it) is lit and carries a Q prompt, the rest are dimmed. An E prompt
-// shows once there's more than one item to cycle between. An active effect (the
-// snack window, or standing on a 7.6 blanket) pulses above the strip. Plain
-// store selectors —
-// `slots` is a fresh array on every grab / use / drop, so this re-renders
-// exactly when the inventory changes.
+// 7.4: bottom-left inventory strip. One chip per carried item, numbered by slot;
+// the first (what R drops) is lit, the rest dimmed. An active effect (the snack
+// window, or standing on a 7.6 blanket) pulses above the strip. Plain store
+// selectors — `slots` is a fresh array on every grab / use / drop, so this
+// re-renders exactly when the inventory changes.
 function InventoryCue() {
   const slots = useGame((s) => s.slots)
-  const selectedSlot = useGame((s) => s.selectedSlot)
   const snackActive = useGame((s) => s.snackActive)
   const blanketActive = useGame((s) => s.blanketActive)
   const isTouch = useGame((s) => s.isTouch)
@@ -131,24 +128,18 @@ function InventoryCue() {
       {blanketActive && (
         <div className="consumable blanket active">on blanket</div>
       )}
-      {/* Desktop keymap reminder — each slot has its own number key now, E just
-          moves the highlight, R drops the highlighted one. Touch drives the
-          strip from the on-screen slot buttons, so it skips this line. */}
+      {/* Desktop keymap reminder — each chip's number uses it, R drops the first.
+          Touch drives the strip from the on-screen slot buttons, so it skips
+          this line. */}
       {!isTouch && filled.length > 0 && (
         <div className="consumable cycle">
-          <kbd>1</kbd>–<kbd>4</kbd> use
-          {filled.length > 1 && (
-            <>
-              {' '}&nbsp;·&nbsp; <kbd>E</kbd> next
-            </>
-          )}{' '}
-          &nbsp;·&nbsp; <kbd>R</kbd> drop
+          <kbd>1</kbd>–<kbd>4</kbd> use &nbsp;·&nbsp; <kbd>R</kbd> drop 1st
         </div>
       )}
       {filled.map(({ kind, i }) => (
         <div
           key={i}
-          className={`consumable ${kind}${i === selectedSlot ? ' selected' : ''}`}
+          className={`consumable ${kind}${i === 0 ? ' selected' : ''}`}
         >
           <kbd>{i + 1}</kbd> {ITEM_LABEL[kind]}
         </div>
@@ -454,7 +445,7 @@ export default function Hud({ locked, isTouch }) {
               <h1>Yeti Survival</h1>
               <p>Click to look around</p>
               <p className="keys">
-                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; E next item &nbsp;·&nbsp; Q use selected &nbsp;·&nbsp; R drop selected &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; R drop first item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
               </p>
               <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
               <DifficultyPicker />

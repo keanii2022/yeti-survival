@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
-import { nextFilledSlot, firstFilledSlot } from './inventory.js'
+import { nextFilledSlot } from './inventory.js'
 import { loadDifficulty, saveDifficulty } from './difficulty.js'
 
 // Game state. A live run tracks warmth, stamina, score, and — since 6.6 — a
@@ -52,10 +52,20 @@ const SPRINT_UNLOCK = 30
 export const SNACK_SECONDS = 8
 
 // Step 7.4: four generic carry slots. A slot holds an item kind ('snack' |
-// 'blanket' | 'decoy') or null. A pickup lands in the first free slot; E cycles
-// the selected slot, Q spends it.
+// 'blanket' | 'decoy') or null. A pickup lands in the first free slot; a number
+// key spends that slot, R drops the first.
 export const SLOT_COUNT = 4
 const emptySlots = () => new Array(SLOT_COUNT).fill(null)
+
+// Keep the carried items left-packed with no gaps, so slot 1 is always your
+// first item, 2 your second, and so on — that's what the number keys and the HUD
+// chips read as. Without this, using or dropping a low slot leaves a hole and
+// "press 1" starts missing.
+const compact = (slots) => {
+  const kept = slots.filter((v) => v != null)
+  while (kept.length < SLOT_COUNT) kept.push(null)
+  return kept
+}
 
 // One-time second chance. On the FIRST death of a run the game-over card offers
 // "keep going" instead of only a full restart: respawn at the arena start with
@@ -140,13 +150,13 @@ export const useGame = create((set) => ({
   stamina: START_STAMINA,
   sprintLocked: false,
 
-  // 7.4 inventory. `slots` is four entries, each an item kind or null. A pickup
-  // (Consumables.jsx / Decoy.jsx) calls grabItem to take the first free one;
-  // `selectedSlot` is the one Q acts on and E advances. useSlot / dropSlot
-  // spend or ditch a slot. `snackActive` pins stamina at full (see tickStamina);
-  // Consumables.jsx counts that window down and calls endSnack. `blanketActive`
-  // (7.6) is set/cleared by Drops.jsx from proximity to a set-down blanket, not
-  // a timer — it eases the warmth drain in Survival.jsx while you stand on one.
+  // 7.4 inventory. `slots` is four entries, each an item kind or null, kept
+  // left-packed (store `compact`). A pickup (Consumables.jsx / Decoy.jsx) calls
+  // grabItem to take the first free one; useSlot / dropSlot spend or ditch one.
+  // `snackActive` pins stamina at full (see tickStamina); Consumables.jsx counts
+  // that window down and calls endSnack. `blanketActive` (7.6) is set/cleared by
+  // Drops.jsx from proximity to a set-down blanket, not a timer — it eases the
+  // warmth drain in Survival.jsx while you stand on one.
   slots: emptySlots(),
   selectedSlot: 0,
   snackActive: false,
@@ -232,12 +242,12 @@ export const useGame = create((set) => ({
       if (i === -1) return {}
       const slots = s.slots.slice()
       slots[i] = kind
-      const selectedSlot = s.slots[s.selectedSlot] == null ? i : s.selectedSlot
-      return { slots, selectedSlot }
+      return { slots }
     }),
 
-  // E: move the selection to the next filled slot, wrapping. No-op with fewer
-  // than two items, a finished run, or during the interlude.
+  // E: move the highlight to the next filled slot, wrapping. Unbound since the
+  // controls pass (numbers hit slots directly, R drops the first) but kept for
+  // the touch layer / tests. No-op with fewer than two items.
   cycleSlot: () =>
     set((s) => {
       if (s.status !== 'playing' || s.interlude) return {}
@@ -245,14 +255,14 @@ export const useGame = create((set) => ({
       return selectedSlot === s.selectedSlot ? {} : { selectedSlot }
     }),
 
-  // Q: spend whatever's in the given slot (App.jsx passes selectedSlot; the
+  // Spend the item in slot `i` (App.jsx: a number key, or Q for slot 0; the
   // touch buttons pass their own index). Snack → stamina welds to full for the
-  // window; blanket → set down in the world (7.6): same drop handoff as a
-  // hold-E ditch but flagged `placed`, so Drops.jsx drops a marker you can
-  // stand on for the eased drain and walk back to via the pip; decoy → the slot
-  // clears and throwReq bumps for Decoy.jsx to fling. The selection then falls
-  // to whatever's still carried. No-op on an empty slot, a finished run, or the
-  // interlude.
+  // window; blanket → set down in the world (7.6): same drop handoff as a plain
+  // ditch but flagged `placed`, so Drops.jsx drops a marker you can stand on for
+  // the eased drain and walk back to via the pip; decoy → the slot clears and
+  // throwReq bumps for Decoy.jsx to fling. The remaining items pack left
+  // (compact) and the highlight resets to the first. No-op on an empty slot, a
+  // finished run, or the interlude.
   useSlot: (i) =>
     set((s) => {
       if (s.status !== 'playing' || s.interlude) return {}
@@ -260,7 +270,7 @@ export const useGame = create((set) => ({
       if (!kind) return {}
       const slots = s.slots.slice()
       slots[i] = null
-      const base = { slots, selectedSlot: firstFilledSlot(slots, s.selectedSlot) }
+      const base = { slots: compact(slots), selectedSlot: 0 }
       if (kind === 'snack')
         return {
           ...base,
@@ -279,11 +289,11 @@ export const useGame = create((set) => ({
       return base
     }),
 
-  // Ditch a slot's item back into the world. Since 7.5 this is bound: hold E
-  // (App.jsx) or long-press a slot button (TouchControls). The slot clears, the
-  // selection falls to whatever's still carried, and `pendingDrop` / `dropReq`
-  // flag the drop for Drops.jsx to mark on the ground — the 7.5 pip then points
-  // you back to it. `pendingDropPlaced` is forced false: a hold-E ditch is a
+  // Ditch a slot's item back into the world. Bound to R in App.jsx (drops slot 0
+  // — your first item) and to a long-press on a slot button (TouchControls, its
+  // own index). The slot clears, the rest pack left, and `pendingDrop` /
+  // `dropReq` flag the drop for Drops.jsx to mark on the ground — the 7.5 pip
+  // then points you back to it. `pendingDropPlaced` is forced false: R is a
   // plain, re-pocketable drop even for a blanket (only Q sets one down). No-op
   // on an empty slot / finished run / interlude.
   dropSlot: (i) =>
@@ -293,8 +303,8 @@ export const useGame = create((set) => ({
       const kind = slots[i]
       slots[i] = null
       return {
-        slots,
-        selectedSlot: firstFilledSlot(slots, s.selectedSlot),
+        slots: compact(slots),
+        selectedSlot: 0,
         pendingDrop: kind,
         pendingDropPlaced: false,
         dropReq: s.dropReq + 1,
