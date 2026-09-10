@@ -106,8 +106,9 @@ function DropPip() {
 
 // 7.4: bottom-left inventory strip. One chip per carried item; the selected one
 // (Q acts on it) is lit and carries a Q prompt, the rest are dimmed. An E prompt
-// shows once there's more than one item to cycle between. An active effect
-// (snack / blanket window) pulses above the strip. Plain store selectors —
+// shows once there's more than one item to cycle between. An active effect (the
+// snack window, or standing on a 7.6 blanket) pulses above the strip. Plain
+// store selectors —
 // `slots` is a fresh array on every grab / use / drop, so this re-renders
 // exactly when the inventory changes.
 function InventoryCue() {
@@ -125,7 +126,7 @@ function InventoryCue() {
         <div className="consumable snack active">stamina locked</div>
       )}
       {blanketActive && (
-        <div className="consumable blanket active">blanket wrapped</div>
+        <div className="consumable blanket active">on blanket</div>
       )}
       {filled.length > 0 && (
         <div className="consumable cycle">
@@ -195,8 +196,8 @@ export default function Hud({ locked, isTouch }) {
   const showMute = !(engaged && playing)
 
   const warmthPct = Math.max(0, Math.min(100, warmth))
-  // 6.13: while the blanket's on, the fill goes a warm amber and the track
-  // glows — the drain's slower and the bar should say so at a glance.
+  // 6.13 / 7.6: while you're stood on the blanket, the fill goes a warm amber
+  // and the track glows — the drain's slower and the bar should say so at a glance.
   const warmthColor = blanketActive
     ? '#ffd18a'
     : warmthPct < 25
@@ -231,8 +232,8 @@ export default function Hud({ locked, isTouch }) {
           back to front. Opacity is `--frost`, written every frame by Player.jsx. */}
       <div className="frost" />
 
-      {/* 6.13: a soft warm inset glow the whole time the blanket's wrapped —
-          the cosy counterpart to the cold vignette. */}
+      {/* 6.13 / 7.6: a soft warm inset glow the whole time you're on the blanket
+          — the cosy counterpart to the cold vignette. */}
       {engaged && playing && blanketActive && <div className="blanketglow" />}
 
       {engaged && playing && <div className="crosshair" />}

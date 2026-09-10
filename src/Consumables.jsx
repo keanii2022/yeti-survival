@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useGame, SNACK_SECONDS, BLANKET_SECONDS } from './store.js'
+import { useGame, SNACK_SECONDS } from './store.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { inControl } from './touch.js'
@@ -14,13 +14,14 @@ import { ARENA_HALF } from './arena.js'
 // grab before that slot refills, and you still only carry one of a kind at once
 // — a second pickup just sits until a slot frees up. Walk over one to pocket it
 // (store: grabItem drops it in the first free V/B/N/M slot); trigger it by hand
-// later with that slot's key (App.jsx / 7.4). The effects live in the store
-// (snackActive pins stamina) and Survival.jsx (blanketActive slows the drain);
-// this file just spawns the pickups and counts the two windows down.
+// later with that slot's key (App.jsx / 7.4). The snack's effect is a timed
+// window this file counts down (snackActive pins stamina); the blanket (7.6) is
+// set down in the world and its eased drain is proximity-driven in Drops.jsx —
+// no window here.
 //
 // No physics — a plain distance check to the camera each frame, same as
 // Items.jsx. Not tied to the yeti or a level, so they ride through the interlude
-// untouched; only the spawn fuse and the active windows pause with the run.
+// untouched; only the spawn fuse and the snack window pause with the run.
 
 const PICKUP_RADIUS = 2.4
 const HOVER_HEIGHT = 1.0
@@ -212,36 +213,23 @@ function Pickup({ kind, slot }) {
 }
 
 export default function Consumables() {
-  // The two active windows. Seeded on the rising edge of each *Active flag and
-  // burned down while the player's in control (paused / interlude / start-screen
-  // frames don't count against them). At zero, hand back to the store.
+  // The snack window. Seeded on the rising edge of snackActive and burned down
+  // while the player's in control (paused / interlude / start-screen frames
+  // don't count against it). At zero, hand back to the store.
   const snackWin = useRef(0)
-  const blanketWin = useRef(0)
   const wasSnack = useRef(false)
-  const wasBlanket = useRef(false)
 
   useEffect(() => {
     snackWin.current = 0
-    blanketWin.current = 0
     wasSnack.current = false
-    wasBlanket.current = false
   }, [])
 
   useFrame((_, rawDelta) => {
-    const {
-      status,
-      interlude,
-      isTouch,
-      snackActive,
-      blanketActive,
-      endSnack,
-      endBlanket,
-    } = useGame.getState()
+    const { status, interlude, isTouch, snackActive, endSnack } =
+      useGame.getState()
 
     if (snackActive && !wasSnack.current) snackWin.current = SNACK_SECONDS
     wasSnack.current = snackActive
-    if (blanketActive && !wasBlanket.current) blanketWin.current = BLANKET_SECONDS
-    wasBlanket.current = blanketActive
 
     if (status !== 'playing' || interlude || !inControl(isTouch)) return
     const delta = Math.min(rawDelta, 0.1)
@@ -249,10 +237,6 @@ export default function Consumables() {
     if (snackActive) {
       snackWin.current -= delta
       if (snackWin.current <= 0) endSnack()
-    }
-    if (blanketActive) {
-      blanketWin.current -= delta
-      if (blanketWin.current <= 0) endBlanket()
     }
   })
 

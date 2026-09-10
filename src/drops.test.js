@@ -7,6 +7,7 @@ import {
   screenBearing,
   fuzzBearing,
   nearestDrop,
+  blanketUnderfoot,
 } from './drops.js'
 
 // Step 7.5 pure bits: the drop list, the facing-relative bearing math, and the
@@ -23,7 +24,14 @@ describe('drop list', () => {
     const b = addDrop('blanket', -3, 4)
     expect(drops.list).toEqual([a, b])
     expect(a.id).not.toBe(b.id)
-    expect(a).toMatchObject({ kind: 'snack', x: 1, z: 2 })
+    expect(a).toMatchObject({ kind: 'snack', x: 1, z: 2, placed: false })
+  })
+
+  it('addDrop carries the placed flag (7.6 set-down blanket)', () => {
+    const plain = addDrop('snack', 0, 0)
+    const laid = addDrop('blanket', 5, 5, true)
+    expect(plain.placed).toBe(false)
+    expect(laid.placed).toBe(true)
   })
 
   it('removeDrop drops just that entry', () => {
@@ -35,12 +43,14 @@ describe('drop list', () => {
     expect(drops.list).toEqual([b])
   })
 
-  it('resetDrops clears the list and the pip', () => {
+  it('resetDrops clears the list, the pip, and the on-blanket flag', () => {
     addDrop('decoy', 5, 5)
     drops.bearing = 1.2
+    drops.onBlanket = true
     resetDrops()
     expect(drops.list).toEqual([])
     expect(drops.bearing).toBeNull()
+    expect(drops.onBlanket).toBe(false)
   })
 })
 
@@ -93,5 +103,31 @@ describe('nearestDrop', () => {
     const near = addDrop('blanket', 1, 1)
     addDrop('decoy', -20, -20)
     expect(nearestDrop(0, 0)).toBe(near)
+  })
+
+  it('honours a predicate — the closest re-pocketable drop skips a placed blanket', () => {
+    const laid = addDrop('blanket', 1, 0, true) // right underfoot, but placed
+    const grab = addDrop('snack', 6, 0) // further, but a plain drop
+    expect(nearestDrop(0, 0)).toBe(laid) // pip target: any entry
+    expect(nearestDrop(0, 0, (e) => !e.placed)).toBe(grab) // re-pickup target
+  })
+
+  it('predicate can rule out every entry', () => {
+    addDrop('blanket', 2, 2, true)
+    expect(nearestDrop(0, 0, (e) => !e.placed)).toBeNull()
+  })
+})
+
+describe('blanketUnderfoot', () => {
+  it('is false with no placed blanket, even sat on a plain drop', () => {
+    addDrop('snack', 0, 0)
+    expect(blanketUnderfoot(0, 0, 1.8)).toBe(false)
+  })
+
+  it('is true only inside a placed blanket radius', () => {
+    addDrop('blanket', 10, 0, true)
+    expect(blanketUnderfoot(9, 0, 1.8)).toBe(true) // 1u away
+    expect(blanketUnderfoot(10, 1.5, 1.8)).toBe(true) // 1.5u away
+    expect(blanketUnderfoot(7, 0, 1.8)).toBe(false) // 3u away
   })
 })
