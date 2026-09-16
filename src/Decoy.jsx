@@ -248,13 +248,15 @@ export default function Decoy() {
   // slot that holds a decoy clears the slot and bumps `throwReq`; this
   // subscription catches that edge and flings from wherever the camera is. The
   // "can I throw" gate (playing, one in hand, not mid-interlude) is already
-  // spent in useSlot, so all that's left is the geometry.
+  // spent in useSlot, so all that's left is the geometry. 7.8 put duck / poop
+  // on the same shared `throwReq` counter, so `pendingThrow` names the kind —
+  // skip any bump that isn't ours.
   useEffect(() => {
     let seen = useGame.getState().throwReq
     return useGame.subscribe((s) => {
       if (s.throwReq === seen) return
       seen = s.throwReq
-      if (s.status !== 'playing') return
+      if (s.status !== 'playing' || s.pendingThrow !== 'decoy') return
 
       // Flatten the camera heading onto the ground and throw that way.
       const fwd = new THREE.Vector3()

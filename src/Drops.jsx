@@ -45,7 +45,13 @@ const PLACE_AHEAD = 0.5 // a set-down blanket lands right under you — you're m
 const BLANKET_RADIUS = 1.8 // how close counts as "on the blanket" for the eased drain
 
 // Muted takes on each item's pickup colour.
-const TINT = { snack: '#c98f52', blanket: '#6f88c8', decoy: '#a074f0' }
+const TINT = {
+  snack: '#c98f52',
+  blanket: '#6f88c8',
+  decoy: '#a074f0',
+  duck: '#f4c430',
+  poop: '#5b3a1e',
+}
 
 export default function Drops() {
   const { camera } = useThree()

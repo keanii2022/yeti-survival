@@ -10,6 +10,7 @@ import Items from './Items.jsx'
 import GreenEmber from './GreenEmber.jsx'
 import Consumables from './Consumables.jsx'
 import Decoy from './Decoy.jsx'
+import Throwables from './Throwables.jsx'
 import Drops from './Drops.jsx'
 import Levels from './Levels.jsx'
 import Survival from './Survival.jsx'
@@ -137,6 +138,7 @@ export default function App() {
         <GreenEmber />
         <Consumables />
         <Decoy />
+        <Throwables />
         <Drops />
         <Levels />
         <Survival />

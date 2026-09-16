@@ -183,11 +183,15 @@ export const useGame = create((set) => ({
   pendingDrop: null,
   pendingDropPlaced: false,
 
-  // Bumped every time a decoy leaves a slot (useSlot). Decoy.jsx subscribes to
-  // it and does the actual throw — the arc needs the camera heading, which only
-  // exists inside the Canvas. Not reset between runs: it's an opaque edge
-  // counter and the consumers re-seed their "last seen" on mount.
+  // Bumped every time a throwable (decoy, and 7.8's duck / poop) leaves a slot
+  // (useSlot). `pendingThrow` rides alongside naming which kind, so Decoy.jsx /
+  // Throwables.jsx can each ignore a bump that isn't theirs — one shared edge
+  // counter, not one per item. The consumer does the actual throw, since the
+  // arc needs the camera heading, which only exists inside the Canvas. Not
+  // reset between runs: it's an opaque edge counter and the consumers re-seed
+  // their "last seen" on mount.
   throwReq: 0,
+  pendingThrow: null,
 
   // One-time second chance (see REVIVE_GRACE_MS). `reviveUsed` flips true once
   // the run's revive is spent — reset() / startNightfall() clear it. `reviveReq`
@@ -239,10 +243,11 @@ export const useGame = create((set) => ({
         : { score: s.score + GREEN_ESCAPE_BONUS, escapes: s.escapes + 1 },
     ),
 
-  // Walk over a snack / water / blanket / decoy (Consumables.jsx, Decoy.jsx):
-  // drop it into the first free slot. Inventory full → no-op, and the pickup
-  // stays out in the world. Duplicates are allowed (two snacks is a fair use of
-  // two slots); the pickups' own respawn cooldowns keep that from flooding.
+  // Walk over a snack / water / blanket / duck / poop (Consumables.jsx) or a
+  // decoy (Decoy.jsx): drop it into the first free slot. Inventory full →
+  // no-op, and the pickup stays out in the world. Duplicates are allowed (two
+  // snacks is a fair use of two slots); the pickups' own respawn cooldowns
+  // keep that from flooding.
   grabItem: (kind) =>
     set((s) => {
       if (s.status !== 'playing') return {}
@@ -269,8 +274,9 @@ export const useGame = create((set) => ({
   // for the longer WATER_SECONDS plus the bigger Player speed bump; blanket →
   // set down in the world (7.6): same drop handoff as a plain ditch but flagged
   // `placed`, so Drops.jsx drops a marker you can stand on for the eased drain
-  // and walk back to via the pip; decoy → the slot clears and throwReq bumps for
-  // Decoy.jsx to fling. The remaining items pack left (compact) and the
+  // and walk back to via the pip; decoy / duck / poop (7.8) → the slot clears,
+  // `pendingThrow` names the kind, and throwReq bumps for Decoy.jsx /
+  // Throwables.jsx to fling. The remaining items pack left (compact) and the
   // highlight resets to the first. No-op on an empty slot, a finished run, or
   // the interlude.
   useSlot: (i) =>
@@ -302,7 +308,8 @@ export const useGame = create((set) => ({
           pendingDropPlaced: true,
           dropReq: s.dropReq + 1,
         }
-      if (kind === 'decoy') return { ...base, throwReq: s.throwReq + 1 }
+      if (kind === 'decoy' || kind === 'duck' || kind === 'poop')
+        return { ...base, pendingThrow: kind, throwReq: s.throwReq + 1 }
       return base
     }),
 

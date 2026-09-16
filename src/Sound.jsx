@@ -98,6 +98,7 @@ export default function Sound() {
       waterActive,
       blanketActive,
       throwReq,
+      pendingThrow,
     } = useGame.getState()
 
     // --- state-change one-shots ---
@@ -151,9 +152,14 @@ export default function Sound() {
     else if (!blanketActive && prevBlanket.current) eng.effectEnd()
     prevBlanket.current = blanketActive
 
-    // Decoy (6.14): every throwReq bump is a fling — whoosh. (A grab just fills
-    // a slot and is deliberately silent, like the other pickups.)
-    if (throwReq > prevThrow.current) eng.decoyThrow()
+    // Decoy (6.14) / duck / poop (7.8): every throwReq bump is a fling —
+    // `pendingThrow` says which one so each gets its own cue. (A grab just
+    // fills a slot and is deliberately silent, like the other pickups.)
+    if (throwReq > prevThrow.current) {
+      if (pendingThrow === 'duck') eng.duckThrow()
+      else if (pendingThrow === 'poop') eng.poopThrow()
+      else eng.decoyThrow()
+    }
     prevThrow.current = throwReq
 
     // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
@@ -190,9 +196,16 @@ export default function Sound() {
     // chase strings pull out, so the drop is audible the moment he breaks off.
     let threatLevel = 0
     if (threat.mode === 'chase') threatLevel = clamp(1 - threat.distance / 30, 0.7, 1)
-    // 'decoy' (6.14): he's been pulled off you but is still up and active near
-    // your throw — hold the bed at the same notch as a 'search'.
-    else if (threat.mode === 'search' || threat.mode === 'decoy') threatLevel = 0.5
+    // 'decoy' (6.14) / 'duck' / 'poop' (7.8): he's been pulled off you but is
+    // still up and active near your throw — hold the bed at the same notch as
+    // a 'search'.
+    else if (
+      threat.mode === 'search' ||
+      threat.mode === 'decoy' ||
+      threat.mode === 'duck' ||
+      threat.mode === 'poop'
+    )
+      threatLevel = 0.5
     else if (threat.distance < NEAR) threatLevel = clamp((NEAR - threat.distance) / 24, 0, 0.8)
 
     // 6.6 darkness drive: climbs with the effective level (nightfall starts it

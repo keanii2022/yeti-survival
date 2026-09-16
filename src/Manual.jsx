@@ -147,7 +147,8 @@ export default function Manual({ open, onClose }) {
           <ul>
             <li><strong>"he sees you"</strong> — full chase. It's faster than your walk but a little slower than your sprint (early on), so a straight sprint opens a gap. Later levels it's almost as fast as your sprint.</li>
             <li><strong>"he's searching"</strong> — you broke its line of sight. It goes to where it last saw you and hunts around. Change direction, stay out of sight for about 5 seconds and it gives up.</li>
-            <li><strong>"he's distracted"</strong> — a decoy pulled it away.</li>
+            <li><strong>"he's distracted"</strong> — a decoy or a squeaky duck pulled it away.</li>
+            <li><strong>"he's grossed out"</strong> — you threw a poop. He'll be busy with it a while, and you can't win him back early by staying close.</li>
           </ul>
           <p>
             Past level 5 you can't out-run it any more — you have to break line
@@ -182,6 +183,8 @@ export default function Manual({ open, onClose }) {
             <li><strong>Water bottle</strong> — a <strong>Nightfall</strong> reward: only shows up once you've beaten the game and it's properly dark out, in place of the snack. Locked stamina like a snack, but a longer window and a much bigger speed boost — a real "get clear" button.</li>
             <li><strong>Blanket</strong> — sets down on the ground. Stand on it and your warmth drains much slower. You can walk back to it later.</li>
             <li><strong>Decoy</strong> — throw it and the yeti breaks off to investigate it for a few seconds, resetting a chase.</li>
+            <li><strong>Duck</strong> — a squeaky throwable. Short and snappy: he goes to check it out, but stay close while he's there and he'll snap right back onto you.</li>
+            <li><strong>Poop</strong> — throw it and he walks over, sniffs, and recoils for a longer stretch than the duck — and this one he won't come back early from, no matter how close you stay.</li>
           </ul>
           <p>
             <kbd>R</kbd> drops your first item on the ground; on a phone,

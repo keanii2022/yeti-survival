@@ -1,5 +1,6 @@
 // Step 7.4: the carried inventory — four generic slots. A pickup (snack,
-// blanket, decoy) drops into the first free slot; there's no key per item type.
+// blanket, decoy, and 7.8's duck / poop) drops into the first free slot;
+// there's no key per item type.
 // One key (E) cycles which slot is *selected*, the other (Q) spends whatever's
 // in it — a one-handed cycle-then-commit, deliberately a beat slower than a
 // dedicated key per item (see the README's 7.4 note). `dropSlot` exists in the
@@ -30,6 +31,8 @@ export const ITEM_LABEL = {
   water: 'Water',
   blanket: 'Blanket',
   decoy: 'Decoy',
+  duck: 'Duck',
+  poop: 'Poop',
 }
 
 // Index of the first empty (null / undefined) slot in `slots`, or -1 when the

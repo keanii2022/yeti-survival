@@ -22,6 +22,11 @@ import { isNight } from './daylight.js'
 // comes out as a water bottle instead — a longer window (WATER_SECONDS) and a
 // bigger speed bump (Player.WATER_SPEED_BONUS). This file runs that window too.
 //
+// Step 7.8: the duck and poop throwables ride the same `Pickup` component and
+// pickup-only concerns (spawn fuse, spot, relocate) — they have no window of
+// their own here. Throwing one (and the yeti's reaction) lives in
+// Throwables.jsx / Yeti.jsx instead, same split as the decoy (Decoy.jsx).
+//
 // No physics — a plain distance check to the camera each frame, same as
 // Items.jsx. Not tied to the yeti or a level, so they ride through the interlude
 // untouched; only the spawn fuse and the snack window pause with the run.
@@ -32,9 +37,13 @@ const HOVER_HEIGHT = 1.0
 // seconds — first appearance, then the wait after each grab. Long on purpose:
 // finding one should feel like luck, not a resupply run. The blanket lags the
 // snack so they don't tend to sit out together.
+// 7.8: duck / poop join the same table — a touch more common than the snack /
+// blanket since they're throwaway comic relief rather than a real safety net.
 const SPAWN = {
   snack: { first: 18, respawn: 70 },
   blanket: { first: 30, respawn: 82 },
+  duck: { first: 24, respawn: 58 },
+  poop: { first: 40, respawn: 58 },
 }
 
 // The second pickup of a kind runs this many seconds behind the first, on both
@@ -86,11 +95,29 @@ const LOOK = {
     glow: '#a9c8ff',
     light: '#9fbcff',
   },
+  // 7.8: the duck a squat bright-yellow block (rubber-duck yellow, unmissable),
+  // the poop a small squat dark-brown one — read apart from the warm amber
+  // snack and cold-blue blanket / water at a glance.
+  duck: {
+    box: [0.42, 0.36, 0.56],
+    color: '#f4c430',
+    emissive: '#5c4400',
+    glow: '#ffe38a',
+    light: '#ffdb70',
+  },
+  poop: {
+    box: [0.4, 0.3, 0.4],
+    color: '#5b3a1e',
+    emissive: '#150c04',
+    glow: '#c98f52',
+    light: '#c98f52',
+  },
 }
 
 // One pickup: rolls a spot, waits out its fuse, mounts the mesh, and hands off
-// to the store on walk-over. `kind` is the family — 'snack' | 'blanket'; `slot`
-// (0 | 1) just staggers this instance's timers off the other one of its kind.
+// to the store on walk-over. `kind` is the family — 'snack' | 'blanket' |
+// 'duck' | 'poop'; `slot` (0 | 1) just staggers this instance's timers off the
+// other one of its kind (duck / poop only run one instance, so always 0).
 // 7.7: a 'snack'-family pickup resolves to a snack by day and a water bottle by
 // night (daylight.js), decided fresh each time its fuse fires. The resolved kind
 // rides in `spot` ([x, z, kind]) so what the player sees and picks up stays in
@@ -277,6 +304,8 @@ export default function Consumables() {
       <Pickup kind="snack" slot={1} />
       <Pickup kind="blanket" slot={0} />
       <Pickup kind="blanket" slot={1} />
+      <Pickup kind="duck" slot={0} />
+      <Pickup kind="poop" slot={0} />
     </>
   )
 }

@@ -151,9 +151,16 @@
   opacity: 0.9;
 }
 
-/* 6.14: the decoy pulled him off you — violet, matching the decoy pickup. */
+/* 6.14: the decoy (and 7.8's duck) pulled him off you — violet, matching the
+   decoy pickup. */
 .pursuit.distracted {
   color: #b98dff;
+  opacity: 0.9;
+}
+
+/* 7.8: the poop — a dull brown, distinct from the decoy/duck's violet lure. */
+.pursuit.grossed {
+  color: #c98f52;
   opacity: 0.9;
 }
 
@@ -288,6 +295,15 @@
 
 .consumable.decoy {
   color: #b98dff;
+}
+
+/* 7.8: duck rubber-duck yellow, poop a dull brown, matching their pickups. */
+.consumable.duck {
+  color: #f4c430;
+}
+
+.consumable.poop {
+  color: #c98f52;
 }
 
 .consumable.active {
@@ -1068,6 +1084,12 @@
 }
 .touch-btn.slot.decoy {
   border-color: rgba(185, 141, 255, 0.6);
+}
+.touch-btn.slot.duck {
+  border-color: rgba(244, 196, 48, 0.6);
+}
+.touch-btn.slot.poop {
+  border-color: rgba(201, 143, 82, 0.6);
 }
 
 /* --- 9.4 responsive HUD + full-bleed threat wash --- */

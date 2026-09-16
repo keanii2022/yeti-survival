@@ -715,6 +715,93 @@ class Atmosphere {
     o.stop(t + 0.62)
   }
 
+  // 7.8: throwing the squeaky duck — the same short whoosh as the decoy, but
+  // it lands with a bright rubber-duck squeak (a fast up-down square-wave
+  // blip) instead of a thud, so it reads as playful rather than a threat.
+  duckThrow() {
+    const { ctx } = this
+    const t = ctx.currentTime
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(0.4)
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(1600, t)
+    bp.frequency.exponentialRampToValueAtTime(500, t + 0.28)
+    bp.Q.value = 0.8
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.16, t + 0.02)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.3)
+    n.connect(bp).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + 0.32)
+
+    const landT = t + 0.46
+    const o = ctx.createOscillator()
+    o.type = 'square'
+    o.frequency.setValueAtTime(900, landT)
+    o.frequency.exponentialRampToValueAtTime(1500, landT + 0.05)
+    o.frequency.exponentialRampToValueAtTime(700, landT + 0.16)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, landT)
+    g.gain.exponentialRampToValueAtTime(0.2, landT + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, landT + 0.2)
+    o.connect(g).connect(this.master)
+    o.start(landT)
+    o.stop(landT + 0.22)
+  }
+
+  // 7.8: throwing the poop — the same whoosh, landing in a wet, low squish
+  // (filtered noise dropping fast, plus a soft low thud) instead of the
+  // decoy's clean thud. No pitch — it's a gag, not an alert.
+  poopThrow() {
+    const { ctx } = this
+    const t = ctx.currentTime
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(0.4)
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(1200, t)
+    bp.frequency.exponentialRampToValueAtTime(300, t + 0.3)
+    bp.Q.value = 0.9
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.18, t + 0.03)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.32)
+    n.connect(bp).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + 0.34)
+
+    const landT = t + 0.46
+    const sn = ctx.createBufferSource()
+    sn.buffer = this._noiseBuffer(0.3)
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.setValueAtTime(900, landT)
+    lp.frequency.exponentialRampToValueAtTime(160, landT + 0.22)
+    const sg = ctx.createGain()
+    sg.gain.setValueAtTime(0.0001, landT)
+    sg.gain.exponentialRampToValueAtTime(0.22, landT + 0.02)
+    sg.gain.exponentialRampToValueAtTime(0.0001, landT + 0.26)
+    sn.connect(lp).connect(sg).connect(this.master)
+    sn.start(landT)
+    sn.stop(landT + 0.28)
+
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(90, landT)
+    o.frequency.exponentialRampToValueAtTime(40, landT + 0.2)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, landT)
+    g.gain.exponentialRampToValueAtTime(0.13, landT + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, landT + 0.3)
+    o.connect(g).connect(this.master)
+    o.start(landT)
+    o.stop(landT + 0.32)
+  }
+
   // 6.13: a quiet two-note fall when a snack or blanket window runs out — the
   // "that wore off" tell so the effect ending isn't silent.
   effectEnd() {

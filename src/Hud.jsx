@@ -32,6 +32,8 @@ function ChaseState() {
   if (mode === 'chase') return <div className="pursuit chasing">he sees you</div>
   if (mode === 'search') return <div className="pursuit searching">he&rsquo;s searching</div>
   if (mode === 'decoy') return <div className="pursuit distracted">he&rsquo;s distracted</div>
+  if (mode === 'duck') return <div className="pursuit distracted">he&rsquo;s distracted</div>
+  if (mode === 'poop') return <div className="pursuit grossed">he&rsquo;s grossed out</div>
   return null
 }
 

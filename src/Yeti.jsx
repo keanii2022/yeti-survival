@@ -8,6 +8,8 @@ import { ARENA_HALF } from './Player.jsx'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
 import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
+import { duck } from './duck.js'
+import { poop } from './poop.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { qualityFor } from './quality.js'
 import {
@@ -23,6 +25,9 @@ import { shelter } from './shelter.js'
 // Step 6.11: a 'search' state sits between chase and idle — the yeti has a memory.
 // Step 6.14: a 'decoy' state — a thrown decoy yanks him off anything, a live
 // chase included, to go investigate where it landed (decoy.js drives it).
+// Step 7.8: 'duck' and 'poop' states do the same thing off duck.js / poop.js —
+// same divert, different reacquire and look-time (see DUCK_LOOK_TIME /
+// POOP_LOOK_TIME below).
 //
 // Each run the yeti spawns somewhere random in the arena, always far enough
 // from the player's start that no run begins already in a chase. It idles by
@@ -58,6 +63,13 @@ const BURST_RADIUS = 6 // inside this the chase switches to the lunge speed
 // Flat, not level-scaled: the deep-level pressure comes from how fast he
 // re-commits afterwards, not from a shorter look.
 const DECOY_LOOK_TIME = 3
+// 7.8: the duck is a short, snappy lure — over quicker than the decoy, and
+// (unlike the poop) he'll still snap back onto you if you're close when he
+// gets there. The poop runs longer and never gives that back: he recoils and
+// disengages no matter how close you are, so it's a guaranteed window rather
+// than a lure you can spoil by lingering.
+const DUCK_LOOK_TIME = 1.5
+const POOP_LOOK_TIME = 4.5
 // Body circle for the 6.9 trunk push-out. Wider than the player's — he's a
 // brute — so he can't tuck fully behind a thin trunk, but still just a collider:
 // he doesn't steer around trees, he bumps off them and keeps grinding forward.
@@ -217,7 +229,7 @@ export default function Yeti() {
 
   // Per-frame state kept off React so the chase loop never triggers a re-render.
   const ai = useRef({
-    mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed' | 'decoy'
+    mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed' | 'decoy' | 'duck' | 'poop'
     heading: Math.atan2(-spawn[0], -spawn[2]), // movement yaw; starts facing arena centre
     wander: new THREE.Vector3(spawn[0], 0, spawn[2]), // current idle target
     wanderTimer: 0,
@@ -233,6 +245,8 @@ export default function Yeti() {
     shedCooldowns: sheds.map(() => 0),
     shedTarget: -1,
     decoyId: 0, // the decoy.throwId he's already diverted for (6.14)
+    duckId: 0, // the duck.throwId he's already diverted for (7.8)
+    poopId: 0, // the poop.throwId he's already diverted for (7.8)
   })
   const eyeRef = useRef([null, null])
 
@@ -329,6 +343,24 @@ export default function Yeti() {
       a.shedTarget = -1
     }
 
+    // 7.8: same trump-everything divert for the duck and the poop. Checked
+    // after the decoy so a decoy thrown the same frame wins if both landed —
+    // an edge case, not a real priority order.
+    if (!interlude && duck.live && duck.throwId !== a.duckId) {
+      a.duckId = duck.throwId
+      beginProbe(a.probe, duck.x, duck.z, DUCK_LOOK_TIME)
+      a.mode = 'duck'
+      a.spotTimer = 0
+      a.shedTarget = -1
+    }
+    if (!interlude && poop.live && poop.throwId !== a.poopId) {
+      a.poopId = poop.throwId
+      beginProbe(a.probe, poop.x, poop.z, POOP_LOOK_TIME)
+      a.mode = 'poop'
+      a.spotTimer = 0
+      a.shedTarget = -1
+    }
+
     if (interlude) {
       // Calm breather: drop everything and back off to a far wander. No
       // re-aggro until the next level spawns.
@@ -341,6 +373,8 @@ export default function Yeti() {
       a.shedTarget = -1
       a.shedCheckTimer = P.shedCheckInterval
       decoy.live = false // a decoy thrown right before the breather is spent
+      duck.live = false
+      poop.live = false
     } else if (a.mode === 'chase') {
       // Lost sight — over the lose ring, or he ducked into a shed. Don't reset;
       // go hunt where they were last seen (or the shed door they vanished into).
@@ -384,6 +418,19 @@ export default function Yeti() {
         a.spotTimer = 0
         decoy.live = false
       }
+    } else if (a.mode === 'duck') {
+      // Same forgiving reacquire as the decoy — it's a lure, just a shorter
+      // one. Stay close while he's poking at it and he snaps right back onto
+      // you.
+      if (!hidden && a.probe.phase === 'look' && dist < P.reacquireRadius) {
+        a.probe.active = false
+        a.mode = 'chase'
+        a.spotTimer = 0
+        duck.live = false
+      }
+    } else if (a.mode === 'poop') {
+      // No reacquire on purpose — see POOP_LOOK_TIME above. He runs the whole
+      // probe out and disengages regardless of the player's distance.
     } else if (a.mode === 'shed') {
       // Mid shed-check: the player breaking cover close by still yanks him into
       // a chase, on the same commit delay as an idle spot.
@@ -476,10 +523,17 @@ export default function Yeti() {
       dir.copy(toPlayer).normalize()
       speed = dist < BURST_RADIUS ? P.burstSpeed : P.chaseSpeed
       moving = true
-    } else if (a.mode === 'search' || a.mode === 'shed' || a.mode === 'decoy') {
-      // Same motion for all three: stalk to the point (last-known spot, a shed
-      // door, or a thrown decoy), cast around it, then give up — see
-      // investigate.js. Keep the pokes off the arena wall like the waypoints.
+    } else if (
+      a.mode === 'search' ||
+      a.mode === 'shed' ||
+      a.mode === 'decoy' ||
+      a.mode === 'duck' ||
+      a.mode === 'poop'
+    ) {
+      // Same motion for all five: stalk to the point (last-known spot, a shed
+      // door, or a thrown decoy / duck / poop), cast around it, then give up —
+      // see investigate.js. Keep the pokes off the arena wall like the
+      // waypoints.
       const r = stepProbe(a.probe, g.position, delta, { bound: ARENA_HALF - EDGE_MARGIN })
       if (r.done) {
         if (a.mode === 'shed' && a.shedTarget >= 0) {
@@ -488,6 +542,8 @@ export default function Yeti() {
           a.shedTarget = -1
         }
         if (a.mode === 'decoy') decoy.live = false // done with it
+        if (a.mode === 'duck') duck.live = false
+        if (a.mode === 'poop') poop.live = false
         a.mode = 'idle'
         a.wanderTimer = 0 // pick a fresh waypoint next frame
       } else {
@@ -549,7 +605,11 @@ export default function Yeti() {
     const glow =
       a.mode === 'chase'
         ? 1.6
-        : a.mode === 'search' || a.mode === 'shed' || a.mode === 'decoy'
+        : a.mode === 'search' ||
+            a.mode === 'shed' ||
+            a.mode === 'decoy' ||
+            a.mode === 'duck' ||
+            a.mode === 'poop'
           ? 0.7
           : 0.15
     for (const m of eyeRef.current) {
