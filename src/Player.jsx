@@ -10,6 +10,7 @@ import { greenEmber } from './greenEmber.js'
 import { mirror, resetMirror } from './mirror.js'
 import { inventory, resetInventory } from './inventory.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
+import { generateLogs, resolveLogCollision } from './logs.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { qualityFor } from './quality.js'
 import { ARENA_HALF } from './arena.js'
@@ -37,6 +38,17 @@ const SPRINT_DRAIN = 13 // stamina/sec while sprinting — ~7.5s from a full bar
 const STAMINA_REGEN = 15 // stamina/sec while walking or standing still
 const MAX_STEP = 0.1 // cap per-frame movement so a long delta can't teleport you
 const PLAYER_RADIUS = 0.4 // body circle for the 6.9 tree push-out
+
+// 7.12: Space hops a low obstacle (a fallen log, logs.js) — a short vertical
+// arc (JUMP_HEIGHT over JUMP_DURATION, eased with a sine so it isn't linear)
+// during which resolveLogCollision is skipped, so you clear the log instead of
+// bumping it. It costs the whole jump bar (store.jumpCharge, spent by
+// startJump) and Space is a no-op until JUMP_RECHARGE_SECONDS refills it — the
+// bar the build order calls for so jumping can't be spammed. The yeti has no
+// jump at all; it just walks into a log's collider like a tree trunk.
+const JUMP_DURATION = 0.55
+const JUMP_HEIGHT = 0.85
+const JUMP_RECHARGE_SECONDS = 1.6
 
 // 7.2: the look-behind glance (press L). You cut, then check — a coarse read on
 // whether the 7.1 turn-rate cap actually opened a gap. The camera snaps 180°,
@@ -83,6 +95,11 @@ export default function Player() {
   // away from the yeti while the camera is turned around looking at it.
   const glance = useRef({ phase: 'idle', t: 0, fwd: new THREE.Vector3(0, 0, -1) })
 
+  // 7.12: jump state. `active` for JUMP_DURATION seconds after Space lands
+  // (jumpCharge was full); `t` is elapsed time into that hop, driving both the
+  // camera's vertical arc and the resolveLogCollision skip below.
+  const jump = useRef({ active: false, t: 0 })
+
   // Bail a glance that's cut short by a pause or the run ending — flip the
   // camera back if it's still reversed, drop the frost, so we never leave the
   // view half-turned or iced up.
@@ -122,6 +139,8 @@ export default function Player() {
   useEffect(() => {
     if (!reviveReq) return
     endGlance()
+    jump.current.active = false
+    jump.current.t = 0
     camera.position.set(0, EYE_HEIGHT, 8)
     camera.rotation.set(0, 0, 0)
     look.current.yaw = 0
@@ -189,6 +208,29 @@ export default function Player() {
     window.addEventListener('mousedown', onMouseDown)
     return () => window.removeEventListener('mousedown', onMouseDown)
   }, [isTouch, startGlance])
+
+  // 7.12: Space jumps while the run is live. It used to be the pause key too —
+  // now Space only resumes from the pause screen (App.jsx), so there's no
+  // ambiguity between the two. No-ops outside a live, mouse-locked run, mid-hop
+  // already, or with the bar not yet full.
+  const startJump = useCallback(() => {
+    const game = useGame.getState()
+    if (game.status !== 'playing') return
+    if (!isTouch && !controls.current?.isLocked) return
+    if (jump.current.active) return
+    if (game.jumpCharge < 100) return
+    game.startJump()
+    jump.current.active = true
+    jump.current.t = 0
+  }, [isTouch])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === 'Space' && !e.repeat) startJump()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [startJump])
 
   // 9.1: drag-look on touch. A finger that lands in the right-hand look zone
   // (and not on an on-screen control) is claimed; its drag turns the view at
@@ -259,6 +301,7 @@ export default function Player() {
     () => generateTrees(qualityFor(isTouch).treeCount),
     [isTouch],
   )
+  const logs = useMemo(() => generateLogs(), [])
   const sheds = useMemo(() => generateSheds(), [])
 
   // Reused each frame to avoid allocating vectors in the render loop.
@@ -380,18 +423,37 @@ export default function Player() {
       camera.position.add(move)
     }
 
-    // Burn stamina while sprinting, regenerate it any other time.
+    // Burn stamina while sprinting, regenerate it any other time. The jump bar
+    // only ever recharges here (startJump spent it in one shot on the press).
     const step = Math.min(delta, MAX_STEP)
     game.tickStamina(sprinting, (sprinting ? SPRINT_DRAIN : STAMINA_REGEN) * step)
+    game.tickJumpCharge((100 / JUMP_RECHARGE_SECONDS) * step)
+
+    // 7.12: advance the hop and turn it into a vertical offset — a sine arc so
+    // it eases in and out rather than teleporting up and snapping back down.
+    let jumpY = 0
+    const j = jump.current
+    if (j.active) {
+      j.t += delta
+      if (j.t >= JUMP_DURATION) {
+        j.active = false
+        j.t = 0
+      } else {
+        jumpY = Math.sin((j.t / JUMP_DURATION) * Math.PI) * JUMP_HEIGHT
+      }
+    }
 
     // Bump back out of any tree trunk (6.9) or shed wall (6.12) we stepped into
-    // — the doorway gap is the one way through a shed — then keep the player
-    // pinned to eye height and inside the arena bounds.
+    // — the doorway gap is the one way through a shed. A log (7.12) only
+    // pushes back while grounded; mid-hop it's skipped entirely, which is what
+    // lets a log be hopped instead of bumped. Then keep the player pinned to
+    // (eye height + the hop arc) and inside the arena bounds.
     resolveTreeCollision(trees, camera.position.x, camera.position.z, PLAYER_RADIUS, hit)
+    if (!j.active) resolveLogCollision(logs, hit.x, hit.z, PLAYER_RADIUS, hit)
     resolveShedCollision(sheds, hit.x, hit.z, PLAYER_RADIUS, hit)
     camera.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
     camera.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
-    camera.position.y = EYE_HEIGHT
+    camera.position.y = EYE_HEIGHT + jumpY
   })
 
   // No pointer lock on touch — iOS Safari won't grant it, and the drag-look

@@ -26,6 +26,16 @@ describe('Hud', () => {
     expect(screen.getByText(/Level 2 · Embers 3\/6/)).toBeInTheDocument()
   })
 
+  it('shows the jump bar, dimmed with a "recharging" label while it refills', () => {
+    useGame.setState({ jumpCharge: 40 })
+    const { rerender } = render(<Hud locked={true} />)
+    expect(screen.getByText('Jump · recharging')).toBeInTheDocument()
+
+    useGame.setState({ jumpCharge: 100 })
+    rerender(<Hud locked={true} />)
+    expect(screen.getByText('Jump')).toBeInTheDocument()
+  })
+
   it('hides the stats when the pointer is not locked', () => {
     render(<Hud locked={false} />)
     expect(screen.queryByText('Warmth')).not.toBeInTheDocument()

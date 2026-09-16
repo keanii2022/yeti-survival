@@ -234,6 +234,7 @@ export default function Hud({ locked, isTouch }) {
   const warmth = useGame((s) => s.warmth)
   const stamina = useGame((s) => s.stamina)
   const sprintLocked = useGame((s) => s.sprintLocked)
+  const jumpCharge = useGame((s) => s.jumpCharge)
   const itemsCollected = useGame((s) => s.itemsCollected)
   const itemsTotal = useGame((s) => s.itemsTotal)
   const embersTotal = useGame((s) => s.embersTotal)
@@ -290,6 +291,12 @@ export default function Hud({ locked, isTouch }) {
         : staminaPct < 30
           ? '#ffd27a'
           : '#cfe9ff'
+
+  // 7.12: small jump-charge bar under stamina — full and pale when ready,
+  // dimmer amber while it's still recharging off a jump.
+  const jumpPct = Math.max(0, Math.min(100, jumpCharge))
+  const jumpReady = jumpPct >= 100
+  const jumpColor = jumpReady ? '#cfe9ff' : '#ffb347'
 
   return (
     <div className={`hud${isTouch ? ' touch' : ''}`}>
@@ -360,6 +367,16 @@ export default function Hud({ locked, isTouch }) {
               <div
                 className="gauge-fill"
                 style={{ width: `${staminaPct}%`, background: staminaColor }}
+              />
+            </div>
+          </div>
+
+          <div className={`gauge jump${jumpReady ? ' ready' : ''}`}>
+            <span className="gauge-label">{jumpReady ? 'Jump' : 'Jump · recharging'}</span>
+            <div className="gauge-track">
+              <div
+                className="gauge-fill"
+                style={{ width: `${jumpPct}%`, background: jumpColor }}
               />
             </div>
           </div>
@@ -463,7 +480,7 @@ export default function Hud({ locked, isTouch }) {
               <h1>Yeti Survival</h1>
               <p>Click to look around</p>
               <p className="keys">
-                WASD move &nbsp;·&nbsp; double-tap W / Shift / Mouse4 sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; R drop first item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space or Esc pause
+                WASD move &nbsp;·&nbsp; double-tap W / Shift / Mouse4 sprint &nbsp;·&nbsp; Space jump &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; R drop first item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Esc pause
               </p>
               <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
               <DifficultyPicker />

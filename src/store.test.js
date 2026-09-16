@@ -132,6 +132,37 @@ describe('tickStamina', () => {
   })
 })
 
+describe('jump bar (7.12)', () => {
+  it('starts full', () => {
+    expect(get().jumpCharge).toBe(100)
+  })
+
+  it('startJump drops the bar to 0', () => {
+    get().startJump()
+    expect(get().jumpCharge).toBe(0)
+  })
+
+  it('tickJumpCharge climbs the bar back toward 100 and clamps there', () => {
+    useGame.setState({ jumpCharge: 0 })
+    get().tickJumpCharge(40)
+    expect(get().jumpCharge).toBe(40)
+    get().tickJumpCharge(999)
+    expect(get().jumpCharge).toBe(100)
+  })
+
+  it('does nothing while paused or once the run is over', () => {
+    useGame.setState({ status: 'paused', jumpCharge: 50 })
+    get().startJump()
+    get().tickJumpCharge(10)
+    expect(get().jumpCharge).toBe(50)
+
+    useGame.setState({ status: 'caught', jumpCharge: 50 })
+    get().startJump()
+    get().tickJumpCharge(10)
+    expect(get().jumpCharge).toBe(50)
+  })
+})
+
 describe('green ember (6.7)', () => {
   it('exposes bonuses well above a plain ember', () => {
     expect(GREEN_EMBER_SCORE).toBeGreaterThan(EMBER_SCORE)
@@ -427,6 +458,7 @@ describe('revivePlayer — one-time second chance', () => {
       warmth: 0,
       stamina: 0,
       sprintLocked: true,
+      jumpCharge: 0,
       snackActive: true,
       waterActive: true,
       blanketActive: true,
@@ -445,6 +477,7 @@ describe('revivePlayer — one-time second chance', () => {
       warmth: 100,
       stamina: 100,
       sprintLocked: false,
+      jumpCharge: 100,
       snackActive: false,
       waterActive: false,
       blanketActive: false,
@@ -520,6 +553,7 @@ describe('reset', () => {
       warmth: 3,
       stamina: 0,
       sprintLocked: true,
+      jumpCharge: 0,
       slots: ['snack', 'blanket', 'decoy', 'snack'],
       selectedSlot: 3,
       snackActive: true,
@@ -544,6 +578,7 @@ describe('reset', () => {
       warmth: 100,
       stamina: 100,
       sprintLocked: false,
+      jumpCharge: 100,
       slots: [null, null, null, null],
       selectedSlot: 0,
       snackActive: false,
@@ -628,6 +663,7 @@ describe('levels (6.6)', () => {
       level: LEVEL_COUNT,
       score: 900,
       warmth: 4,
+      jumpCharge: 0,
       embersTotal: 60,
       slots: ['snack', 'decoy', null, null],
       selectedSlot: 1,
@@ -645,6 +681,7 @@ describe('levels (6.6)', () => {
       score: 900,
       embersTotal: 60,
       warmth: 100,
+      jumpCharge: 100,
       slots: [null, null, null, null],
       selectedSlot: 0,
       blanketActive: false,

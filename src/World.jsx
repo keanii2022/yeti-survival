@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { Sky, Stars, Instances, Instance } from '@react-three/drei'
 import { ARENA_HALF } from './Player.jsx'
 import { generateTrees, TREE_COUNT } from './trees.js'
+import { generateLogs, LOG_RADIUS } from './logs.js'
 import { useGame } from './store.js'
 import { qualityFor } from './quality.js'
 import { daylight, resetDaylight } from './daylight.js'
@@ -143,6 +144,29 @@ function Trees({ quality }) {
         <meshStandardMaterial color="#eef4f8" roughness={1} />
         {transforms}
       </Instances>
+    </group>
+  )
+}
+
+// Step 7.12: fallen logs — a low obstacle the player can hop (Player.jsx's
+// jump) but the yeti can't, so it has to detour around one. Rendered straight
+// off generateLogs() so what you see is exactly what resolveLogCollision
+// (logs.js) uses; only 14 of them, so plain meshes rather than the tree
+// stand's instancing. A capsule lying on its side: rotated flat locally, then
+// yawed to the log's own heading — the same rotation logs.js's collision math
+// assumes.
+function Logs() {
+  const logs = useMemo(() => generateLogs(), [])
+  return (
+    <group>
+      {logs.map((log, i) => (
+        <group key={i} position={[log.x, LOG_RADIUS, log.z]} rotation={[0, log.yaw, 0]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+            <capsuleGeometry args={[LOG_RADIUS, log.halfLength * 2 - LOG_RADIUS * 2, 4, 8]} />
+            <meshStandardMaterial color="#5b4636" roughness={1} />
+          </mesh>
+        </group>
+      ))}
     </group>
   )
 }
@@ -453,6 +477,7 @@ export default function World() {
 
       <Mountains />
       <Trees quality={quality} />
+      <Logs />
     </>
   )
 }

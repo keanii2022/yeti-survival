@@ -12,6 +12,7 @@ import { duck } from './duck.js'
 import { poop } from './poop.js'
 import { resolveFlareCollision } from './flare.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
+import { generateLogs, resolveLogCollision } from './logs.js'
 import { qualityFor } from './quality.js'
 import {
   generateSheds,
@@ -231,6 +232,7 @@ export default function Yeti() {
     () => generateTrees(qualityFor(isTouch).treeCount),
     [isTouch],
   )
+  const logs = useMemo(() => generateLogs(), [])
   const sheds = useMemo(() => generateSheds(), [])
 
   // Per-frame state kept off React so the chase loop never triggers a re-render.
@@ -590,11 +592,14 @@ export default function Yeti() {
 
       g.position.x += Math.sin(a.heading) * speed * delta
       g.position.z += Math.cos(a.heading) * speed * delta
-      // Shove back out of any trunk he walked into (6.9), any shed wall, and
-      // — 7.9 — a live flare, then clamp to the arena. Each of these just
-      // stops him passing through — none of them redirect him — which is what
-      // makes trees (and now a thrown flare) usable as cover or a wall.
+      // Shove back out of any trunk he walked into (6.9), any log (7.12 — he
+      // has no jump, so a log stops him exactly like a trunk and he grinds
+      // along it until he clears an end), any shed wall, and — 7.9 — a live
+      // flare, then clamp to the arena. Each of these just stops him passing
+      // through — none of them redirect him — which is what makes trees (and
+      // now a log or a thrown flare) usable as cover or a wall.
       resolveTreeCollision(trees, g.position.x, g.position.z, YETI_RADIUS, hit)
+      resolveLogCollision(logs, hit.x, hit.z, YETI_RADIUS, hit)
       resolveShedCollision(sheds, hit.x, hit.z, YETI_RADIUS, hit)
       resolveFlareCollision(hit.x, hit.z, YETI_RADIUS, hit)
       g.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)

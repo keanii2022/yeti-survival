@@ -256,12 +256,15 @@ function SlotButton({ index, kind }) {
 
 // Step 9.3: the right-thumb action buttons. One stack in the bottom-right,
 // clear of where a look-drag or the joystick lands. L is always up while
-// playing (dimmed through its cooldown); a slot button mounts for each filled
-// V/B/N/M slot (7.4). Tagged data-touch-control so a press can't leak into the
-// 9.1 drag-look zone.
+// playing (dimmed through its cooldown); so is jump (7.12), dimmed through its
+// recharge; a slot button mounts for each filled V/B/N/M slot (7.4). Tagged
+// data-touch-control so a press can't leak into the 9.1 drag-look zone.
 function TouchButtons() {
   const status = useGame((s) => s.status)
   const slots = useGame((s) => s.slots)
+  // 7.12: jumpCharge lives in the store already, so no rAF poll needed here —
+  // unlike mirror.ready below, this selector is real reactive state.
+  const jumpReady = useGame((s) => s.jumpCharge >= 100)
   // mirror.ready is an off-React singleton — poll it so the L button can dim
   // for the glance-plus-cooldown span, same tell as the HUD's LookHint chip.
   const [glanceReady, setGlanceReady] = useState(true)
@@ -284,6 +287,12 @@ function TouchButtons() {
         label="L"
         sub="look"
         className={glanceReady ? '' : 'cooling'}
+      />
+      <ActionButton
+        code="Space"
+        label="JUMP"
+        sub="hop"
+        className={`jump${jumpReady ? '' : ' cooling'}`}
       />
       {slots.map((kind, i) =>
         kind ? <SlotButton key={i} index={i} kind={kind} /> : null,

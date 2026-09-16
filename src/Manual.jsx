@@ -107,9 +107,9 @@ export default function Manual({ open, onClose }) {
             <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> Use the item in that carry slot. Your items always sit packed from the left, so <kbd>1</kbd> is whatever you picked up first.</li>
             <li><kbd>Q</kbd> Use your first item — same as <kbd>1</kbd></li>
             <li><kbd>R</kbd> Drop your first item on the ground (while playing)</li>
-            <li><kbd>Space</kbd> Pause / resume</li>
+            <li><kbd>Space</kbd> Jump — hops a low obstacle like a fallen log. It has its own small bar (under stamina) that has to refill before you can jump again, so you can't just spam it.</li>
             <li><kbd>R</kbd> Restart — on the game-over screen (nothing to drop there)</li>
-            <li><kbd>Esc</kbd> Pause and release the mouse — click Resume to keep going</li>
+            <li><kbd>Esc</kbd> Pause and release the mouse — click Resume (or press Space) to keep going</li>
           </ul>
         </section>
 
@@ -118,7 +118,7 @@ export default function Manual({ open, onClose }) {
           <ul className="manual-keys">
             <li><strong>Left thumb</strong> Drag anywhere on the left to move. Push past the ring to lock a sprint.</li>
             <li><strong>Right thumb</strong> Drag to look around.</li>
-            <li><strong>Buttons, bottom-right</strong> Glance back, and one button per item you're carrying — tap to use, long-press to drop.</li>
+            <li><strong>Buttons, bottom-right</strong> Glance back, jump, and one button per item you're carrying — tap to use, long-press to drop.</li>
             <li>Hold the phone in landscape. Tap once at the start to go fullscreen.</li>
           </ul>
         </section>

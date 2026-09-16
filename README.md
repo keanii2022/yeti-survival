@@ -264,10 +264,20 @@ fix that; the rest builds the hide-and-seek toolkit on top.
   7.4's controls pass — sprint is **double-tap-and-hold W**, Shift kept as an
   alias — and **Mouse4** (thumb-button, held) is now a third alias. The
   toggle / fixed-burst model stays parked pending this playtest.
-- [ ] **7.12 Jump** — **Space**, with its own small bar so it can't be spammed.
+- [x] **7.12 Jump** — **Space**, with its own small bar so it can't be spammed.
   Low obstacles (logs): the player hops them, the yeti has no jump and a wider
   collision so it detours around. Pairs with the 6.9 tree colliders; the yeti
   stays dumb.
+  - _Shipped:_ Space was already the pause key. Rather than pick a different
+    key, Space is now context-split — it jumps while a run is live and only
+    resumes from the pause screen, since the two never overlap. Esc is the
+    sole way to pause a live run (it already dropped pointer lock and
+    triggered `pause()` before 7.10 too). Logs (`logs.js`) are capsule
+    colliders — a segment padded by a radius, same shared-module shape as
+    `trees.js` and `sheds.js` — so the yeti's existing (wider) `YETI_RADIUS`
+    stops it on one exactly like a trunk, with no new yeti-specific logic.
+    The hop is a fixed-duration sine arc (`Player.jsx`) that simply skips
+    `resolveLogCollision` while airborne.
 - [ ] **7.13 Frozen pond** — fast to cross, but **cracks if you sprint** across:
   falling in is a big warmth hit plus ~1 s immobilised. The yeti avoids the ice
   and detours. A shortcut with a risk. Ice counts as hard ground for 7.3.

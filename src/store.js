@@ -161,6 +161,13 @@ export const useGame = create((set) => ({
   stamina: START_STAMINA,
   sprintLocked: false,
 
+  // 7.12: the jump bar. Space spends it in one go (100 -> 0) to hop a low
+  // obstacle (a log); it only recharges back to 100 over JUMP_RECHARGE_SECONDS
+  // (Player.jsx) before Space works again — the "own small bar so it can't be
+  // spammed" the build order calls for. Starts full so the first jump of a run
+  // is free.
+  jumpCharge: 100,
+
   // 7.4 inventory. `slots` is four entries, each an item kind or null, kept
   // left-packed (store `compact`). A pickup (Consumables.jsx / Decoy.jsx) calls
   // grabItem to take the first free one; useSlot / dropSlot spend or ditch one.
@@ -378,6 +385,7 @@ export const useGame = create((set) => ({
         warmth: START_WARMTH,
         stamina: START_STAMINA,
         sprintLocked: false,
+        jumpCharge: 100,
         slots: emptySlots(),
         selectedSlot: 0,
         snackActive: false,
@@ -431,6 +439,20 @@ export const useGame = create((set) => ({
       return { stamina, sprintLocked }
     }),
 
+  // 7.12: Player.jsx calls this the instant Space lands a jump (after checking
+  // jumpCharge is already full itself, so there's no failure case to report
+  // back) — drop the bar to 0 so it has to recharge before the next one.
+  startJump: () => set((s) => (s.status !== 'playing' ? {} : { jumpCharge: 0 })),
+
+  // Called every frame by the player controller, same shape as tickStamina but
+  // one-directional: the bar only ever climbs back to full, never drains here
+  // (startJump does that in one shot).
+  tickJumpCharge: (amount) =>
+    set((s) => {
+      if (s.status !== 'playing' || s.jumpCharge >= 100) return {}
+      return { jumpCharge: Math.min(100, s.jumpCharge + amount) }
+    }),
+
   pause: () => set((s) => (s.status === 'playing' ? { status: 'paused' } : {})),
   resume: () => set((s) => (s.status === 'paused' ? { status: 'playing' } : {})),
 
@@ -458,6 +480,7 @@ export const useGame = create((set) => ({
         warmth: START_WARMTH,
         stamina: START_STAMINA,
         sprintLocked: false,
+        jumpCharge: 100,
         snackActive: false,
         waterActive: false,
         blanketActive: false,
@@ -481,6 +504,7 @@ export const useGame = create((set) => ({
       warmth: START_WARMTH,
       stamina: START_STAMINA,
       sprintLocked: false,
+      jumpCharge: 100,
       slots: emptySlots(),
       selectedSlot: 0,
       snackActive: false,

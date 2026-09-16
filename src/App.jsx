@@ -83,7 +83,11 @@ export default function App() {
   // Global keys that aren't movement. Handled here rather than in the pointer-
   // lock controller so they work whether or not the mouse is captured.
   //
-  //   Space      pause / resume
+  //   Space      resume from the pause screen — Player.jsx owns Space while
+  //              playing, where it jumps (7.12) instead. Esc is the only way
+  //              to pause now (see the 7.10 comment below): the two contexts
+  //              never overlap, so there's no ambiguity in leaving Space bound
+  //              to both jobs.
   //   N          take the nightfall from the win screen
   //   C          the first-death second chance (Hud.jsx)
   //   R          while playing: drop your first carried item (slot 1); on a
@@ -100,9 +104,8 @@ export default function App() {
       const slotKey = SLOT_KEY.exec(e.code)
       if (e.code === 'Space') {
         e.preventDefault()
-        const { status, pause, resume } = useGame.getState()
-        if (status === 'playing') pause()
-        else if (status === 'paused') resume()
+        const { status, resume } = useGame.getState()
+        if (status === 'paused') resume()
       } else if (e.code === 'KeyR' && !e.repeat) {
         const s = useGame.getState()
         if (s.status === 'caught' || s.status === 'frozen' || s.status === 'won')
