@@ -27,6 +27,11 @@ import { isNight } from './daylight.js'
 // their own here. Throwing one (and the yeti's reaction) lives in
 // Throwables.jsx / Yeti.jsx instead, same split as the decoy (Decoy.jsx).
 //
+// Step 7.9: the flare rides the same `Pickup` component too, on the rarest
+// fuse of the set — it's a strategic wall, not comic relief. Same split:
+// throwing it (and the area-denial collision) lives in Throwables.jsx /
+// Yeti.jsx / flare.js.
+//
 // No physics — a plain distance check to the camera each frame, same as
 // Items.jsx. Not tied to the yeti or a level, so they ride through the interlude
 // untouched; only the spawn fuse and the snack window pause with the run.
@@ -39,11 +44,14 @@ const HOVER_HEIGHT = 1.0
 // snack so they don't tend to sit out together.
 // 7.8: duck / poop join the same table — a touch more common than the snack /
 // blanket since they're throwaway comic relief rather than a real safety net.
+// 7.9: the flare is the rarest pickup in the table — a panic-button wall, not
+// a resupply, so it should feel like a real find.
 const SPAWN = {
   snack: { first: 18, respawn: 70 },
   blanket: { first: 30, respawn: 82 },
   duck: { first: 24, respawn: 58 },
   poop: { first: 40, respawn: 58 },
+  flare: { first: 50, respawn: 100 },
 }
 
 // The second pickup of a kind runs this many seconds behind the first, on both
@@ -111,6 +119,15 @@ const LOOK = {
     emissive: '#150c04',
     glow: '#c98f52',
     light: '#c98f52',
+  },
+  // 7.9: the flare — a slim upright red stick, fire-coloured glow. Reads as
+  // hot even at a glance, distinct from every cool/warm-neutral pickup above.
+  flare: {
+    box: [0.16, 0.62, 0.16],
+    color: '#8f2a14',
+    emissive: '#ff6a1f',
+    glow: '#ffb347',
+    light: '#ff8a3d',
   },
 }
 
@@ -306,6 +323,7 @@ export default function Consumables() {
       <Pickup kind="blanket" slot={1} />
       <Pickup kind="duck" slot={0} />
       <Pickup kind="poop" slot={0} />
+      <Pickup kind="flare" slot={0} />
     </>
   )
 }

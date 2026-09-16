@@ -274,9 +274,9 @@ export const useGame = create((set) => ({
   // for the longer WATER_SECONDS plus the bigger Player speed bump; blanket →
   // set down in the world (7.6): same drop handoff as a plain ditch but flagged
   // `placed`, so Drops.jsx drops a marker you can stand on for the eased drain
-  // and walk back to via the pip; decoy / duck / poop (7.8) → the slot clears,
-  // `pendingThrow` names the kind, and throwReq bumps for Decoy.jsx /
-  // Throwables.jsx to fling. The remaining items pack left (compact) and the
+  // and walk back to via the pip; decoy / duck / poop / flare (7.8, 7.9) → the
+  // slot clears, `pendingThrow` names the kind, and throwReq bumps for
+  // Decoy.jsx / Throwables.jsx to fling. The remaining items pack left (compact) and the
   // highlight resets to the first. No-op on an empty slot, a finished run, or
   // the interlude.
   useSlot: (i) =>
@@ -308,7 +308,7 @@ export const useGame = create((set) => ({
           pendingDropPlaced: true,
           dropReq: s.dropReq + 1,
         }
-      if (kind === 'decoy' || kind === 'duck' || kind === 'poop')
+      if (kind === 'decoy' || kind === 'duck' || kind === 'poop' || kind === 'flare')
         return { ...base, pendingThrow: kind, throwReq: s.throwReq + 1 }
       return base
     }),

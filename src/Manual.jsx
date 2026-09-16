@@ -185,6 +185,7 @@ export default function Manual({ open, onClose }) {
             <li><strong>Decoy</strong> — throw it and the yeti breaks off to investigate it for a few seconds, resetting a chase.</li>
             <li><strong>Duck</strong> — a squeaky throwable. Short and snappy: he goes to check it out, but stay close while he's there and he'll snap right back onto you.</li>
             <li><strong>Poop</strong> — throw it and he walks over, sniffs, and recoils for a longer stretch than the duck — and this one he won't come back early from, no matter how close you stay.</li>
+            <li><strong>Flare</strong> — throw it and it burns for a while where it lands, lighting up the area. The yeti can't set foot inside the lit circle at all — throw it at your own feet to wall him out of wherever you're standing.</li>
           </ul>
           <p>
             <kbd>R</kbd> drops your first item on the ground; on a phone,

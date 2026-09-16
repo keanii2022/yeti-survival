@@ -33,6 +33,7 @@ export const ITEM_LABEL = {
   decoy: 'Decoy',
   duck: 'Duck',
   poop: 'Poop',
+  flare: 'Flare',
 }
 
 // Index of the first empty (null / undefined) slot in `slots`, or -1 when the

@@ -51,6 +51,7 @@ const TINT = {
   decoy: '#a074f0',
   duck: '#f4c430',
   poop: '#5b3a1e',
+  flare: '#ff8a3d',
 }
 
 export default function Drops() {

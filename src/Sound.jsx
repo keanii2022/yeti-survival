@@ -152,12 +152,13 @@ export default function Sound() {
     else if (!blanketActive && prevBlanket.current) eng.effectEnd()
     prevBlanket.current = blanketActive
 
-    // Decoy (6.14) / duck / poop (7.8): every throwReq bump is a fling —
-    // `pendingThrow` says which one so each gets its own cue. (A grab just
-    // fills a slot and is deliberately silent, like the other pickups.)
+    // Decoy (6.14) / duck / poop (7.8) / flare (7.9): every throwReq bump is a
+    // fling — `pendingThrow` says which one so each gets its own cue. (A grab
+    // just fills a slot and is deliberately silent, like the other pickups.)
     if (throwReq > prevThrow.current) {
       if (pendingThrow === 'duck') eng.duckThrow()
       else if (pendingThrow === 'poop') eng.poopThrow()
+      else if (pendingThrow === 'flare') eng.flareThrow()
       else eng.decoyThrow()
     }
     prevThrow.current = throwReq

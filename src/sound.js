@@ -802,6 +802,46 @@ class Atmosphere {
     o.stop(landT + 0.32)
   }
 
+  // 7.9: throwing the flare — the same whoosh as the decoy / duck / poop, but
+  // it lands with a bright rising hiss-and-catch (highpass noise sweeping up
+  // into a sustained sizzle) instead of a thud or a squish, so it reads as
+  // ignition rather than an impact.
+  flareThrow() {
+    const { ctx } = this
+    const t = ctx.currentTime
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(0.5)
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(1400, t)
+    bp.frequency.exponentialRampToValueAtTime(320, t + 0.32)
+    bp.Q.value = 0.9
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.2, t + 0.03)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.36)
+    n.connect(bp).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + 0.4)
+
+    const landT = t + 0.44
+    const sn = ctx.createBufferSource()
+    sn.buffer = this._noiseBuffer(0.9)
+    const hp = ctx.createBiquadFilter()
+    hp.type = 'highpass'
+    hp.frequency.setValueAtTime(600, landT)
+    hp.frequency.exponentialRampToValueAtTime(2400, landT + 0.12)
+    const sg = ctx.createGain()
+    sg.gain.setValueAtTime(0.0001, landT)
+    sg.gain.exponentialRampToValueAtTime(0.14, landT + 0.06)
+    sg.gain.exponentialRampToValueAtTime(0.05, landT + 0.3)
+    sg.gain.exponentialRampToValueAtTime(0.0001, landT + 0.85)
+    sn.connect(hp).connect(sg).connect(this.master)
+    sn.start(landT)
+    sn.stop(landT + 0.9)
+  }
+
   // 6.13: a quiet two-note fall when a snack or blanket window runs out — the
   // "that wore off" tell so the effect ending isn't silent.
   effectEnd() {

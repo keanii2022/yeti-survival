@@ -10,6 +10,7 @@ import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
 import { duck } from './duck.js'
 import { poop } from './poop.js'
+import { resolveFlareCollision } from './flare.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { qualityFor } from './quality.js'
 import {
@@ -28,6 +29,11 @@ import { shelter } from './shelter.js'
 // Step 7.8: 'duck' and 'poop' states do the same thing off duck.js / poop.js —
 // same divert, different reacquire and look-time (see DUCK_LOOK_TIME /
 // POOP_LOOK_TIME below).
+// Step 7.9: the flare is not a state at all — no divert, no mode change. It's
+// a temporary obstacle in the same collision pass as a tree trunk or shed
+// wall (resolveFlareCollision, flare.js): whatever he's doing, he simply can't
+// step inside its radius while it's burning, so a chase or a search grinds
+// along the edge instead of crossing it.
 //
 // Each run the yeti spawns somewhere random in the arena, always far enough
 // from the player's start that no run begins already in a chase. It idles by
@@ -584,11 +590,13 @@ export default function Yeti() {
 
       g.position.x += Math.sin(a.heading) * speed * delta
       g.position.z += Math.cos(a.heading) * speed * delta
-      // Shove back out of any trunk he walked into (6.9), then clamp to the
-      // arena. The trunk just stops him passing through — it doesn't redirect
-      // him — which is what makes trees usable as cover.
+      // Shove back out of any trunk he walked into (6.9), any shed wall, and
+      // — 7.9 — a live flare, then clamp to the arena. Each of these just
+      // stops him passing through — none of them redirect him — which is what
+      // makes trees (and now a thrown flare) usable as cover or a wall.
       resolveTreeCollision(trees, g.position.x, g.position.z, YETI_RADIUS, hit)
       resolveShedCollision(sheds, hit.x, hit.z, YETI_RADIUS, hit)
+      resolveFlareCollision(hit.x, hit.z, YETI_RADIUS, hit)
       g.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
       g.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
     }

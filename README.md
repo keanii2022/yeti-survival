@@ -235,14 +235,27 @@ fix that; the rest builds the hide-and-seek toolkit on top.
     green-ember dash and clear of anything the yeti has, sustained for the window.
     Playtest call: it's a reward for beating the base game, so it's allowed to be
     strong.
-- [ ] **7.8 Throwables — duck & poop** — both reuse 6.11's investigate-a-point.
+- [x] **7.8 Throwables — duck & poop** — both reuse 6.11's investigate-a-point.
   Squeaky duck: loud squeak on landing, a short snappy lure. Poop: squish on
   landing, the yeti walks over, sniffs, recoils, leaves — a longer window than
   the duck, no repeat interest. Ship both; the humour is the point for playing
   with a kid.
-- [ ] **7.9 Flare (throwable)** — lights an area and makes the yeti avoid that
+- [x] **7.9 Flare (throwable)** — lights an area and makes the yeti avoid that
   zone for a while — area denial, the inverse of the duck. Doubles as vision
   through fog / dusk. Rare.
+  - _Shipped:_ not a divert at all, unlike every other throwable — no yeti mode
+    change, so it stacks with a live chase or search instead of interrupting
+    one. It's a temporary obstacle in the same kinematic push-out pass as a
+    tree trunk or shed wall (`resolveFlareCollision`, `flare.js`, reusing the
+    exact circle-vs-circle math `resolveTreeCollision` uses): while it's
+    burning (`FLARE_BURN_SECONDS`, longer than the duck/poop ground timer —
+    nothing else ends it) the yeti simply can't cross into `FLARE_RADIUS`, so
+    a chase or a search grinds along the edge instead of passing through. The
+    player isn't blocked at all — throw one at your own feet to wall him out
+    of wherever you're standing. Rides the same `Throwables.jsx` flight rig as
+    the duck/poop (generalized with a per-throw ground-time parameter) and the
+    same `Consumables.jsx` `Pickup` component, on the rarest fuse in the
+    table.
 - [ ] **7.10 Pause** — **Esc** opens a pause menu and releases the mouse in one
   press (the browser drops pointer-lock on the first Esc, so a two-press design
   isn't reliable). Click **Resume** to re-lock. (Space-to-pause exists today; the

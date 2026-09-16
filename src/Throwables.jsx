@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useGame } from './store.js'
 import { duck, resetDuck } from './duck.js'
 import { poop, resetPoop } from './poop.js'
+import { flare, resetFlare, FLARE_RADIUS, FLARE_BURN_SECONDS } from './flare.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { ARENA_HALF } from './arena.js'
@@ -16,9 +17,14 @@ import { ARENA_HALF } from './arena.js'
 // component already fits — no beacon-style presentation needed for a comedy
 // item), so this file is throw + flight + landing only.
 //
-// One shared flight rig (`useThrow`) drives both — same parabola, same
+// Step 7.9: the flare rides the same flight rig with a much longer ground
+// timer (its "burn" duration) — see flare.js for the area-denial collision
+// it drives in Yeti.jsx instead of an investigate divert.
+//
+// One shared flight rig (`useThrow`) drives all three — same parabola, same
 // tree / shed collision on the landing point, same fade-out once the yeti's
-// done with it or the safety timer runs out.
+// done with it (duck / poop) or the ground timer runs out (all three; it's
+// the only thing that ends a flare's burn).
 
 const THROW_DIST = 15 // how far ahead of you it lands (before clamps)
 const ARC_HEIGHT = 2.6
@@ -29,10 +35,14 @@ const MAX_GROUND_TIME = 8 // force-clear `live` if the yeti never reaches it
 const FADE_TIME = 0.5 // fade / shrink once it's spent
 
 // The flight + landing rig for one throwable. `kind` gates which `throwReq`
-// bump is ours (see store.js's `pendingThrow`); `singleton` is duck.js's or
-// poop.js's exported object. Returns the group ref + mount state for the
-// caller to render its own mesh into.
-function useThrow(kind, singleton, reset) {
+// bump is ours (see store.js's `pendingThrow`); `singleton` is duck.js's,
+// poop.js's or flare.js's exported object. `groundTime` is how long it sits
+// live once landed before force-clearing — the duck/poop default is a safety
+// net (the yeti usually ends it first); the flare has no other way to stop
+// burning, so its longer FLARE_BURN_SECONDS *is* the area-denial window.
+// Returns the group ref + mount state for the caller to render its own mesh
+// into.
+function useThrow(kind, singleton, reset, groundTime = MAX_GROUND_TIME) {
   const { camera } = useThree()
   const trees = useMemo(() => generateTrees(), [])
   const sheds = useMemo(() => generateSheds(), [])
@@ -109,7 +119,7 @@ function useThrow(kind, singleton, reset) {
       root.current.rotation.z += delta * 9
       if (f.t >= 1) {
         f.stage = 'resting'
-        f.ground = MAX_GROUND_TIME
+        f.ground = groundTime
         root.current.position.set(f.toX, GROUND_Y, f.toZ)
         root.current.rotation.set(0, 0, 0)
       }
@@ -209,11 +219,67 @@ function PoopThrow() {
   )
 }
 
+// A road-flare stick planted upright once it lands: a dull red body, a bright
+// flame-coloured tip, and a soft glow sphere + point light sized to
+// FLARE_RADIUS so the lit area it denies the yeti roughly matches what you
+// see glowing. The tip flickers — the one bit of per-frame motion the shared
+// rig doesn't already give it.
+function FlareThrow() {
+  const { root, visible, origin } = useThrow('flare', flare, resetFlare, FLARE_BURN_SECONDS)
+  const flameRef = useRef()
+  const glowRef = useRef()
+  const lightRef = useRef()
+
+  useFrame(() => {
+    if (!visible) return
+    const t = performance.now() * 0.006
+    const flicker = 0.82 + Math.sin(t) * 0.12 + Math.sin(t * 2.7) * 0.08
+    if (flameRef.current) flameRef.current.scale.setScalar(0.85 + flicker * 0.3)
+    if (glowRef.current) glowRef.current.material.opacity = 0.14 + flicker * 0.1
+    if (lightRef.current) lightRef.current.intensity = 16 * flicker
+  })
+
+  if (!visible) return null
+  return (
+    <group ref={root} position={[origin[0], HAND_HEIGHT, origin[1]]}>
+      {/* the group itself rests at GROUND_Y once landed, so these local
+          offsets only need to reach a little above that, not up from zero */}
+      <mesh castShadow>
+        <cylinderGeometry args={[0.06, 0.07, 0.5, 6]} />
+        <meshStandardMaterial color="#8f2a14" roughness={0.7} flatShading />
+      </mesh>
+      <mesh ref={flameRef} position={[0, 0.35, 0]}>
+        <coneGeometry args={[0.15, 0.34, 8]} />
+        <meshBasicMaterial color="#ffcf6b" transparent opacity={0.92} fog={false} />
+      </mesh>
+      <mesh ref={glowRef} position={[0, 0.3, 0]}>
+        <sphereGeometry args={[FLARE_RADIUS * 0.4, 14, 14]} />
+        <meshBasicMaterial
+          color="#ffb347"
+          transparent
+          opacity={0.18}
+          depthWrite={false}
+          fog={false}
+        />
+      </mesh>
+      <pointLight
+        ref={lightRef}
+        color="#ff8a3d"
+        intensity={16}
+        distance={FLARE_RADIUS + 10}
+        decay={2}
+        position={[0, 0.35, 0]}
+      />
+    </group>
+  )
+}
+
 export default function Throwables() {
   return (
     <>
       <DuckThrow />
       <PoopThrow />
+      <FlareThrow />
     </>
   )
 }
