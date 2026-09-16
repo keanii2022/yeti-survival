@@ -260,9 +260,9 @@ fix that; the rest builds the hide-and-seek toolkit on top.
   press (the browser drops pointer-lock on the first Esc, so a two-press design
   isn't reliable). Click **Resume** to re-lock. (Space-to-pause exists today; the
   Esc menu doesn't.)
-- [ ] **7.11 Sprint rebind** — move sprint off the pinky. A variant shipped in
+- [x] **7.11 Sprint rebind** — move sprint off the pinky. A variant shipped in
   7.4's controls pass — sprint is **double-tap-and-hold W**, Shift kept as an
-  alias — but the intended **Mouse4** (thumb-button) bind is still open. The
+  alias — and **Mouse4** (thumb-button, held) is now a third alias. The
   toggle / fixed-burst model stays parked pending this playtest.
 - [ ] **7.12 Jump** — **Space**, with its own small bar so it can't be spammed.
   Low obstacles (logs): the player hops them, the yeti has no jump and a wider

@@ -15,6 +15,8 @@ const KEY_MAP = {
 // The forward keys, and the modifiers that still alias sprint.
 const FORWARD_CODES = new Set(['KeyW', 'ArrowUp'])
 const SHIFT_CODES = new Set(['ShiftLeft', 'ShiftRight'])
+// Mouse4 (thumb "back" button) — Step 7.11's intended sprint bind.
+const MOUSE4_BUTTON = 3
 
 // Step 7.4: sprint moved off the pinky. Double-tap a forward key inside this
 // window and then keep it held to sprint — release forward to drop back to a
@@ -37,12 +39,15 @@ export function useKeyboardControls() {
   useEffect(() => {
     // Internal sprint inputs, folded into keys.current.sprint by refreshSprint.
     const shiftHeld = { current: false }
+    const mouse4Held = { current: false }
     const doubleTapped = { current: false } // forward key double-tapped and still down
     let lastForwardDown = -Infinity
 
     const refreshSprint = () => {
       keys.current.sprint =
-        shiftHeld.current || (doubleTapped.current && keys.current.forward)
+        shiftHeld.current ||
+        mouse4Held.current ||
+        (doubleTapped.current && keys.current.forward)
     }
 
     const onDown = (e) => {
@@ -79,18 +84,37 @@ export function useKeyboardControls() {
       keys.current.left = false
       keys.current.right = false
       shiftHeld.current = false
+      mouse4Held.current = false
       doubleTapped.current = false
       lastForwardDown = -Infinity
+      refreshSprint()
+    }
+
+    // Mouse4 (thumb button, button index 3) is also a browser "navigate back"
+    // gesture — preventDefault keeps a sprint press from leaving the page.
+    const onMouseDown = (e) => {
+      if (e.button !== MOUSE4_BUTTON) return
+      e.preventDefault()
+      mouse4Held.current = true
+      refreshSprint()
+    }
+    const onMouseUp = (e) => {
+      if (e.button !== MOUSE4_BUTTON) return
+      mouse4Held.current = false
       refreshSprint()
     }
 
     window.addEventListener('keydown', onDown)
     window.addEventListener('keyup', onUp)
     window.addEventListener('blur', onBlur)
+    window.addEventListener('mousedown', onMouseDown)
+    window.addEventListener('mouseup', onMouseUp)
     return () => {
       window.removeEventListener('keydown', onDown)
       window.removeEventListener('keyup', onUp)
       window.removeEventListener('blur', onBlur)
+      window.removeEventListener('mousedown', onMouseDown)
+      window.removeEventListener('mouseup', onMouseUp)
     }
   }, [])
 

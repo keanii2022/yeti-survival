@@ -463,7 +463,7 @@ export default function Hud({ locked, isTouch }) {
               <h1>Yeti Survival</h1>
               <p>Click to look around</p>
               <p className="keys">
-                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; R drop first item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space or Esc pause
+                WASD move &nbsp;·&nbsp; double-tap W / Shift / Mouse4 sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; R drop first item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space or Esc pause
               </p>
               <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
               <DifficultyPicker />

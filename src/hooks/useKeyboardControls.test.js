@@ -7,6 +7,8 @@ import { useKeyboardControls } from './useKeyboardControls.js'
 // it with real keyboard events on `window`, the way the browser would.
 const press = (code) => window.dispatchEvent(new KeyboardEvent('keydown', { code }))
 const release = (code) => window.dispatchEvent(new KeyboardEvent('keyup', { code }))
+const pressMouse4 = () => window.dispatchEvent(new MouseEvent('mousedown', { button: 3 }))
+const releaseMouse4 = () => window.dispatchEvent(new MouseEvent('mouseup', { button: 3 }))
 
 describe('useKeyboardControls', () => {
   it('starts with every intent released', () => {
@@ -96,6 +98,33 @@ describe('useKeyboardControls', () => {
     window.dispatchEvent(new Event('blur'))
     expect(result.current.current.sprint).toBe(false)
     expect(result.current.current.forward).toBe(false)
+  })
+
+  it('holds sprint while Mouse4 (thumb button) is held, and releases it after', () => {
+    const { result } = renderHook(() => useKeyboardControls())
+
+    pressMouse4()
+    expect(result.current.current.sprint).toBe(true)
+
+    releaseMouse4()
+    expect(result.current.current.sprint).toBe(false)
+  })
+
+  it('ignores other mouse buttons for sprint', () => {
+    const { result } = renderHook(() => useKeyboardControls())
+
+    window.dispatchEvent(new MouseEvent('mousedown', { button: 0 }))
+    expect(result.current.current.sprint).toBe(false)
+  })
+
+  it('a blur clears a held Mouse4 sprint', () => {
+    const { result } = renderHook(() => useKeyboardControls())
+
+    pressMouse4()
+    expect(result.current.current.sprint).toBe(true)
+
+    window.dispatchEvent(new Event('blur'))
+    expect(result.current.current.sprint).toBe(false)
   })
 
   it('stops listening after unmount', () => {

@@ -95,8 +95,9 @@ export default function Manual({ open, onClose }) {
             <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</li>
             <li><kbd>Mouse</kbd> Look around</li>
             <li>
-              <kbd>double-tap&nbsp;W</kbd> (hold) Sprint — <kbd>Shift</kbd> also
-              works. Sprinting is fast but burns stamina.
+              <kbd>double-tap&nbsp;W</kbd> (hold) Sprint — <kbd>Shift</kbd> and
+              <kbd>Mouse4</kbd> (thumb button) also work. Sprinting is fast but
+              burns stamina.
             </li>
             <li>
               <kbd>Left-click</kbd> Glance behind you — a quick look back to check
