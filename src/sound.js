@@ -842,6 +842,57 @@ class Atmosphere {
     sn.stop(landT + 0.9)
   }
 
+  // 7.13: sprinting cracks the pond ice — a sharp high splintering snap
+  // (fast bandpass sweep, downward not up like a throw's whoosh) straight
+  // into a cold splash and a low thud as you go in, so the hit reads before
+  // the HUD warmth bar even catches up.
+  iceCrack() {
+    const { ctx } = this
+    const t = ctx.currentTime
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(0.25)
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(2600, t)
+    bp.frequency.exponentialRampToValueAtTime(500, t + 0.16)
+    bp.Q.value = 1.4
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.4, t + 0.008)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.2)
+    n.connect(bp).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + 0.22)
+
+    const splashT = t + 0.14
+    const sn = ctx.createBufferSource()
+    sn.buffer = this._noiseBuffer(0.35)
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.setValueAtTime(1100, splashT)
+    lp.frequency.exponentialRampToValueAtTime(180, splashT + 0.3)
+    const sg = ctx.createGain()
+    sg.gain.setValueAtTime(0.0001, splashT)
+    sg.gain.exponentialRampToValueAtTime(0.26, splashT + 0.03)
+    sg.gain.exponentialRampToValueAtTime(0.0001, splashT + 0.34)
+    sn.connect(lp).connect(sg).connect(this.master)
+    sn.start(splashT)
+    sn.stop(splashT + 0.36)
+
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(80, splashT)
+    o.frequency.exponentialRampToValueAtTime(35, splashT + 0.3)
+    const og = ctx.createGain()
+    og.gain.setValueAtTime(0.0001, splashT)
+    og.gain.exponentialRampToValueAtTime(0.18, splashT + 0.02)
+    og.gain.exponentialRampToValueAtTime(0.0001, splashT + 0.4)
+    o.connect(og).connect(this.master)
+    o.start(splashT)
+    o.stop(splashT + 0.42)
+  }
+
   // 6.13: a quiet two-note fall when a snack or blanket window runs out — the
   // "that wore off" tell so the effect ending isn't silent.
   effectEnd() {

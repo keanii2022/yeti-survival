@@ -41,6 +41,7 @@ export default function Sound() {
   const prevWater = useRef(false)
   const prevBlanket = useRef(false)
   const prevThrow = useRef(0)
+  const prevIceCrack = useRef(0)
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -72,6 +73,7 @@ export default function Sound() {
     prevWater.current = false
     prevBlanket.current = false
     prevThrow.current = useGame.getState().throwReq
+    prevIceCrack.current = useGame.getState().iceCrackReq
     getAtmosphere()?.revive()
     const root = document.documentElement.style
     root.setProperty('--threat', '0')
@@ -99,6 +101,7 @@ export default function Sound() {
       blanketActive,
       throwReq,
       pendingThrow,
+      iceCrackReq,
     } = useGame.getState()
 
     // --- state-change one-shots ---
@@ -162,6 +165,11 @@ export default function Sound() {
       else eng.decoyThrow()
     }
     prevThrow.current = throwReq
+
+    // 7.13: the pond cracking under a sprint — a sharp crack-and-splash, same
+    // opaque-edge-counter shape as the throwables above.
+    if (iceCrackReq > prevIceCrack.current) eng.iceCrack()
+    prevIceCrack.current = iceCrackReq
 
     // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
     // muffles for as long as you're inside — the "cold's eased" cue for the

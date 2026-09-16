@@ -278,9 +278,25 @@ fix that; the rest builds the hide-and-seek toolkit on top.
     stops it on one exactly like a trunk, with no new yeti-specific logic.
     The hop is a fixed-duration sine arc (`Player.jsx`) that simply skips
     `resolveLogCollision` while airborne.
-- [ ] **7.13 Frozen pond** — fast to cross, but **cracks if you sprint** across:
+- [x] **7.13 Frozen pond** — fast to cross, but **cracks if you sprint** across:
   falling in is a big warmth hit plus ~1 s immobilised. The yeti avoids the ice
   and detours. A shortcut with a risk. Ice counts as hard ground for 7.3.
+  - _Shipped:_ two ice sheets (`pond.js`), placed with the same fixed-seed
+    scatter shape as `sheds.js`, kept clear of the spawn, each other, and the
+    sheds — like `logs.js`, it doesn't bother excluding individual trees, since
+    a clearance wide enough to matter for an 8m disc against 220 of them would
+    rarely find a free spot at all. The yeti never sets foot on one —
+    `resolvePondCollision` is the exact same circular push-out
+    as a tree trunk or a live flare, just with the pond's own radius, so a
+    chase or a search grinds around the rim instead of crossing it. The player
+    walks onto the ice freely; only sprinting while standing on it cracks it
+    (`Player.jsx`, gated so one crossing can only crack once), which takes a
+    flat warmth hit (`crackThroughIce`, store.js) and freezes movement for
+    `ICE_IMMOBILIZE_SECONDS` while the camera dips into the hole on the same
+    sine-arc shape as the 7.12 jump. Keep holding sprint on the ice and it'll
+    crack again the moment you thaw out — walking across is the actual safe
+    shortcut. `surfaceAt` (7.3) reads pond ice as hard ground, same as a shed
+    floor, so no footprints are left crossing one.
 - [ ] **7.14 Campfire** — stand in the radius for warmth regen, but **while lit
   your detection range balloons**. A direct risk / reward on the core stat.
 - [ ] **7.15 Shed extension** — entering a shed **unseen** is still safe (6.12).

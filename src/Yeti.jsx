@@ -13,6 +13,7 @@ import { poop } from './poop.js'
 import { resolveFlareCollision } from './flare.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateLogs, resolveLogCollision } from './logs.js'
+import { generatePonds, resolvePondCollision } from './pond.js'
 import { qualityFor } from './quality.js'
 import {
   generateSheds,
@@ -234,6 +235,7 @@ export default function Yeti() {
   )
   const logs = useMemo(() => generateLogs(), [])
   const sheds = useMemo(() => generateSheds(), [])
+  const ponds = useMemo(() => generatePonds(), [])
 
   // Per-frame state kept off React so the chase loop never triggers a re-render.
   const ai = useRef({
@@ -594,14 +596,17 @@ export default function Yeti() {
       g.position.z += Math.cos(a.heading) * speed * delta
       // Shove back out of any trunk he walked into (6.9), any log (7.12 — he
       // has no jump, so a log stops him exactly like a trunk and he grinds
-      // along it until he clears an end), any shed wall, and — 7.9 — a live
-      // flare, then clamp to the arena. Each of these just stops him passing
-      // through — none of them redirect him — which is what makes trees (and
-      // now a log or a thrown flare) usable as cover or a wall.
+      // along it until he clears an end), any shed wall, a live flare (7.9),
+      // and — 7.13 — any frozen pond: he won't set a foot on the ice, so a
+      // chase or a search grinds around the rim instead of crossing it. Each
+      // of these just stops him passing through — none of them redirect him —
+      // which is what makes trees (and now a log, a thrown flare, or a pond)
+      // usable as cover or a wall. Then clamp to the arena.
       resolveTreeCollision(trees, g.position.x, g.position.z, YETI_RADIUS, hit)
       resolveLogCollision(logs, hit.x, hit.z, YETI_RADIUS, hit)
       resolveShedCollision(sheds, hit.x, hit.z, YETI_RADIUS, hit)
       resolveFlareCollision(hit.x, hit.z, YETI_RADIUS, hit)
+      resolvePondCollision(ponds, hit.x, hit.z, YETI_RADIUS, hit)
       g.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
       g.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
     }

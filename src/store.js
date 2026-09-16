@@ -35,6 +35,12 @@ export const GREEN_ESCAPE_BONUS = 250
 // stays a real death clock; the blanket (6.13) is the actual warmth lever.
 export const WARMTH_PER_EMBER = 8
 
+// Step 7.13: sprinting across the frozen pond cracks it. A flat chunk of
+// warmth — a fifth of a full bar, undoing several seconds of embers in one
+// dunk — plus the ~1s immobilise Player.jsx runs locally while you're stuck
+// in the hole. The risk side of the shortcut.
+export const ICE_CRACK_WARMTH = 20
+
 // Once stamina bottoms out, sprint stays locked until it regenerates back past
 // this threshold — so an empty bar is a real recovery window, not a one-frame dip.
 const SPRINT_UNLOCK = 30
@@ -212,6 +218,11 @@ export const useGame = create((set) => ({
   reviveUsed: false,
   reviveReq: 0,
   graceUntil: 0,
+
+  // 7.13: bumped every time the ice cracks under a sprint — Sound.jsx watches
+  // the edge for the crack/splash stinger. Same opaque-counter shape as
+  // dropReq / throwReq; not reset between runs since it's just an edge marker.
+  iceCrackReq: 0,
 
   // Grab an ember: score + counts, a small warmth top-up, and — when it's the
   // one that clears the level — the transition. Clearing the final level wins
@@ -414,6 +425,22 @@ export const useGame = create((set) => ({
       const warmth = s.warmth - amount
       if (warmth <= 0) return { warmth: 0, status: 'frozen' }
       return { warmth }
+    }),
+
+  // 7.13: Player.jsx calls this the instant a sprint cracks the pond ice —
+  // one flat warmth hit (same grace-window guard as tickWarmth) plus the edge
+  // bump Sound.jsx fires the crack/splash stinger on. The ~1s immobilise is
+  // Player.jsx's own local timer; the store doesn't need to know about it.
+  crackThroughIce: () =>
+    set((s) => {
+      if (s.status !== 'playing') return {}
+      if (now() < s.graceUntil) return {}
+      const warmth = s.warmth - ICE_CRACK_WARMTH
+      return {
+        warmth: Math.max(0, warmth),
+        status: warmth <= 0 ? 'frozen' : s.status,
+        iceCrackReq: s.iceCrackReq + 1,
+      }
     }),
 
   // Called every frame by the player controller. `draining` is true only when

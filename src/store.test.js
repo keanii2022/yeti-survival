@@ -6,6 +6,7 @@ import {
   GREEN_EMBER_SCORE,
   GREEN_ESCAPE_BONUS,
   SNACK_SECONDS,
+  ICE_CRACK_WARMTH,
 } from './store.js'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
 
@@ -60,6 +61,34 @@ describe('tickWarmth', () => {
     useGame.setState({ status: 'paused', warmth: 40 })
     get().tickWarmth(10)
     expect(get().warmth).toBe(40)
+  })
+})
+
+describe('crackThroughIce (7.13)', () => {
+  it('takes a flat warmth hit and bumps the edge counter', () => {
+    useGame.setState({ warmth: 60, iceCrackReq: 0 })
+    get().crackThroughIce()
+    expect(get().warmth).toBe(60 - ICE_CRACK_WARMTH)
+    expect(get().iceCrackReq).toBe(1)
+  })
+
+  it('ends the run in "frozen" when the hit empties the bar', () => {
+    useGame.setState({ warmth: 5 })
+    get().crackThroughIce()
+    expect(get().warmth).toBe(0)
+    expect(get().status).toBe('frozen')
+  })
+
+  it('does nothing during the revive grace window', () => {
+    useGame.setState({ warmth: 60, graceUntil: performance.now() + 5000 })
+    get().crackThroughIce()
+    expect(get().warmth).toBe(60)
+  })
+
+  it('is a no-op once the run is over', () => {
+    useGame.setState({ status: 'caught', warmth: 60 })
+    get().crackThroughIce()
+    expect(get().warmth).toBe(60)
   })
 })
 

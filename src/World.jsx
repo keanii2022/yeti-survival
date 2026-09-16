@@ -5,6 +5,7 @@ import { Sky, Stars, Instances, Instance } from '@react-three/drei'
 import { ARENA_HALF } from './Player.jsx'
 import { generateTrees, TREE_COUNT } from './trees.js'
 import { generateLogs, LOG_RADIUS } from './logs.js'
+import { generatePonds } from './pond.js'
 import { useGame } from './store.js'
 import { qualityFor } from './quality.js'
 import { daylight, resetDaylight } from './daylight.js'
@@ -166,6 +167,25 @@ function Logs() {
             <meshStandardMaterial color="#5b4636" roughness={1} />
           </mesh>
         </group>
+      ))}
+    </group>
+  )
+}
+
+// Step 7.13: frozen ponds — the shortcut-with-a-risk ice sheets. Rendered
+// straight off generatePonds() so what you see is exactly the circle
+// resolvePondCollision (pond.js) keeps the yeti off. A pale, slightly glassy
+// disc laid a hair above the snow plane (avoids z-fighting) is enough to read
+// as "different ground" without needing a crack texture.
+function Ponds() {
+  const ponds = useMemo(() => generatePonds(), [])
+  return (
+    <group>
+      {ponds.map((p, i) => (
+        <mesh key={i} position={[p.x, 0.03, p.z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <circleGeometry args={[p.radius, 32]} />
+          <meshStandardMaterial color="#bcd4e0" roughness={0.25} metalness={0.1} />
+        </mesh>
       ))}
     </group>
   )
@@ -478,6 +498,7 @@ export default function World() {
       <Mountains />
       <Trees quality={quality} />
       <Logs />
+      <Ponds />
     </>
   )
 }

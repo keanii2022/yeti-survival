@@ -12,6 +12,7 @@ import { inventory, resetInventory } from './inventory.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateLogs, resolveLogCollision } from './logs.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
+import { generatePonds, pointInsidePond } from './pond.js'
 import { qualityFor } from './quality.js'
 import { ARENA_HALF } from './arena.js'
 
@@ -49,6 +50,14 @@ const PLAYER_RADIUS = 0.4 // body circle for the 6.9 tree push-out
 const JUMP_DURATION = 0.55
 const JUMP_HEIGHT = 0.85
 const JUMP_RECHARGE_SECONDS = 1.6
+
+// 7.13: sprinting onto the frozen pond cracks it. The warmth hit lives in the
+// store (crackThroughIce); the ~1s stuck-in-the-hole immobilise is purely
+// local — movement is skipped outright while ICE_IMMOBILIZE_SECONDS counts
+// down, and the camera dips into the crack (ICE_DIP_DEPTH) and back out on
+// the same sine-arc shape as the jump hop.
+const ICE_IMMOBILIZE_SECONDS = 1
+const ICE_DIP_DEPTH = 0.5
 
 // 7.2: the look-behind glance (press L). You cut, then check — a coarse read on
 // whether the 7.1 turn-rate cap actually opened a gap. The camera snaps 180°,
@@ -100,6 +109,10 @@ export default function Player() {
   // camera's vertical arc and the resolveLogCollision skip below.
   const jump = useRef({ active: false, t: 0 })
 
+  // 7.13: seconds left immobilised in a cracked pond. Counts down to 0 in the
+  // frame loop; movement is skipped outright while it's above 0.
+  const ice = useRef({ frozen: 0 })
+
   // Bail a glance that's cut short by a pause or the run ending — flip the
   // camera back if it's still reversed, drop the frost, so we never leave the
   // view half-turned or iced up.
@@ -141,6 +154,7 @@ export default function Player() {
     endGlance()
     jump.current.active = false
     jump.current.t = 0
+    ice.current.frozen = 0
     camera.position.set(0, EYE_HEIGHT, 8)
     camera.rotation.set(0, 0, 0)
     look.current.yaw = 0
@@ -218,6 +232,7 @@ export default function Player() {
     if (game.status !== 'playing') return
     if (!isTouch && !controls.current?.isLocked) return
     if (jump.current.active) return
+    if (ice.current.frozen > 0) return
     if (game.jumpCharge < 100) return
     game.startJump()
     jump.current.active = true
@@ -303,6 +318,7 @@ export default function Player() {
   )
   const logs = useMemo(() => generateLogs(), [])
   const sheds = useMemo(() => generateSheds(), [])
+  const ponds = useMemo(() => generatePonds(), [])
 
   // Reused each frame to avoid allocating vectors in the render loop.
   const scratch = useMemo(
@@ -364,6 +380,11 @@ export default function Player() {
     }
     mirror.ready = gl.phase === 'idle'
 
+    // 7.13: tick down the immobilise from a cracked pond. Movement is skipped
+    // outright below for as long as this is above 0.
+    const frozenByIce = ice.current.frozen > 0
+    if (frozenByIce) ice.current.frozen = Math.max(0, ice.current.frozen - delta)
+
     // Walk direction is the camera's heading flattened onto the ground — except
     // mid-glance, when the camera is turned around: movement stays welded to the
     // heading you had when you pressed L, so a look-back doesn't run you at the
@@ -403,7 +424,7 @@ export default function Player() {
     // Sprint only lands if you're moving, asking for it (Shift / the joystick
     // latch), not winded, and not mid item-fumble.
     const game = useGame.getState()
-    const moving = move.lengthSq() > 1e-6
+    const moving = !frozenByIce && move.lengthSq() > 1e-6
     const wantSprint = isTouch ? touchMove.sprint : held.sprint
     const sprinting =
       moving &&
@@ -453,7 +474,23 @@ export default function Player() {
     resolveShedCollision(sheds, hit.x, hit.z, PLAYER_RADIUS, hit)
     camera.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
     camera.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
-    camera.position.y = EYE_HEIGHT + jumpY
+
+    // 7.13: sprinting this frame while standing on the ice cracks it — one
+    // dunk per crossing, gated by frozenByIce so the 1s stuck-in-the-hole
+    // window doesn't retrigger itself every frame.
+    if (
+      !frozenByIce &&
+      sprinting &&
+      ponds.some((p) => pointInsidePond(p, camera.position.x, camera.position.z))
+    ) {
+      ice.current.frozen = ICE_IMMOBILIZE_SECONDS
+      useGame.getState().crackThroughIce()
+    }
+
+    const iceY = ice.current.frozen > 0
+      ? -Math.sin((ice.current.frozen / ICE_IMMOBILIZE_SECONDS) * Math.PI) * ICE_DIP_DEPTH
+      : 0
+    camera.position.y = EYE_HEIGHT + jumpY + iceY
   })
 
   // No pointer lock on touch — iOS Safari won't grant it, and the drag-look

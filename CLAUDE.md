@@ -33,7 +33,7 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
 
 ## Build order (one Claude Code session per step; use /clear between steps)
 
-**Current status: Steps 1-6 complete (including all 6.1-6.14 sub-steps). Step 9 (Mobile/touch) complete (9.1-9.6), pulled forward ahead of the rest of Step 7 per the note above. Step 7 sub-steps 7.1-7.12 complete (7.13-7.16 remain). Step 8 not started.**
+**Current status: Steps 1-6 complete (including all 6.1-6.14 sub-steps). Step 9 (Mobile/touch) complete (9.1-9.6), pulled forward ahead of the rest of Step 7 per the note above. Step 7 sub-steps 7.1-7.13 complete (7.14-7.16 remain). Step 8 not started.**
 1. Empty 3D world — ground plane, sky, lighting, fog. Just prove it renders at localhost.
 2. Player movement + camera controller.
 3. One yeti with basic chase-detection AI.
