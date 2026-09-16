@@ -108,7 +108,7 @@ export default function Manual({ open, onClose }) {
             <li><kbd>R</kbd> Drop your first item on the ground (while playing)</li>
             <li><kbd>Space</kbd> Pause / resume</li>
             <li><kbd>R</kbd> Restart — on the game-over screen (nothing to drop there)</li>
-            <li><kbd>Esc</kbd> Release the mouse</li>
+            <li><kbd>Esc</kbd> Pause and release the mouse — click Resume to keep going</li>
           </ul>
         </section>
 

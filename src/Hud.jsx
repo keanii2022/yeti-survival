@@ -247,6 +247,7 @@ export default function Hud({ locked, isTouch }) {
   // 9.x: touch has no keyboard, so the "press R / N" end-screen prompts need
   // tap targets. Store actions are stable references.
   const reset = useGame((s) => s.reset)
+  const resume = useGame((s) => s.resume)
   const startNightfall = useGame((s) => s.startNightfall)
   const reviveUsed = useGame((s) => s.reviveUsed)
   const revivePlayer = useGame((s) => s.revivePlayer)
@@ -462,7 +463,7 @@ export default function Hud({ locked, isTouch }) {
               <h1>Yeti Survival</h1>
               <p>Click to look around</p>
               <p className="keys">
-                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; R drop first item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space pause &nbsp;·&nbsp; Esc release
+                WASD move &nbsp;·&nbsp; double-tap W / Shift sprint &nbsp;·&nbsp; 1–4 use item &nbsp;·&nbsp; R drop first item &nbsp;·&nbsp; click to glance back &nbsp;·&nbsp; Space or Esc pause
               </p>
               <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
               <DifficultyPicker />
@@ -484,14 +485,26 @@ export default function Hud({ locked, isTouch }) {
       {paused && (
         <div className="prompt">
           <h1>Paused</h1>
-          <p>Press Space to resume</p>
-          <button
-            type="button"
-            className="prompt-btn ghost"
-            onClick={() => setManualOpen(true)}
-          >
-            How to play
-          </button>
+          <p>
+            {locked
+              ? 'Press Space or click Resume'
+              : 'Click Resume to keep going'}
+          </p>
+          <div className="prompt-btns">
+            <button type="button" className="prompt-btn" onClick={resume}>
+              Resume
+            </button>
+            <button
+              type="button"
+              className="prompt-btn ghost"
+              onClick={(e) => {
+                e.stopPropagation()
+                setManualOpen(true)
+              }}
+            >
+              How to play
+            </button>
+          </div>
         </div>
       )}
 

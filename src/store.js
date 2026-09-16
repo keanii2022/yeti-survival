@@ -88,8 +88,11 @@ const now = () =>
 
 export const useGame = create((set) => ({
   // 'playing' while the run is live (this covers the between-levels interlude
-  // too — see `interlude`), 'paused' on Space, then 'caught' / 'frozen' / 'won'
-  // once it's over. Every ticking system gates on status === 'playing'.
+  // too — see `interlude`), 'paused' on Space or Esc (App.jsx pauses on any
+  // pointer-lock loss, which is how Esc reaches this — the browser drops the
+  // lock on its own and there's no reliable way to intercept that first
+  // press), then 'caught' / 'frozen' / 'won' once it's over. Every ticking
+  // system gates on status === 'playing'.
   status: 'playing',
 
   // Bumped on every reset and on entering nightfall. App uses it as a React key

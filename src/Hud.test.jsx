@@ -45,6 +45,28 @@ describe('Hud', () => {
     expect(screen.getByRole('heading', { name: 'Paused' })).toBeInTheDocument()
   })
 
+  it('offers Space or Resume when Esc paused without dropping the lock', () => {
+    useGame.setState({ status: 'paused' })
+    render(<Hud locked={true} />)
+    expect(screen.getByText('Press Space or click Resume')).toBeInTheDocument()
+  })
+
+  // 7.10: the browser drops pointer lock on Esc before any JS runs, so a pause
+  // reached that way always renders with locked=false — Resume is then the
+  // only way back in.
+  it('prompts to click Resume when paused with the pointer unlocked', () => {
+    useGame.setState({ status: 'paused' })
+    render(<Hud locked={false} />)
+    expect(screen.getByText('Click Resume to keep going')).toBeInTheDocument()
+  })
+
+  it('resumes the run when Resume is clicked', () => {
+    useGame.setState({ status: 'paused' })
+    render(<Hud locked={false} />)
+    screen.getByRole('button', { name: 'Resume' }).click()
+    expect(useGame.getState().status).toBe('playing')
+  })
+
   it('leads the game-over card with level, then time survived, then the ember score', () => {
     useGame.setState({
       status: 'caught',

@@ -62,8 +62,20 @@ export default function App() {
 
   // Track pointer-lock state at the document level so the HUD can react to it
   // without reaching into the controls instance.
+  //
+  // 7.10: Esc has no keydown handler of its own — the browser exits pointer
+  // lock on the first Esc press unconditionally, before any JS gets a say, so
+  // there's no reliable way to catch that press and open a menu on a second
+  // one. Instead, losing the lock while a run is live IS the pause trigger:
+  // Esc, alt-tab, clicking outside the window, all read the same way, and
+  // `pause()` already no-ops unless status is 'playing' so this is harmless
+  // outside a run.
   useEffect(() => {
-    const onChange = () => setLocked(document.pointerLockElement !== null)
+    const onChange = () => {
+      const isLocked = document.pointerLockElement !== null
+      setLocked(isLocked)
+      if (!isLocked) useGame.getState().pause()
+    }
     document.addEventListener('pointerlockchange', onChange)
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [])
