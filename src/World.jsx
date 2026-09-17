@@ -9,6 +9,7 @@ import { generatePonds } from './pond.js'
 import { useGame } from './store.js'
 import { qualityFor } from './quality.js'
 import { daylight, resetDaylight } from './daylight.js'
+import { weather, SLEET_VISION_MULT } from './weather.js'
 
 // Small deterministic PRNG so the tree scatter is the same on every reload.
 function mulberry32(seed) {
@@ -388,8 +389,12 @@ function DayCycle({ quality }) {
     walkStops(_FOG_STOPS, u, _c)
     if (fog.current) {
       fog.current.color.copy(_c)
-      fog.current.near = p.fogNear
-      fog.current.far = p.fogFar
+      // 7.16: sleet pulls both fog planes in around the player for its window —
+      // scaled off the same day-cycle distances so it still reads as *this*
+      // moment's fog closing in, not a different fog replacing it.
+      const vis = 1 - (1 - SLEET_VISION_MULT) * weather.sleetAmount
+      fog.current.near = p.fogNear * vis
+      fog.current.far = p.fogFar * vis
     }
     if (bg.current) bg.current.copy(_c)
 

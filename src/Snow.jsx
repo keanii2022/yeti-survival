@@ -1,8 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
 import { qualityFor } from './quality.js'
+import { weather, resetWeather, tickWeather } from './weather.js'
 
 // Step 5 atmosphere: a flurry of falling flakes that always surrounds the
 // player. It's one THREE.Points cloud living in a box centred on the camera —
@@ -10,6 +11,12 @@ import { qualityFor } from './quality.js'
 // wrapped back in, so a fixed pool of points covers the whole arena for cheap.
 // 9.5 thins the pool on touch — the per-flake sway runs on the CPU, so the
 // count is a direct frame-time cost on a phone.
+//
+// 7.16: also the single place that ticks the weather clock (weather.js) —
+// Snow is always mounted while playing, same as shelter.js's driver pattern —
+// and leans the flurry sideways with an active gust's heading, scaled by its
+// ramped strength, so the wind reads before it ever touches the warmth stat.
+const GUST_LEAN = 2.2 // m/s of extra drift at full gust strength
 const BOX = 42 // width/depth of the flurry box, metres
 const TOP = 22 // flakes recycle to this height
 const FALL = 3.0 // base descent, m/s
@@ -61,6 +68,11 @@ export default function Snow() {
     return new THREE.CanvasTexture(c)
   }, [])
 
+  useEffect(() => {
+    resetWeather()
+    return resetWeather
+  }, [])
+
   useFrame((_, rawDelta) => {
     // Freeze the flurry whenever the sim is paused or the run is over.
     if (useGame.getState().status !== 'playing') return
@@ -68,11 +80,14 @@ export default function Snow() {
     if (!p) return
 
     const delta = Math.min(rawDelta, 0.1)
+    tickWeather(delta)
     const arr = p.geometry.attributes.position.array
     const t = performance.now() * 0.001
     const ox = camera.position.x
     const oz = camera.position.z
     const half = BOX / 2
+    const gustX = weather.windX * weather.gustAmount * GUST_LEAN
+    const gustZ = weather.windZ * weather.gustAmount * GUST_LEAN
 
     for (let i = 0; i < COUNT; i++) {
       const ix = i * 3
@@ -80,7 +95,8 @@ export default function Snow() {
       const iz = ix + 2
 
       arr[iy] -= FALL * speeds[i] * delta
-      arr[ix] += Math.sin(t * 0.7 + i) * DRIFT * delta
+      arr[ix] += (Math.sin(t * 0.7 + i) * DRIFT + gustX) * delta
+      arr[iz] += gustZ * delta
 
       // Recycle to the top once it hits the ground.
       if (arr[iy] < 0) {

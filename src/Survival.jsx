@@ -1,7 +1,9 @@
-import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { shelter } from './shelter.js'
 import { campfireGlow, CAMPFIRE_REGEN_PER_SECOND } from './campfire.js'
+import { weather, intoWindFactor, GUST_DRAIN_MULT } from './weather.js'
 import { inControl } from './touch.js'
 import { difficultyMods } from './difficulty.js'
 
@@ -30,10 +32,21 @@ const SHED_DRAIN_FACTOR = 0.45
 const BLANKET_DRAIN_FACTOR = 0.3
 
 export default function Survival() {
+  const { camera } = useThree()
+  const lastX = useRef(camera.position.x)
+  const lastZ = useRef(camera.position.z)
+
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
     if (!inControl(useGame.getState().isTouch)) return
     const delta = Math.min(rawDelta, 0.1)
+    // 7.16: how much of this frame's move was straight into an active gust's
+    // heading, before updating the tracked position for next frame.
+    const moveX = camera.position.x - lastX.current
+    const moveZ = camera.position.z - lastZ.current
+    const into = weather.gustAmount > 0 ? intoWindFactor(moveX, moveZ) : 0
+    lastX.current = camera.position.x
+    lastZ.current = camera.position.z
     // The run clock keeps counting through the 6.6 interlude, but warmth doesn't
     // drain during the breather — that's what makes it a breather.
     useGame.getState().tickTime(delta)
@@ -44,6 +57,10 @@ export default function Survival() {
       difficultyMods(useGame.getState().difficulty).warmthDrain
     if (shelter.inside) rate *= SHED_DRAIN_FACTOR
     if (useGame.getState().blanketActive) rate *= BLANKET_DRAIN_FACTOR
+    // 7.16: walking straight into a gust bites harder, up to GUST_DRAIN_MULT at
+    // full strength and dead into the wind; crossing or moving with it costs
+    // nothing extra.
+    rate *= 1 + (GUST_DRAIN_MULT - 1) * weather.gustAmount * into
     // 7.14: campfire glow outweighs whatever drain is left and flips the rate
     // negative, so tickWarmth tops the bar back up instead of bleeding it —
     // the direct trade for standing somewhere the yeti can spot you from
