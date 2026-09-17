@@ -299,10 +299,12 @@ fix that; the rest builds the hide-and-seek toolkit on top.
     floor, so no footprints are left crossing one.
 - [x] **7.14 Campfire** — stand in the radius for warmth regen, but **while lit
   your detection range balloons**. A direct risk / reward on the core stat.
-- [ ] **7.15 Shed extension** — entering a shed **unseen** is still safe (6.12).
+- [x] **7.15 Shed extension** — entering a shed **unseen** is still safe (6.12).
   Entering **while chased**: the yeti waits outside a few seconds, then loses
   interest — it can't open the door. Shed floor is hard ground: no footprints
-  (7.3).
+  (7.3). All three already fell out of 6.9 (door-width collision), 6.12
+  (chase-into-shed → door-wait → cooldown state), and 7.3 (hard-ground hook) —
+  verified against the code and by playtest, no new code needed.
 - [ ] **7.16 Weather events** — discrete events, not a system. Wind gust:
   directional, accelerates warmth drain when you move into it, readable in the
   snow particles. Sleet: cuts vision for a window.
