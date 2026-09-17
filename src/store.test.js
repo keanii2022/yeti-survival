@@ -62,6 +62,15 @@ describe('tickWarmth', () => {
     get().tickWarmth(10)
     expect(get().warmth).toBe(40)
   })
+
+  it('tops warmth up on a negative amount (7.14 campfire regen), capped at 100', () => {
+    useGame.setState({ warmth: 40 })
+    get().tickWarmth(-10)
+    expect(get().warmth).toBe(50)
+    useGame.setState({ warmth: 95 })
+    get().tickWarmth(-10)
+    expect(get().warmth).toBe(100)
+  })
 })
 
 describe('crackThroughIce (7.13)', () => {

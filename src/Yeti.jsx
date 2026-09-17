@@ -11,6 +11,7 @@ import { decoy } from './decoy.js'
 import { duck } from './duck.js'
 import { poop } from './poop.js'
 import { resolveFlareCollision } from './flare.js'
+import { campfireGlow, CAMPFIRE_DETECT_MULT } from './campfire.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateLogs, resolveLogCollision } from './logs.js'
 import { generatePonds, resolvePondCollision } from './pond.js'
@@ -314,6 +315,10 @@ export default function Yeti() {
       a.params = levelParams(curveLevel, difficulty)
     }
     const P = a.params
+    // 7.14: standing in a campfire's glow balloons how far off he can spot
+    // you — only the initial acquire, not the chase-persistence radii, which
+    // stay off P untouched.
+    const detectR = campfireGlow.near ? P.detectRadius * CAMPFIRE_DETECT_MULT : P.detectRadius
 
     // Horizontal vector from yeti to player.
     toPlayer.set(
@@ -444,7 +449,7 @@ export default function Yeti() {
     } else if (a.mode === 'shed') {
       // Mid shed-check: the player breaking cover close by still yanks him into
       // a chase, on the same commit delay as an idle spot.
-      if (!hidden && dist < P.detectRadius) {
+      if (!hidden && dist < detectR) {
         a.spotTimer += delta
         if (a.spotTimer >= P.commitDelay) {
           a.probe.active = false
@@ -459,7 +464,7 @@ export default function Yeti() {
       // idle. Commit delay: the player has to sit inside detection range for
       // P.commitDelay seconds before the chase locks on — long enough at L1 to
       // dart across his sightline, gone by the deep levels.
-      if (!hidden && dist < P.detectRadius) {
+      if (!hidden && dist < detectR) {
         a.spotTimer += delta
         if (a.spotTimer >= P.commitDelay) {
           a.mode = 'chase'

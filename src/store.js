@@ -415,14 +415,16 @@ export const useGame = create((set) => ({
   tickTime: (delta) =>
     set((s) => (s.status === 'playing' ? { elapsed: s.elapsed + delta } : {})),
 
-  // Called every frame while you're in control. Drains warmth by `amount` and
-  // ends the run the moment it runs out — unless a just-revived player is still
-  // in their grace window, when the cold holds off entirely.
+  // Called every frame while you're in control. Drains warmth by `amount` —
+  // or, since 7.14, tops it back up when Survival.jsx passes a negative rate
+  // (standing in a campfire's glow), capped at a full bar — and ends the run
+  // the moment it runs out, unless a just-revived player is still in their
+  // grace window, when the cold holds off entirely.
   tickWarmth: (amount) =>
     set((s) => {
       if (s.status !== 'playing') return {}
       if (now() < s.graceUntil) return {}
-      const warmth = s.warmth - amount
+      const warmth = Math.min(START_WARMTH, s.warmth - amount)
       if (warmth <= 0) return { warmth: 0, status: 'frozen' }
       return { warmth }
     }),

@@ -9,6 +9,7 @@ import { DIFFICULTIES } from './difficulty.js'
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
 import { shelter } from './shelter.js'
+import { campfireGlow } from './campfire.js'
 import { drops } from './drops.js'
 import { ITEM_LABEL } from './inventory.js'
 import MuteToggle from './MuteToggle.jsx'
@@ -81,6 +82,30 @@ function ShelterCue() {
     return <div className="shelter rattled">he&rsquo;s at the door</div>
   if (state === 'hidden') return <div className="shelter">hidden</div>
   return null
+}
+
+// 7.14: rAF-polled read of the off-React campfireGlow.near flag (Campfire.jsx
+// writes it), shared by the text cue below and the full-screen glow in the
+// main Hud render — same render-only-on-change shape as the other cues.
+function useCampfireNear() {
+  const [near, setNear] = useState(false)
+  const raf = useRef()
+  useEffect(() => {
+    const tick = () => {
+      setNear(campfireGlow.near)
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [])
+  return near
+}
+
+// Shown while standing in a campfire's glow — the direct trade behind the
+// warmth regen (Survival.jsx) and the detection balloon (Yeti.jsx).
+function CampfireCue() {
+  const near = useCampfireNear()
+  return near ? <div className="campfire">warming &middot; exposed</div> : null
 }
 
 // 7.5: a soft arrow that orbits the crosshair, pointing the rough way back to
@@ -252,6 +277,7 @@ export default function Hud({ locked, isTouch }) {
   const startNightfall = useGame((s) => s.startNightfall)
   const reviveUsed = useGame((s) => s.reviveUsed)
   const revivePlayer = useGame((s) => s.revivePlayer)
+  const campfireNear = useCampfireNear()
 
   // The first-time player's manual, opened from the start screen or the pause
   // card. Both of those only show while the game is idle or paused, so nothing
@@ -319,6 +345,11 @@ export default function Hud({ locked, isTouch }) {
           — the cosy counterpart to the cold vignette. */}
       {engaged && playing && blanketActive && <div className="blanketglow" />}
 
+      {/* 7.14: a warmer, slightly redder inset while standing in a campfire's
+          glow — distinct from the blanket's cosy tone since this one comes
+          with a catch. */}
+      {engaged && playing && campfireNear && <div className="campfireglow" />}
+
       {engaged && playing && <div className="crosshair" />}
 
       {engaged && playing && <ChaseState />}
@@ -326,6 +357,8 @@ export default function Hud({ locked, isTouch }) {
       {engaged && playing && <AdrenalineCue />}
 
       {engaged && playing && <ShelterCue />}
+
+      {engaged && playing && <CampfireCue />}
 
       {engaged && playing && <DropPip />}
 

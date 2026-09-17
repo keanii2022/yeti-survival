@@ -6,6 +6,7 @@ import Player from './Player.jsx'
 import Yeti from './Yeti.jsx'
 import Footprints from './Footprints.jsx'
 import Sheds from './Sheds.jsx'
+import Campfire from './Campfire.jsx'
 import Items from './Items.jsx'
 import GreenEmber from './GreenEmber.jsx'
 import Consumables from './Consumables.jsx'
@@ -149,6 +150,7 @@ export default function App() {
         <Yeti />
         <Footprints />
         <Sheds />
+        <Campfire />
         <Items />
         <GreenEmber />
         <Consumables />

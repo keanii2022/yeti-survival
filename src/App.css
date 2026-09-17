@@ -231,6 +231,22 @@
   }
 }
 
+/* Campfire readout (7.14) — shown while standing in a fire's glow. Warm amber,
+   same steady weight as the shelter cue, sat one step above it in the stack. */
+.campfire {
+  position: absolute;
+  left: 50%;
+  bottom: 38%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  color: #ffa552;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}
+
 /* Consumable chips (6.13) — bottom-left stack, clear of the centred pursuit /
    shelter cues and the corner gauges. A carried item shows its key prompt; an
    active one pulses. Snack amber, blanket blue, to match the pickups. */
@@ -685,6 +701,16 @@
   to {
     opacity: 1;
   }
+}
+
+/* Campfire glow (7.14) — a warmer, redder inset than the blanket's, and a
+   touch stronger: the regen is bigger, and this one comes with a catch. */
+.campfireglow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 140px 40px rgba(255, 138, 61, 0.18);
+  animation: blanketglow-in 0.5s ease-out;
 }
 
 .gauge-label {
@@ -1223,6 +1249,12 @@
 
   .shelter {
     bottom: 6.4rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+  }
+
+  .campfire {
+    bottom: 7.9rem;
     font-size: 0.68rem;
     letter-spacing: 0.2em;
   }

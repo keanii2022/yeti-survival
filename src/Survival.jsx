@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { shelter } from './shelter.js'
+import { campfireGlow, CAMPFIRE_REGEN_PER_SECOND } from './campfire.js'
 import { inControl } from './touch.js'
 import { difficultyMods } from './difficulty.js'
 
@@ -43,6 +44,11 @@ export default function Survival() {
       difficultyMods(useGame.getState().difficulty).warmthDrain
     if (shelter.inside) rate *= SHED_DRAIN_FACTOR
     if (useGame.getState().blanketActive) rate *= BLANKET_DRAIN_FACTOR
+    // 7.14: campfire glow outweighs whatever drain is left and flips the rate
+    // negative, so tickWarmth tops the bar back up instead of bleeding it —
+    // the direct trade for standing somewhere the yeti can spot you from
+    // further off (Yeti.jsx reads the same campfireGlow.near flag).
+    if (campfireGlow.near) rate -= CAMPFIRE_REGEN_PER_SECOND
     useGame.getState().tickWarmth(rate * delta)
   })
 
