@@ -51,7 +51,7 @@ input hook, and the HUD's state-driven rendering.
 - [x] Embers, warmth meter, scoring, game-over screen
 - [x] Atmosphere — snowfall, ambient audio, proximity stingers
 - [x] Step 6 — polish / stretch (6.1–6.14)
-- [ ] Step 7 — chase-fair, inventory, controls, world (see below)
+- [x] Step 7 — chase-fair, inventory, controls, world (see below)
 - [ ] Step 8 — AI escalation & replay (see below)
 - [x] Step 9 — Mobile / touch (9.1–9.6) — pulled forward ahead of Step 7's remainder (see below)
 
@@ -305,7 +305,7 @@ fix that; the rest builds the hide-and-seek toolkit on top.
   (7.3). All three already fell out of 6.9 (door-width collision), 6.12
   (chase-into-shed → door-wait → cooldown state), and 7.3 (hard-ground hook) —
   verified against the code and by playtest, no new code needed.
-- [ ] **7.16 Weather events** — discrete events, not a system. Wind gust:
+- [x] **7.16 Weather events** — discrete events, not a system. Wind gust:
   directional, accelerates warmth drain when you move into it, readable in the
   snow particles. Sleet: cuts vision for a window.
 
