@@ -297,7 +297,7 @@ fix that; the rest builds the hide-and-seek toolkit on top.
     crack again the moment you thaw out — walking across is the actual safe
     shortcut. `surfaceAt` (7.3) reads pond ice as hard ground, same as a shed
     floor, so no footprints are left crossing one.
-- [ ] **7.14 Campfire** — stand in the radius for warmth regen, but **while lit
+- [x] **7.14 Campfire** — stand in the radius for warmth regen, but **while lit
   your detection range balloons**. A direct risk / reward on the core stat.
 - [ ] **7.15 Shed extension** — entering a shed **unseen** is still safe (6.12).
   Entering **while chased**: the yeti waits outside a few seconds, then loses
