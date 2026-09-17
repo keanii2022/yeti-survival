@@ -128,8 +128,8 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
 - Git identity must link every commit to the `keanii2022` GitHub account.
   Use name `Keani Antezana` and email
   `99574780+keanii2022@users.noreply.github.com` (GitHub's noreply address for
-  that account). Do NOT use `[redacted-personal-email]` — it's verified on a
-  different, throwaway account (`[redacted-account]`) and mis-attributes commits.
+  that account). Do NOT use any other personal email — it's verified on a
+  different GitHub account and mis-attributes commits.
   Never use the machine's auto-generated `<user>@<host>.local` address.
   Check with `git config user.email` before the first push on any machine.
 - Remote is GitHub `origin`: https://github.com/keanii2022/yeti-survival
