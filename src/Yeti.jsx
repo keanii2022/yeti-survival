@@ -27,6 +27,7 @@ import {
   nearestReadyShed,
 } from './sheds.js'
 import { shelter } from './shelter.js'
+import { YetiModel } from './YetiModel.jsx'
 
 // Step 3: one yeti with basic chase-detection AI.
 // Step 6.2: spawn point and idle wander are randomized per run.
@@ -180,66 +181,6 @@ function randomSpawn() {
   return [p.x, 0, p.z]
 }
 
-// A shaggy white brute, built from primitives to match the tree style. Stands
-// ~2.6m — taller than the player's 1.7m eye height, so it reads as looming.
-// Modelled facing +Z so `rotation.y = atan2(dx, dz)` aims it at a target.
-function YetiModel({ eyeRef }) {
-  return (
-    <group>
-      {/* legs */}
-      <mesh position={[-0.45, 0.7, 0]} castShadow>
-        <cylinderGeometry args={[0.32, 0.28, 1.4, 6]} />
-        <meshStandardMaterial color="#e9eef2" roughness={1} />
-      </mesh>
-      <mesh position={[0.45, 0.7, 0]} castShadow>
-        <cylinderGeometry args={[0.32, 0.28, 1.4, 6]} />
-        <meshStandardMaterial color="#e9eef2" roughness={1} />
-      </mesh>
-
-      {/* torso */}
-      <mesh position={[0, 1.85, 0]} castShadow>
-        <capsuleGeometry args={[0.85, 1.1, 4, 10]} />
-        <meshStandardMaterial color="#f2f6fa" roughness={1} />
-      </mesh>
-
-      {/* arms, hanging slightly forward */}
-      <mesh position={[-1.0, 1.8, 0.15]} rotation={[0.3, 0, 0.15]} castShadow>
-        <cylinderGeometry args={[0.24, 0.2, 1.5, 6]} />
-        <meshStandardMaterial color="#e4eaef" roughness={1} />
-      </mesh>
-      <mesh position={[1.0, 1.8, 0.15]} rotation={[0.3, 0, -0.15]} castShadow>
-        <cylinderGeometry args={[0.24, 0.2, 1.5, 6]} />
-        <meshStandardMaterial color="#e4eaef" roughness={1} />
-      </mesh>
-
-      {/* head */}
-      <mesh position={[0, 2.75, 0.05]} castShadow>
-        <dodecahedronGeometry args={[0.55, 0]} />
-        <meshStandardMaterial color="#f6f9fc" roughness={1} flatShading />
-      </mesh>
-
-      {/* eyes — emissive so they can glow brighter the instant it spots you */}
-      <mesh position={[-0.2, 2.82, 0.5]}>
-        <sphereGeometry args={[0.09, 8, 8]} />
-        <meshStandardMaterial
-          ref={(m) => (eyeRef.current[0] = m)}
-          color="#2a0000"
-          emissive="#ff2a1a"
-          emissiveIntensity={0.15}
-        />
-      </mesh>
-      <mesh position={[0.2, 2.82, 0.5]}>
-        <sphereGeometry args={[0.09, 8, 8]} />
-        <meshStandardMaterial
-          ref={(m) => (eyeRef.current[1] = m)}
-          color="#2a0000"
-          emissive="#ff2a1a"
-          emissiveIntensity={0.15}
-        />
-      </mesh>
-    </group>
-  )
-}
 
 export default function Yeti() {
   const group = useRef()

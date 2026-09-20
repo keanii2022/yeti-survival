@@ -4,6 +4,7 @@ import { useGame } from './store.js'
 import { threat } from './threat.js'
 import { shelter } from './shelter.js'
 import { roar } from './roar.js'
+import { guardian } from './guardian.js'
 import { getAtmosphere } from './sound.js'
 import { effectiveLevel } from './levels.js'
 
@@ -216,6 +217,12 @@ export default function Sound() {
       shedTellPhase.current = 0
     }
 
+    // 8.3: the Guardian is a second, simpler threat — fold its distance into
+    // the same ambient/chase readouts rather than giving it its own bed, so
+    // getting cornered near the ember still feels like part of one scene.
+    const guardChasing = guardian.present && guardian.mode === 'chase'
+    const nearestDist = guardian.present ? Math.min(threat.distance, guardian.distance) : threat.distance
+
     // --- threat level → heartbeat / drone / vignette ---
     // During a chase the level tracks how close he actually is (0.7 at the edge
     // of the chase → 1 breathing down your neck) so the heartbeat and vignette
@@ -223,7 +230,14 @@ export default function Sound() {
     // you but is still hunting your trail — the bed stays up a notch while the
     // chase strings pull out, so the drop is audible the moment he breaks off.
     let threatLevel = 0
-    if (threat.mode === 'chase') threatLevel = clamp(1 - threat.distance / 30, 0.7, 1)
+    if (threat.mode === 'chase' || guardChasing) {
+      const d = threat.mode === 'chase' && guardChasing
+        ? Math.min(threat.distance, guardian.distance)
+        : guardChasing
+          ? guardian.distance
+          : threat.distance
+      threatLevel = clamp(1 - d / 30, 0.7, 1)
+    }
     // 'decoy' (6.14) / 'duck' / 'poop' (7.8): he's been pulled off you but is
     // still up and active near your throw — hold the bed at the same notch as
     // a 'search'.
@@ -234,21 +248,25 @@ export default function Sound() {
       threat.mode === 'poop'
     )
       threatLevel = 0.5
-    else if (threat.distance < NEAR) threatLevel = clamp((NEAR - threat.distance) / 24, 0, 0.8)
+    else if (nearestDist < NEAR) threatLevel = clamp((NEAR - nearestDist) / 24, 0, 0.8)
 
     // 6.6 darkness drive: climbs with the effective level (nightfall starts it
     // high), snaps to 0 for the interlude so the bed strips back to the light
     // layer.
     const drive = interlude ? 0 : clamp((effectiveLevel(level, nightfall) - 1) / 6, 0, 1)
 
-    eng.update(delta, threatLevel, threat.mode, drive)
+    // A Guardian chase reads as "being hunted" the same as the Hunter's, even
+    // if threat.mode itself is still idle — so the bed cross-fades to the
+    // chase strings either way.
+    const audioMode = threat.mode === 'chase' || guardChasing ? 'chase' : threat.mode
+    eng.update(delta, threatLevel, audioMode, drive)
     document.documentElement.style.setProperty('--threat', threatLevel.toFixed(3))
 
     // Separate "he's lunging" readout: only mid-chase and only in the last few
     // metres. The HUD frame pulses on this, distinct from the steady vignette.
     const danger =
-      threat.mode === 'chase'
-        ? clamp((LUNGE_RANGE - threat.distance) / LUNGE_RANGE, 0, 1)
+      threat.mode === 'chase' || guardChasing
+        ? clamp((LUNGE_RANGE - nearestDist) / LUNGE_RANGE, 0, 1)
         : 0
     document.documentElement.style.setProperty('--danger', danger.toFixed(3))
 

@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useGame } from './store.js'
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
+import { guardian } from './guardian.js'
 import { shelter } from './shelter.js'
 import { ARENA_HALF } from './Player.jsx'
 import { playerBody } from './playerBody.js'
@@ -22,6 +23,10 @@ import { playerBody } from './playerBody.js'
 // A hard leash blinks it back if it ever lags too far. The interlude despawns
 // it — no camping it through the breather — and it re-appears next to him a
 // little way into the next level.
+//
+// Step 8.3: once the Guardian exists (curveLevel 5+), it — not the Hunter —
+// is what the ember trails. That's the whole reframe: raid the Guardian's
+// turf while the Hunter is still on you, rather than just skirting one yeti.
 //
 // Beacon: the arena is 120u across and the fog shuts at 70u, so it carries a
 // soft fog-immune shaft of light that reads through the murk and brightens a
@@ -87,17 +92,22 @@ export default function GreenEmber() {
     }
   }, [])
 
-  // Place the ember at the yeti + a fresh offset, nudged off the player and the
-  // arena wall. Seeds pos.current and resets the fade-in.
+  // 8.3: the point the ember trails — the Guardian's post once one exists,
+  // otherwise the Hunter, exactly as before.
+  const anchorX = () => (guardian.present ? guardian.x : threat.yetiX)
+  const anchorZ = () => (guardian.present ? guardian.z : threat.yetiZ)
+
+  // Place the ember at the anchor + a fresh offset, nudged off the player and
+  // the arena wall. Seeds pos.current and resets the fade-in.
   const placeNearYeti = () => {
     const edge = ARENA_HALF - 3
     rollOffset(offset.current)
-    let x = threat.yetiX + offset.current.x
-    let z = threat.yetiZ + offset.current.y
+    let x = anchorX() + offset.current.x
+    let z = anchorZ() + offset.current.y
     if (Math.hypot(x - playerBody.x, z - playerBody.z) < PLAYER_CLEAR) {
       offset.current.negate()
-      x = threat.yetiX + offset.current.x
-      z = threat.yetiZ + offset.current.y
+      x = anchorX() + offset.current.x
+      z = anchorZ() + offset.current.y
     }
     const cx = THREE.MathUtils.clamp(x, -edge, edge)
     const cz = THREE.MathUtils.clamp(z, -edge, edge)
@@ -145,7 +155,7 @@ export default function GreenEmber() {
       greenEmber.boost = esc.current.timer > 0
       greenEmber.present = false
       respawn.current -= delta
-      if (respawn.current <= 0 && Number.isFinite(threat.yetiX)) {
+      if (respawn.current <= 0 && Number.isFinite(anchorX())) {
         setSpawnAt(placeNearYeti())
         phase.current = 'active'
         setActive(true)
@@ -171,8 +181,8 @@ export default function GreenEmber() {
       offsetHold.current = OFFSET_HOLD_MIN + Math.random() * OFFSET_HOLD_VAR
     }
     const edge = ARENA_HALF - 3
-    const tx = THREE.MathUtils.clamp(threat.yetiX + offset.current.x, -edge, edge)
-    const tz = THREE.MathUtils.clamp(threat.yetiZ + offset.current.y, -edge, edge)
+    const tx = THREE.MathUtils.clamp(anchorX() + offset.current.x, -edge, edge)
+    const tz = THREE.MathUtils.clamp(anchorZ() + offset.current.y, -edge, edge)
     const gx = tx - pos.current.x
     const gz = tz - pos.current.z
     const gap = Math.hypot(gx, gz)

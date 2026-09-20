@@ -5,6 +5,7 @@ import Snow from './Snow.jsx'
 import Player from './Player.jsx'
 import PlayerAvatar from './PlayerAvatar.jsx'
 import Yeti from './Yeti.jsx'
+import Guardian from './Guardian.jsx'
 import Footprints from './Footprints.jsx'
 import Sheds from './Sheds.jsx'
 import Campfire from './Campfire.jsx'
@@ -155,6 +156,7 @@ export default function App() {
         <Player />
         <PlayerAvatar />
         <Yeti />
+        <Guardian />
         <Footprints />
         <Sheds />
         <Campfire />
