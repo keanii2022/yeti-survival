@@ -4,6 +4,7 @@ import { useGame, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
 import { levelTarget } from './levels.js'
 import { ARENA_HALF } from './Player.jsx'
 import { playerBody, playerFacing } from './playerBody.js'
+import { emberField } from './embers.js'
 
 // Embers to collect. Walk over one to grab it — score, plus a small warmth
 // top-up, so straying from safety toward the yeti is the price of staying warm.
@@ -84,9 +85,23 @@ function EmberWave({ level }) {
     const t = performance.now() * 0.002
 
     // How many embers are still out there — the last one gets an extra beacon.
+    // 8.1: also the centroid of what's left, published for the yeti's
+    // distracted-feeding roll (feeding.js) once the wave thins to its final
+    // cluster.
     let remaining = 0
+    let clusterX = 0
+    let clusterZ = 0
     for (let i = 0; i < spots.length; i++) {
-      if (!collected[i] && !grabbed.current.has(i)) remaining++
+      if (collected[i] || grabbed.current.has(i)) continue
+      remaining++
+      clusterX += spots[i][0]
+      clusterZ += spots[i][2]
+    }
+    emberField.level = level
+    emberField.remaining = remaining
+    if (remaining > 0) {
+      emberField.clusterX = clusterX / remaining
+      emberField.clusterZ = clusterZ / remaining
     }
 
     let justGrabbed = -1

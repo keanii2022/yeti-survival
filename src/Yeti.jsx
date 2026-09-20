@@ -7,6 +7,8 @@ import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 import { playerBody } from './playerBody.js'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
+import { createFeed, beginFeed, stepFeed, rollFeed } from './feeding.js'
+import { emberField } from './embers.js'
 import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
 import { duck } from './duck.js'
@@ -38,6 +40,14 @@ import { shelter } from './shelter.js'
 // wall (resolveFlareCollision, flare.js): whatever he's doing, he simply can't
 // step inside its radius while it's burning, so a chase or a search grinds
 // along the edge instead of crossing it.
+//
+// Step 8.1: 'feed' is an idle-only detour, not a divert like decoy/duck/poop —
+// once a level's ember wave thins to its last few (embers.js), there's a
+// one-shot per-level chance (feeding.js) he ambles over to the cluster and
+// stops, fully blind, for a few seconds. No detection check runs at all while
+// he's feeding, same as 'poop' — the last embers of a level are genuinely
+// safe to grab right next to him, as long as you don't walk into
+// CATCH_RADIUS.
 //
 // Each run the yeti spawns somewhere random in the arena, always far enough
 // from the player's start that no run begins already in a chase. It idles by
@@ -240,7 +250,7 @@ export default function Yeti() {
 
   // Per-frame state kept off React so the chase loop never triggers a re-render.
   const ai = useRef({
-    mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed' | 'decoy' | 'duck' | 'poop'
+    mode: 'idle', // 'idle' | 'chase' | 'search' | 'shed' | 'decoy' | 'duck' | 'poop' | 'feed'
     heading: Math.atan2(-spawn[0], -spawn[2]), // movement yaw; starts facing arena centre
     wander: new THREE.Vector3(spawn[0], 0, spawn[2]), // current idle target
     wanderTimer: 0,
@@ -258,6 +268,8 @@ export default function Yeti() {
     decoyId: 0, // the decoy.throwId he's already diverted for (6.14)
     duckId: 0, // the duck.throwId he's already diverted for (7.8)
     poopId: 0, // the poop.throwId he's already diverted for (7.8)
+    feed: createFeed(), // 8.1: travel-then-stationary state for distracted feeding
+    fedLevel: 0, // the level rollFeed has already resolved (feed or skip)
   })
   const eyeRef = useRef([null, null])
 
@@ -287,6 +299,7 @@ export default function Yeti() {
     a.wanderTimer = 0
     a.shedTarget = -1
     a.probe.active = false
+    a.feed.active = false
     pickWander(a.wander, PLAYER_SPAWN.x, PLAYER_SPAWN.y, 999, true)
     a.lastKnown.copy(a.wander)
     a.heading = Math.atan2(-a.wander.x, -a.wander.z)
@@ -382,6 +395,7 @@ export default function Yeti() {
       if (a.mode !== 'idle') {
         a.mode = 'idle'
         a.probe.active = false
+        a.feed.active = false
         a.wanderTimer = 0
       }
       a.spotTimer = 0
@@ -472,27 +486,46 @@ export default function Yeti() {
         }
       } else {
         a.spotTimer = 0
-        // Nothing doing — count down to the next shed patrol. When it fires,
-        // stalk over to the nearest ready shed that's within reach.
-        a.shedCheckTimer -= delta
-        if (a.shedCheckTimer <= 0) {
-          const idx = nearestReadyShed(
-            sheds,
-            g.position.x,
-            g.position.z,
-            a.shedCooldowns,
-          )
-          if (idx >= 0) {
-            const dx = sheds[idx].x - g.position.x
-            const dz = sheds[idx].z - g.position.z
-            if (dx * dx + dz * dz < 42 * 42) {
-              shedApproachPoint(sheds[idx], door)
-              beginProbe(a.probe, door.x, door.z, P.shedLookTime)
-              a.shedTarget = idx
-              a.mode = 'shed'
+
+        // 8.1: once per level, as soon as the ember wave has thinned to its
+        // final cluster, roll whether he breaks off to go feed on it. Checked
+        // before the shed patrol countdown so a fresh level can't fire both
+        // off the same idle tick.
+        if (a.fedLevel !== level) {
+          const roll = rollFeed(level, emberField)
+          if (roll !== 'pending') {
+            a.fedLevel = level
+            if (roll === 'feed') {
+              beginFeed(a.feed, emberField.clusterX, emberField.clusterZ)
+              a.mode = 'feed'
+              a.shedTarget = -1
             }
           }
-          a.shedCheckTimer = P.shedCheckInterval
+        }
+
+        // Nothing doing — count down to the next shed patrol. When it fires,
+        // stalk over to the nearest ready shed that's within reach.
+        if (a.mode === 'idle') {
+          a.shedCheckTimer -= delta
+          if (a.shedCheckTimer <= 0) {
+            const idx = nearestReadyShed(
+              sheds,
+              g.position.x,
+              g.position.z,
+              a.shedCooldowns,
+            )
+            if (idx >= 0) {
+              const dx = sheds[idx].x - g.position.x
+              const dz = sheds[idx].z - g.position.z
+              if (dx * dx + dz * dz < 42 * 42) {
+                shedApproachPoint(sheds[idx], door)
+                beginProbe(a.probe, door.x, door.z, P.shedLookTime)
+                a.shedTarget = idx
+                a.mode = 'shed'
+              }
+            }
+            a.shedCheckTimer = P.shedCheckInterval
+          }
         }
       }
     }
@@ -569,6 +602,21 @@ export default function Yeti() {
           moving = true
         }
       }
+    } else if (a.mode === 'feed') {
+      // 8.1: amble to the cluster, then stand still — no look-around wander
+      // like the probe states above, he's just stopped and distracted.
+      const r = stepFeed(a.feed, g.position, delta)
+      if (r.done) {
+        a.mode = 'idle'
+        a.wanderTimer = 0
+      } else if (r.moving) {
+        dir.set(r.aimX - g.position.x, 0, r.aimZ - g.position.z)
+        if (dir.lengthSq() > 1e-6) {
+          dir.normalize()
+          speed = r.speed
+          moving = true
+        }
+      }
     } else {
       // Idle wander: amble toward a waypoint, refreshing it on arrival or every
       // several seconds. The leash tightens with the level (pickWander /
@@ -634,7 +682,11 @@ export default function Yeti() {
             a.mode === 'duck' ||
             a.mode === 'poop'
           ? 0.7
-          : 0.15
+          // 8.1: eyes go duller than idle while feeding — a visible tell that
+          // he's genuinely not paying attention.
+          : a.mode === 'feed'
+            ? 0.05
+            : 0.15
     for (const m of eyeRef.current) {
       if (m) m.emissiveIntensity += (glow - m.emissiveIntensity) * Math.min(delta * 6, 1)
     }
