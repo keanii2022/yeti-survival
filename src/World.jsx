@@ -10,6 +10,7 @@ import { useGame } from './store.js'
 import { qualityFor } from './quality.js'
 import { daylight, resetDaylight } from './daylight.js'
 import { weather, SLEET_VISION_MULT } from './weather.js'
+import { dailyRandom } from './dailySeed.js'
 
 // Small deterministic PRNG so the tree scatter is the same on every reload.
 function mulberry32(seed) {
@@ -279,7 +280,7 @@ function sunDir(u, out) {
 // drifts further into the dark. Kept out of render so the purity lint is happy
 // (see Snow.jsx / Yeti.jsx for the same dance).
 function rollDayStart(nightfall) {
-  const r = Math.random()
+  const r = dailyRandom()
   if (nightfall) return 0.8 + (1 - r * r) * 0.15
   return 0.3 + (1 - r * r) * 0.55
 }

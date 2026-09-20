@@ -11,6 +11,7 @@ import { inControl } from './touch.js'
 import { hasFreeSlot } from './inventory.js'
 import { ARENA_HALF } from './arena.js'
 import { playerBody, playerFacing } from './playerBody.js'
+import { dailyRandom } from './dailySeed.js'
 
 // Step 6.14: the decoy — a throwable that hard-resets a chase. Two halves:
 //
@@ -64,8 +65,8 @@ const VIOLET = '#b98dff'
 // A point SPAWN_OFFSET_* out from (ox, oz), nudged clear of trunks and shed
 // walls and pulled inside the mountain ring.
 function rollSpotAround(ox, oz, trees, sheds, hit) {
-  const ang = Math.random() * Math.PI * 2
-  const rad = SPAWN_OFFSET_MIN + Math.random() * (SPAWN_OFFSET_MAX - SPAWN_OFFSET_MIN)
+  const ang = dailyRandom() * Math.PI * 2
+  const rad = SPAWN_OFFSET_MIN + dailyRandom() * (SPAWN_OFFSET_MAX - SPAWN_OFFSET_MIN)
   const x = ox + Math.sin(ang) * rad
   const z = oz + Math.cos(ang) * rad
   resolveTreeCollision(trees, x, z, 0.6, hit)

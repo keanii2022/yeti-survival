@@ -1,3 +1,5 @@
+import { dailyRandom } from './dailySeed.js'
+
 // Step 7.16 — weather events: discrete set-pieces, not a running system. One
 // event at a time, picked and pointed at random, holding for a fixed window
 // with a short ramp in/out so it reads as a gust arriving and dying down
@@ -11,6 +13,10 @@
 //
 // Same off-React singleton shape as shelter.js / campfire.js: Snow.jsx (always
 // mounted while playing) ticks this once a frame; everyone else only reads.
+//
+// 8.4: the schedule and the gust heading are rolled off dailyRandom() rather
+// than Math.random(), so a run's weather timing is part of what a daily seed
+// makes comparable.
 
 export const GUST_INTERVAL_MIN = 22 // seconds of calm before a gust can roll
 export const GUST_INTERVAL_MAX = 40
@@ -39,7 +45,7 @@ let elapsed = 0
 let nextIn = rollInterval()
 
 function rollInterval() {
-  return GUST_INTERVAL_MIN + Math.random() * (GUST_INTERVAL_MAX - GUST_INTERVAL_MIN)
+  return GUST_INTERVAL_MIN + dailyRandom() * (GUST_INTERVAL_MAX - GUST_INTERVAL_MIN)
 }
 
 // Trapezoid: 0 at the very start/end of `duration`, 1 across the middle, with
@@ -89,10 +95,10 @@ export function tickWeather(delta) {
   }
   nextIn -= delta
   if (nextIn > 0) return
-  weather.type = Math.random() < 0.5 ? 'gust' : 'sleet'
+  weather.type = dailyRandom() < 0.5 ? 'gust' : 'sleet'
   elapsed = 0
   if (weather.type === 'gust') {
-    const ang = Math.random() * Math.PI * 2
+    const ang = dailyRandom() * Math.PI * 2
     weather.windX = Math.sin(ang)
     weather.windZ = Math.cos(ang)
   }

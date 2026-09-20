@@ -5,6 +5,7 @@ import { levelTarget } from './levels.js'
 import { ARENA_HALF } from './Player.jsx'
 import { playerBody, playerFacing } from './playerBody.js'
 import { emberField } from './embers.js'
+import { dailyRandom } from './dailySeed.js'
 
 // Embers to collect. Walk over one to grab it — score, plus a small warmth
 // top-up, so straying from safety toward the yeti is the price of staying warm.
@@ -39,15 +40,15 @@ function makeWave(level) {
 
   // Heading yaw uses the atan2(x, z) convention the yeti's movement code does.
   const towardCentre = Math.atan2(-cx, -cz)
-  const heading = towardCentre + (Math.random() - 0.5) * Math.PI
+  const heading = towardCentre + (dailyRandom() - 0.5) * Math.PI
 
   const edge = ARENA_HALF - 3
   const spots = []
   let guard = 0
   while (spots.length < n) {
     const strict = guard++ < 200
-    const ang = heading + (Math.random() - 0.5) * WAVE_ARC
-    const rad = SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN)
+    const ang = heading + (dailyRandom() - 0.5) * WAVE_ARC
+    const rad = SPAWN_MIN + dailyRandom() * (SPAWN_MAX - SPAWN_MIN)
     const x = cx + Math.sin(ang) * rad
     const z = cz + Math.cos(ang) * rad
     if (Math.abs(x) > edge || Math.abs(z) > edge) continue

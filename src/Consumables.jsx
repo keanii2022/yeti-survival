@@ -9,6 +9,7 @@ import { hasFreeSlot } from './inventory.js'
 import { ARENA_HALF } from './arena.js'
 import { isNight } from './daylight.js'
 import { playerBody } from './playerBody.js'
+import { dailyRandom } from './dailySeed.js'
 
 // Step 6.13: the two rare consumables — a snack and a blanket. Both scatter like
 // embers but far scarcer: up to two of each loose in the arena at a time (on
@@ -157,8 +158,8 @@ function Pickup({ kind, slot }) {
   // nudged clear of any tree trunk or shed wall so it never lands stuck in
   // geometry.
   const rollSpot = () => {
-    const ang = Math.random() * Math.PI * 2
-    const rad = SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN)
+    const ang = dailyRandom() * Math.PI * 2
+    const rad = SPAWN_MIN + dailyRandom() * (SPAWN_MAX - SPAWN_MIN)
     const x = playerBody.x + Math.sin(ang) * rad
     const z = playerBody.z + Math.cos(ang) * rad
     resolveTreeCollision(trees, x, z, 0.6, hit)

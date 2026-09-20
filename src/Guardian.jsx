@@ -13,6 +13,7 @@ import { generateSheds, resolveShedCollision } from './sheds.js'
 import { generatePonds, resolvePondCollision } from './pond.js'
 import { qualityFor } from './quality.js'
 import { shelter } from './shelter.js'
+import { dailyRandom } from './dailySeed.js'
 
 // Step 8.3: the second yeti. Always mounted (so a level-up doesn't have to
 // remount the scene), but a no-op — parked far below the world, publishing
@@ -53,8 +54,8 @@ const PARKED_Y = -999 // out of the world entirely before activation
 
 function randomPointNear(px, pz, minDist, maxDist, out) {
   const limit = ARENA_HALF - EDGE_MARGIN
-  const ang = Math.random() * Math.PI * 2
-  const r = minDist + Math.random() * (maxDist - minDist)
+  const ang = dailyRandom() * Math.PI * 2
+  const r = minDist + dailyRandom() * (maxDist - minDist)
   out.set(
     THREE.MathUtils.clamp(px + Math.sin(ang) * r, -limit, limit),
     0,
@@ -224,10 +225,10 @@ export default function Guardian() {
       gi.wanderTimer -= delta
       toTarget.set(gi.wander.x - grp.position.x, 0, gi.wander.z - grp.position.z)
       if (gi.wanderTimer <= 0 || toTarget.length() < 0.6) {
-        const ang = Math.random() * Math.PI * 2
-        const r = P.patrolRadius * Math.sqrt(Math.random())
+        const ang = dailyRandom() * Math.PI * 2
+        const r = P.patrolRadius * Math.sqrt(dailyRandom())
         gi.wander.set(gi.post.x + Math.sin(ang) * r, 0, gi.post.z + Math.cos(ang) * r)
-        gi.wanderTimer = 4 + Math.random() * 3
+        gi.wanderTimer = 4 + dailyRandom() * 3
       } else {
         dir.copy(toTarget).normalize()
         speed = PATROL_SPEED

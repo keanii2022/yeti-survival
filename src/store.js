@@ -3,6 +3,7 @@ import { LEVEL_COUNT, levelTarget } from './levels.js'
 import { nextFilledSlot } from './inventory.js'
 import { loadDifficulty, saveDifficulty } from './difficulty.js'
 import { loadCameraMode, saveCameraMode } from './cameraMode.js'
+import { reseedDaily } from './dailySeed.js'
 
 // Game state. A live run tracks warmth, stamina, score, and — since 6.6 — a
 // level. The run is a climb: clear each level's ember target, take a calm
@@ -397,6 +398,8 @@ export const useGame = create((set) => ({
   startNightfall: () =>
     set((s) => {
       if (s.status !== 'won') return {}
+      // 8.4: a fresh sub-run replays today's seed from the top.
+      reseedDaily()
       return {
         status: 'playing',
         runId: s.runId + 1,
@@ -529,32 +532,38 @@ export const useGame = create((set) => ({
     }),
 
   reset: () =>
-    set((s) => ({
-      status: 'playing',
-      runId: s.runId + 1,
-      score: 0,
-      itemsCollected: 0,
-      itemsTotal: levelTarget(1),
-      embersTotal: 0,
-      greenCount: 0,
-      escapes: 0,
-      level: 1,
-      interlude: false,
-      nightfall: false,
-      elapsed: 0,
-      warmth: START_WARMTH,
-      stamina: START_STAMINA,
-      sprintLocked: false,
-      jumpCharge: 100,
-      slots: emptySlots(),
-      selectedSlot: 0,
-      snackActive: false,
-      waterActive: false,
-      blanketActive: false,
-      dropReq: 0,
-      pendingDrop: null,
-      pendingDropPlaced: false,
-      reviveUsed: false,
-      graceUntil: 0,
-    })),
+    set((s) => {
+      // 8.4: a fresh run replays today's seed from the top, so a second run
+      // today starts from the same sequence of draws instead of wherever the
+      // previous run's generator happened to land.
+      reseedDaily()
+      return {
+        status: 'playing',
+        runId: s.runId + 1,
+        score: 0,
+        itemsCollected: 0,
+        itemsTotal: levelTarget(1),
+        embersTotal: 0,
+        greenCount: 0,
+        escapes: 0,
+        level: 1,
+        interlude: false,
+        nightfall: false,
+        elapsed: 0,
+        warmth: START_WARMTH,
+        stamina: START_STAMINA,
+        sprintLocked: false,
+        jumpCharge: 100,
+        slots: emptySlots(),
+        selectedSlot: 0,
+        snackActive: false,
+        waterActive: false,
+        blanketActive: false,
+        dropReq: 0,
+        pendingDrop: null,
+        pendingDropPlaced: false,
+        reviveUsed: false,
+        graceUntil: 0,
+      }
+    }),
 }))

@@ -8,6 +8,7 @@ import { guardian } from './guardian.js'
 import { shelter } from './shelter.js'
 import { ARENA_HALF } from './Player.jsx'
 import { playerBody } from './playerBody.js'
+import { dailyRandom } from './dailySeed.js'
 
 // Step 6.7: the green ember. Where the level waves (Items.jsx) are the safe-ish
 // forage, this is the greed play — one at a time, out by the yeti, worth a big
@@ -57,8 +58,8 @@ const PLAYER_CLEAR = 14 // don't drop it right on the player; flip to the far si
 
 // Roll a fresh trailing offset (a THREE.Vector2 in x/z).
 function rollOffset(out) {
-  const ang = Math.random() * Math.PI * 2
-  const r = OFFSET_MIN + Math.random() * (OFFSET_MAX - OFFSET_MIN)
+  const ang = dailyRandom() * Math.PI * 2
+  const r = OFFSET_MIN + dailyRandom() * (OFFSET_MAX - OFFSET_MIN)
   out.set(Math.sin(ang) * r, Math.cos(ang) * r)
 }
 
@@ -112,7 +113,7 @@ export default function GreenEmber() {
     const cx = THREE.MathUtils.clamp(x, -edge, edge)
     const cz = THREE.MathUtils.clamp(z, -edge, edge)
     pos.current.set(cx, HOVER_HEIGHT, cz)
-    offsetHold.current = OFFSET_HOLD_MIN + Math.random() * OFFSET_HOLD_VAR
+    offsetHold.current = OFFSET_HOLD_MIN + dailyRandom() * OFFSET_HOLD_VAR
     age.current = 0
     return [cx, cz]
   }
@@ -178,7 +179,7 @@ export default function GreenEmber() {
     offsetHold.current -= delta
     if (offsetHold.current <= 0) {
       rollOffset(offset.current)
-      offsetHold.current = OFFSET_HOLD_MIN + Math.random() * OFFSET_HOLD_VAR
+      offsetHold.current = OFFSET_HOLD_MIN + dailyRandom() * OFFSET_HOLD_VAR
     }
     const edge = ARENA_HALF - 3
     const tx = THREE.MathUtils.clamp(anchorX() + offset.current.x, -edge, edge)

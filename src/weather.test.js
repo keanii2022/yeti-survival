@@ -11,10 +11,10 @@ import {
 } from './weather.js'
 
 // weather.js is the 7.16 layer: discrete, randomly-scheduled gust/sleet
-// events with a ramped envelope. The schedule itself rides on Math.random
-// (same untested-by-design shape as decoy.js/poop.js), so these tests pin the
-// deterministic pieces: the envelope shape via _forceEvent, and the pure
-// intoWindFactor calc.
+// events with a ramped envelope. The schedule itself rides on dailyRandom()
+// (8.4) (same untested-by-design shape as decoy.js/poop.js), so these tests
+// pin the deterministic pieces: the envelope shape via _forceEvent, and the
+// pure intoWindFactor calc.
 
 describe('resetWeather', () => {
   it('clears to no active event', () => {

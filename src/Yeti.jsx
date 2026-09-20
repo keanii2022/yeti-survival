@@ -10,6 +10,7 @@ import { createProbe, beginProbe, stepProbe } from './investigate.js'
 import { createFeed, beginFeed, stepFeed, rollFeed } from './feeding.js'
 import { emberField } from './embers.js'
 import { roar, sightlineBlocked, ROAR_STUN_SECONDS, ROAR_SHAKE_SECONDS } from './roar.js'
+import { dailyRandom } from './dailySeed.js'
 import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
 import { duck } from './duck.js'
@@ -133,12 +134,14 @@ const SPAWN_MIN_DIST = DETECT_RADIUS + 5
 const SPAWN_MAX_DIST = DETECT_RADIUS + 16
 
 // A point somewhere inside the arena, at least EDGE_MARGIN off every wall.
+// 8.4: rolled off dailyRandom() so the spawn/wander sequence is part of what
+// a daily seed makes comparable.
 function randomArenaPoint(out) {
   const limit = ARENA_HALF - EDGE_MARGIN
   return out.set(
-    (Math.random() * 2 - 1) * limit,
+    (dailyRandom() * 2 - 1) * limit,
     0,
-    (Math.random() * 2 - 1) * limit,
+    (dailyRandom() * 2 - 1) * limit,
   )
 }
 
@@ -153,8 +156,8 @@ function pickWander(out, px, pz, radius, interlude) {
     if (interlude || radius >= 120) {
       randomArenaPoint(out)
     } else {
-      const ang = Math.random() * Math.PI * 2
-      const r = radius * Math.sqrt(Math.random())
+      const ang = dailyRandom() * Math.PI * 2
+      const r = radius * Math.sqrt(dailyRandom())
       out.set(
         THREE.MathUtils.clamp(px + Math.cos(ang) * r, -limit, limit),
         0,
@@ -462,7 +465,7 @@ export default function Yeti() {
         // before the shed patrol countdown so a fresh level can't fire both
         // off the same idle tick.
         if (a.fedLevel !== level) {
-          const roll = rollFeed(level, emberField)
+          const roll = rollFeed(level, emberField, dailyRandom)
           if (roll !== 'pending') {
             a.fedLevel = level
             if (roll === 'feed') {
@@ -506,7 +509,7 @@ export default function Yeti() {
       // A freshly begun chase rolls its own cooldown rather than inheriting
       // whatever was left ticking from an earlier one.
       a.roarPhase = 'idle'
-      a.roarCooldown = ROAR_COOLDOWN_MIN + Math.random() * ROAR_COOLDOWN_VAR
+      a.roarCooldown = ROAR_COOLDOWN_MIN + dailyRandom() * ROAR_COOLDOWN_VAR
     }
     a.wasChasing = chasingNow
     if (chasingNow) {
@@ -529,7 +532,7 @@ export default function Yeti() {
           }
           roar.telegraph = 0
           a.roarPhase = 'idle'
-          a.roarCooldown = ROAR_COOLDOWN_MIN + Math.random() * ROAR_COOLDOWN_VAR
+          a.roarCooldown = ROAR_COOLDOWN_MIN + dailyRandom() * ROAR_COOLDOWN_VAR
         }
       }
     } else if (a.roarPhase !== 'idle') {
@@ -595,7 +598,10 @@ export default function Yeti() {
       // door, or a thrown decoy / duck / poop), cast around it, then give up —
       // see investigate.js. Keep the pokes off the arena wall like the
       // waypoints.
-      const r = stepProbe(a.probe, g.position, delta, { bound: ARENA_HALF - EDGE_MARGIN })
+      const r = stepProbe(a.probe, g.position, delta, {
+        bound: ARENA_HALF - EDGE_MARGIN,
+        rng: dailyRandom,
+      })
       if (r.done) {
         if (a.mode === 'shed' && a.shedTarget >= 0) {
           // Checked it — don't come straight back to this one.
@@ -639,7 +645,7 @@ export default function Yeti() {
       toWander.set(a.wander.x - g.position.x, 0, a.wander.z - g.position.z)
       if (a.wanderTimer <= 0 || toWander.length() < 0.6) {
         pickWander(a.wander, playerBody.x, playerBody.z, P.wanderRadius, interlude)
-        a.wanderTimer = 5 + Math.random() * 4
+        a.wanderTimer = 5 + dailyRandom() * 4
       } else {
         dir.copy(toWander).normalize()
         speed = interlude ? INTERLUDE_WANDER_SPEED : WANDER_SPEED
