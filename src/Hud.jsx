@@ -367,6 +367,12 @@ export default function Hud({ locked, isTouch }) {
           Driven by `--danger`. */}
       <div className="lunge" />
 
+      {/* 8.2: a cold white pulse that builds through the roar windup — a
+          visual telegraph distinct from the red threat/lunge frames, so it
+          reads as "something's about to happen" rather than more of the same
+          danger. Driven by `--roar` (roar.telegraph, 0..1), set by Sound.jsx. */}
+      <div className="roar-warn" />
+
       {/* 7.2: icy white-out for the look-behind glance — irises in from the
           edges as the rear view frosts over, then melts once the camera flips
           back to front. Opacity is `--frost`, written every frame by Player.jsx. */}

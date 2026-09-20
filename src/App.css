@@ -63,6 +63,36 @@
   }
 }
 
+/* 8.2: roar telegraph — a cold white pulse building through the windup.
+   --roar (0..1) is set on <html> by Sound.jsx from roar.telegraph; it's back
+   to 0 the instant the roar resolves (landed or dodged), so this never lingers
+   into the slow/shake aftermath, which reads through .vignette/.lunge alone. */
+.roar-warn {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: calc(var(--roar, 0) * 0.55);
+  transition: opacity 0.08s linear;
+  box-shadow: inset 0 0 140px 40px rgba(214, 226, 240, 0.65);
+  animation: roar-pulse 0.35s ease-in-out infinite;
+}
+
+@keyframes roar-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 110px 28px rgba(200, 216, 236, 0.5);
+  }
+  50% {
+    box-shadow: inset 0 0 170px 56px rgba(224, 236, 248, 0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roar-warn {
+    animation: none;
+  }
+}
+
 /* Look-behind frost (7.2) — a pale icy vignette that irises in over the rear
    view during a glance, then melts off once the camera flips back to front.
    Opacity is the --frost var (0..1), set on <html> by Player.jsx each frame; no

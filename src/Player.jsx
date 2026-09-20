@@ -9,6 +9,7 @@ import { touchMove, resetTouchMove } from './joystick.js'
 import { greenEmber } from './greenEmber.js'
 import { mirror, resetMirror } from './mirror.js'
 import { inventory, resetInventory } from './inventory.js'
+import { roar, resetRoar, ROAR_SLOW_MULT, ROAR_SHAKE_SECONDS } from './roar.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateLogs, resolveLogCollision } from './logs.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
@@ -59,6 +60,11 @@ const JUMP_RECHARGE_SECONDS = 1.6
 // the same sine-arc shape as the jump hop.
 const ICE_IMMOBILIZE_SECONDS = 1
 const ICE_DIP_DEPTH = 0.5
+
+// 8.2: a landed roar shakes the camera — jitter magnitude decays linearly to 0
+// over ROAR_SHAKE_SECONDS (roar.js), applied as a small random offset on top
+// of wherever the frame already parked the camera.
+const ROAR_SHAKE_MAG = 0.18
 
 // Third-person follow camera (V toggles first/third — App.jsx, cameraMode.js).
 // It rides behind wherever you're actually looking, pitch included — like an
@@ -190,12 +196,14 @@ export default function Player() {
     resetTouchMove()
     resetInventory()
     resetPlayerBody()
+    resetRoar()
     document.documentElement.style.setProperty('--frost', '0')
     return () => {
       resetMirror()
       resetTouchMove()
       resetInventory()
       resetPlayerBody()
+      resetRoar()
       document.documentElement.style.setProperty('--frost', '0')
     }
   }, [])
@@ -411,6 +419,11 @@ export default function Player() {
     const frozenByIce = ice.current.frozen > 0
     if (frozenByIce) ice.current.frozen = Math.max(0, ice.current.frozen - delta)
 
+    // 8.2: tick down a landed roar's slow and screen shake. Yeti.jsx only sets
+    // these — this is the one place that counts them back down.
+    if (roar.stunTimer > 0) roar.stunTimer = Math.max(0, roar.stunTimer - delta)
+    if (roar.shakeTimer > 0) roar.shakeTimer = Math.max(0, roar.shakeTimer - delta)
+
     // Walk direction is the camera's heading flattened onto the ground — except
     // mid-glance, when the camera is turned around: movement stays welded to the
     // heading you had when you pressed L, so a look-back doesn't run you at the
@@ -464,6 +477,7 @@ export default function Player() {
       const sprintSpeed = greenEmber.boost ? ADRENALINE_SPEED : SPRINT_SPEED
       let speed = sprinting ? sprintSpeed : WALK_SPEED
       if (game.waterActive) speed += WATER_SPEED_BONUS
+      if (roar.stunTimer > 0) speed *= ROAR_SLOW_MULT
       const throttle = isTouch ? Math.min(1, analog) : 1
       move
         .normalize()
@@ -538,6 +552,16 @@ export default function Player() {
       camera.position.set(camX, camY, camZ)
     } else {
       camera.position.set(body.current.x, eyeY, body.current.z)
+    }
+
+    // 8.2: a landed roar jitters the camera — magnitude decays linearly to 0
+    // over the shake window. Applied last, on top of wherever the rig above
+    // just parked the camera, so it works the same in first and third person.
+    if (roar.shakeTimer > 0) {
+      const mag = ROAR_SHAKE_MAG * (roar.shakeTimer / ROAR_SHAKE_SECONDS)
+      camera.position.x += (Math.random() * 2 - 1) * mag
+      camera.position.y += (Math.random() * 2 - 1) * mag * 0.5
+      camera.position.z += (Math.random() * 2 - 1) * mag
     }
   })
 

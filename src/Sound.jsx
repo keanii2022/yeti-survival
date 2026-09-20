@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { threat } from './threat.js'
 import { shelter } from './shelter.js'
+import { roar } from './roar.js'
 import { getAtmosphere } from './sound.js'
 import { effectiveLevel } from './levels.js'
 
@@ -42,6 +43,8 @@ export default function Sound() {
   const prevBlanket = useRef(false)
   const prevThrow = useRef(0)
   const prevIceCrack = useRef(0)
+  const prevRoarWindup = useRef(false) // 8.2
+  const prevRoarStun = useRef(false)
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -74,13 +77,17 @@ export default function Sound() {
     prevBlanket.current = false
     prevThrow.current = useGame.getState().throwReq
     prevIceCrack.current = useGame.getState().iceCrackReq
+    prevRoarWindup.current = false
+    prevRoarStun.current = false
     getAtmosphere()?.revive()
     const root = document.documentElement.style
     root.setProperty('--threat', '0')
     root.setProperty('--danger', '0')
+    root.setProperty('--roar', '0')
     return () => {
       root.setProperty('--threat', '0')
       root.setProperty('--danger', '0')
+      root.setProperty('--roar', '0')
     }
   }, [])
 
@@ -114,12 +121,14 @@ export default function Sound() {
         eng.gameOver(status)
         document.documentElement.style.setProperty('--threat', '0')
         document.documentElement.style.setProperty('--danger', '0')
+        document.documentElement.style.setProperty('--roar', '0')
       } else if (status === 'won') {
         eng.setSheltered(false)
         eng.update(0, 0, 'idle')
         eng.win()
         document.documentElement.style.setProperty('--threat', '0')
         document.documentElement.style.setProperty('--danger', '0')
+        document.documentElement.style.setProperty('--roar', '0')
       }
       prevStatus.current = status
     }
@@ -170,6 +179,16 @@ export default function Sound() {
     // opaque-edge-counter shape as the throwables above.
     if (iceCrackReq > prevIceCrack.current) eng.iceCrack()
     prevIceCrack.current = iceCrackReq
+
+    // 8.2: a rising growl the instant he plants for the windup, regardless of
+    // whether it goes on to land — that's the whole point of a telegraph.
+    // Then a separate, heavier cue only if it actually connects.
+    const roarWindingUp = roar.telegraph > 0
+    if (roarWindingUp && !prevRoarWindup.current) eng.roarWindup()
+    prevRoarWindup.current = roarWindingUp
+    const roarHit = roar.stunTimer > 0
+    if (roarHit && !prevRoarStun.current) eng.roarLanded()
+    prevRoarStun.current = roarHit
 
     // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
     // muffles for as long as you're inside — the "cold's eased" cue for the
@@ -232,6 +251,9 @@ export default function Sound() {
         ? clamp((LUNGE_RANGE - threat.distance) / LUNGE_RANGE, 0, 1)
         : 0
     document.documentElement.style.setProperty('--danger', danger.toFixed(3))
+
+    // 8.2: the roar telegraph, straight off the shared readout.
+    document.documentElement.style.setProperty('--roar', roar.telegraph.toFixed(3))
   })
 
   return null

@@ -471,6 +471,82 @@ class Atmosphere {
     })
   }
 
+  // 8.2: the roar windup — a rising rumble as he plants, building over about a
+  // second so the freeze reads as a telegraphed threat rather than a glitch.
+  // A noise swell under a slow-rising sawtooth drone, both climbing pitch and
+  // volume together toward the moment it resolves.
+  roarWindup() {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const dur = 1.1
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(dur + 0.1)
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(90, t)
+    bp.frequency.exponentialRampToValueAtTime(340, t + dur)
+    bp.Q.value = 0.9
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.35, t + dur * 0.85)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08)
+    n.connect(bp).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + dur + 0.1)
+
+    const o = ctx.createOscillator()
+    o.type = 'sawtooth'
+    o.frequency.setValueAtTime(52, t)
+    o.frequency.exponentialRampToValueAtTime(95, t + dur)
+    const og = ctx.createGain()
+    og.gain.setValueAtTime(0.0001, t)
+    og.gain.exponentialRampToValueAtTime(0.22, t + dur * 0.85)
+    og.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08)
+    o.connect(og).connect(this.master)
+    o.start(t)
+    o.stop(t + dur + 0.1)
+  }
+
+  // 8.2: the roar landing — a heavier, lower cousin of the lock-on stinger,
+  // only fired when it actually connects. A noise blast plus a dissonant low
+  // cluster so it reads as a bigger, more physical hit; it never overlaps the
+  // chase stinger since a roar can only land mid-chase, well after lock-on.
+  roarLanded() {
+    const { ctx } = this
+    const t = ctx.currentTime
+
+    const n = ctx.createBufferSource()
+    n.buffer = this._noiseBuffer(0.6)
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(220, t)
+    bp.frequency.exponentialRampToValueAtTime(90, t + 0.4)
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.55, t + 0.02)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.55)
+    n.connect(bp).connect(ng).connect(this.master)
+    n.start(t)
+    n.stop(t + 0.6)
+
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.5, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7)
+    g.connect(this.master)
+    ;[58, 61.5, 87].forEach((f) => {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.value = f
+      const og = ctx.createGain()
+      og.gain.value = 0.3
+      o.connect(og).connect(g)
+      o.start(t)
+      o.stop(t + 0.75)
+    })
+  }
+
   // Soft two-note chime when an ember is grabbed.
   pickup() {
     const { ctx } = this
