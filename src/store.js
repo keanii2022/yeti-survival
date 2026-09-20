@@ -1,9 +1,10 @@
 import { create } from 'zustand'
-import { LEVEL_COUNT, levelTarget } from './levels.js'
+import { LEVEL_COUNT, levelTarget, effectiveLevel } from './levels.js'
 import { nextFilledSlot } from './inventory.js'
 import { loadDifficulty, saveDifficulty } from './difficulty.js'
 import { loadCameraMode, saveCameraMode } from './cameraMode.js'
-import { reseedDaily } from './dailySeed.js'
+import { reseedDaily, dailyRandom } from './dailySeed.js'
+import { rollModifier } from './modifiers.js'
 
 // Game state. A live run tracks warmth, stamina, score, and — since 6.6 — a
 // level. The run is a climb: clear each level's ember target, take a calm
@@ -158,6 +159,11 @@ export const useGame = create((set) => ({
   // The level being played (1..LEVEL_COUNT, then unbounded in nightfall).
   level: 1,
 
+  // 8.5: this level's twist, if any — 'blizzard' | 'blackout' | 'double' |
+  // null. Rolled fresh in endInterlude() when the next level spawns; level 1
+  // never has one (modifiers.js's MIN_LEVEL).
+  levelModifier: null,
+
   // True during the calm breather between clearing a level and the next wave.
   // Warmth drain pauses, the yeti is pushed to a far wander, the HUD shows the
   // "LEVEL N" card. Levels.jsx counts it down and calls endInterlude().
@@ -245,8 +251,11 @@ export const useGame = create((set) => ({
     set((s) => {
       if (s.status !== 'playing') return {}
       const itemsCollected = s.itemsCollected + 1
+      // 8.5: a 'double' level pays out twice the score per ember — warmth is
+      // untouched, so it's a scoring garnish, not a survival buff.
+      const scoreValue = s.levelModifier === 'double' ? value * 2 : value
       const next = {
-        score: s.score + value,
+        score: s.score + scoreValue,
         itemsCollected,
         embersTotal: s.embersTotal + 1,
         warmth: Math.min(START_WARMTH, s.warmth + warmthBonus),
@@ -389,6 +398,8 @@ export const useGame = create((set) => ({
         level,
         itemsTotal: levelTarget(level),
         itemsCollected: 0,
+        // 8.5: roll this level's twist, if any.
+        levelModifier: rollModifier(effectiveLevel(level, s.nightfall), dailyRandom),
       }
     }),
 
@@ -407,6 +418,7 @@ export const useGame = create((set) => ({
         level: 1,
         itemsTotal: levelTarget(1),
         itemsCollected: 0,
+        levelModifier: null,
         interlude: false,
         warmth: START_WARMTH,
         stamina: START_STAMINA,
@@ -547,6 +559,7 @@ export const useGame = create((set) => ({
         greenCount: 0,
         escapes: 0,
         level: 1,
+        levelModifier: null,
         interlude: false,
         nightfall: false,
         elapsed: 0,

@@ -298,6 +298,7 @@ export default function Hud({ locked, isTouch }) {
   const escapes = useGame((s) => s.escapes)
   const interlude = useGame((s) => s.interlude)
   const nightfall = useGame((s) => s.nightfall)
+  const levelModifier = useGame((s) => s.levelModifier)
   const snackActive = useGame((s) => s.snackActive)
   const waterActive = useGame((s) => s.waterActive)
   const blanketActive = useGame((s) => s.blanketActive)
@@ -322,7 +323,16 @@ export default function Hud({ locked, isTouch }) {
   // 9.1: on a touch device there's no pointer lock to wait for — the run is
   // "engaged" the moment the game mounts. On desktop it still means locked.
   const engaged = locked || isTouch
-  const showStats = engaged && (playing || paused)
+  // 8.5: 'blackout' level modifier — no informational HUD (gauges, score,
+  // the yeti-awareness / shelter / adrenaline cues, inventory pips) while a
+  // level actually holds it. Never during the interlude, so the breather
+  // isn't blacked out just because the level you cleared was the twist.
+  // Touch controls, the crosshair, and the atmospheric threat/roar/frost
+  // overlays are untouched — those aren't information you're reading, and
+  // hiding the joystick would make the phone unplayable, not harder.
+  const blackout = levelModifier === 'blackout' && !interlude
+  const showStats = engaged && (playing || paused) && !blackout
+  const showInfoCue = engaged && playing && !blackout
   // The mute button is only reachable when the pointer isn't captured — i.e.
   // any time you're not mid-run: start screen, pause, game-over.
   const showMute = !(engaged && playing)
@@ -389,19 +399,19 @@ export default function Hud({ locked, isTouch }) {
 
       {engaged && playing && <div className="crosshair" />}
 
-      {engaged && playing && <ChaseState />}
+      {showInfoCue && <ChaseState />}
 
-      {engaged && playing && <AdrenalineCue />}
+      {showInfoCue && <AdrenalineCue />}
 
-      {engaged && playing && <ShelterCue />}
+      {showInfoCue && <ShelterCue />}
 
-      {engaged && playing && <CampfireCue />}
+      {showInfoCue && <CampfireCue />}
 
-      {engaged && playing && <DropPip />}
+      {showInfoCue && <DropPip />}
 
-      {engaged && playing && <InventoryCue />}
+      {showInfoCue && <InventoryCue />}
 
-      {engaged && playing && <DropToast />}
+      {showInfoCue && <DropToast />}
 
       {showMute && <MuteToggle />}
 
@@ -454,8 +464,12 @@ export default function Hud({ locked, isTouch }) {
           <div className="score">
             <div className="score-value">{score}</div>
             <div className="score-sub">
-              {nightfall ? `Nightfall ${level}` : `Level ${level}`} · Embers{' '}
-              {itemsCollected}/{itemsTotal}
+              {nightfall ? `Nightfall ${level}` : `Level ${level}`}
+              {/* 8.5: 'blackout' never gets here — the whole stats block is
+                  hidden while it's live, and its own absence is the tell. */}
+              {levelModifier === 'blizzard' && ' · Blizzard'}
+              {levelModifier === 'double' && ' · Double embers'}
+              {' '}· Embers {itemsCollected}/{itemsTotal}
             </div>
           </div>
         </>

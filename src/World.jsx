@@ -12,6 +12,11 @@ import { daylight, resetDaylight } from './daylight.js'
 import { weather, SLEET_VISION_MULT } from './weather.js'
 import { dailyRandom } from './dailySeed.js'
 
+// 8.5: 'blizzard' level modifier — a steadier, slightly gentler cut than
+// sleet's (SLEET_VISION_MULT) since it holds for the whole level rather than
+// a short window.
+const BLIZZARD_VISION_MULT = 0.6
+
 // Small deterministic PRNG so the tree scatter is the same on every reload.
 function mulberry32(seed) {
   return function () {
@@ -392,8 +397,12 @@ function DayCycle({ quality }) {
       fog.current.color.copy(_c)
       // 7.16: sleet pulls both fog planes in around the player for its window —
       // scaled off the same day-cycle distances so it still reads as *this*
-      // moment's fog closing in, not a different fog replacing it.
-      const vis = 1 - (1 - SLEET_VISION_MULT) * weather.sleetAmount
+      // moment's fog closing in, not a different fog replacing it. 8.5: a
+      // 'blizzard' level modifier holds a vision cut for the whole level
+      // instead of a timed weather window — the two stack if a gust/sleet
+      // event happens to land during one, which is fine, just a worse moment.
+      const blizzard = useGame.getState().levelModifier === 'blizzard' ? BLIZZARD_VISION_MULT : 1
+      const vis = (1 - (1 - SLEET_VISION_MULT) * weather.sleetAmount) * blizzard
       fog.current.near = p.fogNear * vis
       fog.current.far = p.fogFar * vis
     }
