@@ -448,57 +448,60 @@ export default function Yeti() {
         a.spotTimer = 0
       }
     } else {
-      // idle. Commit delay: the player has to sit inside detection range for
-      // P.commitDelay seconds before the chase locks on — long enough at L1 to
-      // dart across his sightline, gone by the deep levels.
-      if (!hidden && dist < detectR) {
+      // idle.
+      // 8.1: once per level, as soon as the ember wave has thinned to its
+      // final cluster, roll whether he breaks off to feed on it. Checked
+      // first, ahead of detection — deep levels tighten his wander leash
+      // toward wherever you last were (P.wanderRadius), which otherwise
+      // could keep him "detecting" you for most of a thinned-out level and
+      // starve this roll of ever seeing an undetected idle tick. A fresh
+      // level can't roll twice (a.fedLevel latches it).
+      if (a.fedLevel !== level) {
+        const roll = rollFeed(level, emberField, dailyRandom)
+        if (roll !== 'pending') {
+          a.fedLevel = level
+          if (roll === 'feed') {
+            beginFeed(a.feed, emberField.clusterX, emberField.clusterZ)
+            a.mode = 'feed'
+            a.spotTimer = 0
+            a.shedTarget = -1
+          }
+        }
+      }
+
+      // Commit delay: the player has to sit inside detection range for
+      // P.commitDelay seconds before the chase locks on — long enough at L1
+      // to dart across his sightline, gone by the deep levels. Skipped
+      // outright if the feed roll above just switched him off idle.
+      if (a.mode === 'idle' && !hidden && dist < detectR) {
         a.spotTimer += delta
         if (a.spotTimer >= P.commitDelay) {
           a.mode = 'chase'
           a.spotTimer = 0
         }
-      } else {
+      } else if (a.mode === 'idle') {
         a.spotTimer = 0
-
-        // 8.1: once per level, as soon as the ember wave has thinned to its
-        // final cluster, roll whether he breaks off to go feed on it. Checked
-        // before the shed patrol countdown so a fresh level can't fire both
-        // off the same idle tick.
-        if (a.fedLevel !== level) {
-          const roll = rollFeed(level, emberField, dailyRandom)
-          if (roll !== 'pending') {
-            a.fedLevel = level
-            if (roll === 'feed') {
-              beginFeed(a.feed, emberField.clusterX, emberField.clusterZ)
-              a.mode = 'feed'
-              a.shedTarget = -1
-            }
-          }
-        }
-
         // Nothing doing — count down to the next shed patrol. When it fires,
         // stalk over to the nearest ready shed that's within reach.
-        if (a.mode === 'idle') {
-          a.shedCheckTimer -= delta
-          if (a.shedCheckTimer <= 0) {
-            const idx = nearestReadyShed(
-              sheds,
-              g.position.x,
-              g.position.z,
-              a.shedCooldowns,
-            )
-            if (idx >= 0) {
-              const dx = sheds[idx].x - g.position.x
-              const dz = sheds[idx].z - g.position.z
-              if (dx * dx + dz * dz < 42 * 42) {
-                shedApproachPoint(sheds[idx], door)
-                beginProbe(a.probe, door.x, door.z, P.shedLookTime)
-                a.shedTarget = idx
-                a.mode = 'shed'
-              }
+        a.shedCheckTimer -= delta
+        if (a.shedCheckTimer <= 0) {
+          const idx = nearestReadyShed(
+            sheds,
+            g.position.x,
+            g.position.z,
+            a.shedCooldowns,
+          )
+          if (idx >= 0) {
+            const dx = sheds[idx].x - g.position.x
+            const dz = sheds[idx].z - g.position.z
+            if (dx * dx + dz * dz < 42 * 42) {
+              shedApproachPoint(sheds[idx], door)
+              beginProbe(a.probe, door.x, door.z, P.shedLookTime)
+              a.shedTarget = idx
+              a.mode = 'shed'
             }
-            a.shedCheckTimer = P.shedCheckInterval
           }
+          a.shedCheckTimer = P.shedCheckInterval
         }
       }
     }
