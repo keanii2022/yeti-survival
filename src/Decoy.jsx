@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
 import { threat } from './threat.js'
@@ -10,6 +10,7 @@ import { generateSheds, resolveShedCollision } from './sheds.js'
 import { inControl } from './touch.js'
 import { hasFreeSlot } from './inventory.js'
 import { ARENA_HALF } from './arena.js'
+import { playerBody, playerFacing } from './playerBody.js'
 
 // Step 6.14: the decoy — a throwable that hard-resets a chase. Two halves:
 //
@@ -88,7 +89,6 @@ function dangerPoint(requireEmber) {
 }
 
 function DecoyPickup({ trees, sheds }) {
-  const { camera } = useThree()
   const mesh = useRef()
   const glow = useRef()
   const beam = useRef()
@@ -127,8 +127,8 @@ function DecoyPickup({ trees, sheds }) {
     if (!spot) return
     age.current += delta
 
-    const dx = camera.position.x - spot[0]
-    const dz = camera.position.z - spot[1]
+    const dx = playerBody.x - spot[0]
+    const dz = playerBody.z - spot[1]
     const pdist = Math.hypot(dx, dz)
 
     // Stranded and forgotten — pull it back to wherever the danger moved to.
@@ -222,7 +222,6 @@ function DecoyPickup({ trees, sheds }) {
 }
 
 export default function Decoy() {
-  const { camera } = useThree()
   const trees = useMemo(() => generateTrees(), [])
   const sheds = useMemo(() => generateSheds(), [])
 
@@ -243,14 +242,15 @@ export default function Decoy() {
     return () => resetDecoy()
   }, [])
 
-  // The throw fires here (not App.jsx) because the arc needs the camera heading,
-  // which only lives inside the Canvas. 7.4 routes it through the store: using a
-  // slot that holds a decoy clears the slot and bumps `throwReq`; this
-  // subscription catches that edge and flings from wherever the camera is. The
-  // "can I throw" gate (playing, one in hand, not mid-interlude) is already
-  // spent in useSlot, so all that's left is the geometry. 7.8 put duck / poop
-  // on the same shared `throwReq` counter, so `pendingThrow` names the kind —
-  // skip any bump that isn't ours.
+  // The throw fires here (not App.jsx) because it needs the player's own
+  // facing/position singletons, which only get written to inside the Canvas
+  // (Player.jsx's frame loop). 7.4 routes it through the store: using a slot
+  // that holds a decoy clears the slot and bumps `throwReq`; this subscription
+  // catches that edge and flings from wherever the player is. The "can I
+  // throw" gate (playing, one in hand, not mid-interlude) is already spent in
+  // useSlot, so all that's left is the geometry. 7.8 put duck / poop on the
+  // same shared `throwReq` counter, so `pendingThrow` names the kind — skip
+  // any bump that isn't ours.
   useEffect(() => {
     let seen = useGame.getState().throwReq
     return useGame.subscribe((s) => {
@@ -258,15 +258,9 @@ export default function Decoy() {
       seen = s.throwReq
       if (s.status !== 'playing' || s.pendingThrow !== 'decoy') return
 
-      // Flatten the camera heading onto the ground and throw that way.
-      const fwd = new THREE.Vector3()
-      camera.getWorldDirection(fwd)
-      fwd.y = 0
-      if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1)
-      fwd.normalize()
-
-      let x = camera.position.x + fwd.x * THROW_DIST
-      let z = camera.position.z + fwd.z * THROW_DIST
+      const fwd = playerFacing
+      let x = playerBody.x + fwd.x * THROW_DIST
+      let z = playerBody.z + fwd.z * THROW_DIST
       const hit = { x: 0, z: 0 }
       resolveTreeCollision(trees, x, z, 0.5, hit)
       resolveShedCollision(sheds, hit.x, hit.z, 0.5, hit)
@@ -276,14 +270,14 @@ export default function Decoy() {
       fly.current = {
         stage: 'flying',
         t: 0,
-        fromX: camera.position.x,
-        fromZ: camera.position.z,
+        fromX: playerBody.x,
+        fromZ: playerBody.z,
         toX: x,
         toZ: z,
         ground: 0, // set to MAX_GROUND_TIME on landing
         fade: 1,
       }
-      setOrigin([camera.position.x, camera.position.z])
+      setOrigin([playerBody.x, playerBody.z])
       setVisible(true)
 
       decoy.x = x
@@ -291,7 +285,7 @@ export default function Decoy() {
       decoy.throwId += 1
       decoy.live = true
     })
-  }, [camera, trees, sheds])
+  }, [trees, sheds])
 
   useFrame((_, rawDelta) => {
     const f = fly.current

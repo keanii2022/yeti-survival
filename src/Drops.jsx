@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useState } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
 import {
@@ -14,6 +14,7 @@ import {
 } from './drops.js'
 import { hasFreeSlot } from './inventory.js'
 import { inControl } from './touch.js'
+import { playerBody, playerFacing } from './playerBody.js'
 
 // Step 7.5: dropped items in the world, plus the data behind the HUD hint pip.
 //
@@ -55,9 +56,7 @@ const TINT = {
 }
 
 export default function Drops() {
-  const { camera } = useThree()
   const [, bump] = useState(0) // re-render the marker list on a drop / re-pickup
-  const fwd = useMemo(() => new THREE.Vector3(), [])
 
   useEffect(() => {
     resetDrops()
@@ -66,15 +65,12 @@ export default function Drops() {
       if (s.dropReq === seen) return
       seen = s.dropReq
       if (!s.pendingDrop || s.status !== 'playing') return
-      camera.getWorldDirection(fwd)
-      fwd.y = 0
-      if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1)
-      fwd.normalize()
+      const fwd = playerFacing
       const ahead = s.pendingDropPlaced ? PLACE_AHEAD : DROP_AHEAD
       addDrop(
         s.pendingDrop,
-        camera.position.x + fwd.x * ahead,
-        camera.position.z + fwd.z * ahead,
+        playerBody.x + fwd.x * ahead,
+        playerBody.z + fwd.z * ahead,
         s.pendingDropPlaced,
       )
       bump((n) => n + 1)
@@ -84,7 +80,7 @@ export default function Drops() {
       resetDrops()
       useGame.getState().setOnBlanket(false)
     }
-  }, [camera, fwd])
+  }, [])
 
   useFrame(() => {
     if (!drops.list.length) {
@@ -96,13 +92,13 @@ export default function Drops() {
       return
     }
 
-    const px = camera.position.x
-    const pz = camera.position.z
+    const px = playerBody.x
+    const pz = playerBody.z
 
     // The pip points at the nearest drop of any kind — including a set-down
     // blanket, so it doubles as "walk back to your blanket".
     const near = nearestDrop(px, pz)
-    camera.getWorldDirection(fwd)
+    const fwd = playerFacing
     drops.bearing = fuzzBearing(
       screenBearing(fwd.x, fwd.z, near.x - px, near.z - pz),
     )

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
 import {
@@ -9,6 +9,7 @@ import {
   campfireGlow,
   resetCampfireGlow,
 } from './campfire.js'
+import { playerBody } from './playerBody.js'
 
 // Step 7.14 — the campfires you can warm up at. Built from primitives to match
 // the shed / tree style: a ring of stones, a few crossed logs, a flickering
@@ -110,7 +111,6 @@ function Fire({ x, z, seed }) {
 }
 
 export default function Campfire() {
-  const { camera } = useThree()
   const campfires = useMemo(() => generateCampfires(), [])
 
   useEffect(() => {
@@ -127,7 +127,7 @@ export default function Campfire() {
     // onBlanket check (Drops.jsx) — keeps the edge from chattering the flag
     // (and the HUD cue / warmth swing riding on it) right at the boundary.
     const r = campfireGlow.near ? CAMPFIRE_RADIUS + 0.4 : CAMPFIRE_RADIUS
-    campfireGlow.near = nearCampfire(campfires, camera.position.x, camera.position.z, r)
+    campfireGlow.near = nearCampfire(campfires, playerBody.x, playerBody.z, r)
   })
 
   return campfires.map((c, i) => <Fire key={i} x={c.x} z={c.z} seed={i * 7.3} />)

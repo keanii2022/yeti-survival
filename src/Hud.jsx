@@ -219,20 +219,51 @@ function DifficultyPicker() {
   const difficulty = useGame((s) => s.difficulty)
   const setDifficulty = useGame((s) => s.setDifficulty)
   return (
-    <div className="difficulty">
-      <span className="difficulty-label">Difficulty</span>
-      <div className="difficulty-opts">
+    <div className="opt-picker">
+      <span className="opt-picker-label">Difficulty</span>
+      <div className="opt-picker-opts">
         {DIFFICULTIES.map((d) => (
           <button
             key={d}
             type="button"
-            className={`difficulty-opt${d === difficulty ? ' on' : ''}`}
+            className={`opt-picker-opt${d === difficulty ? ' on' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
               setDifficulty(d)
             }}
           >
             {DIFF_LABEL[d]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// V also toggles this mid-run — this picker is the discoverable, tap-friendly
+// twin of that key, reachable any time the game isn't actively running (start
+// screen, pause, game-over) so touch players have a way in too.
+const CAMERA_MODES = ['first', 'third']
+const CAMERA_LABEL = { first: 'First-person', third: 'Third-person' }
+
+function CameraModePicker() {
+  const cameraMode = useGame((s) => s.cameraMode)
+  const toggleCameraMode = useGame((s) => s.toggleCameraMode)
+  return (
+    <div className="opt-picker">
+      <span className="opt-picker-label">View</span>
+      <div className="opt-picker-opts">
+        {CAMERA_MODES.map((m) => (
+          <button
+            key={m}
+            type="button"
+            className={`opt-picker-opt${m === cameraMode ? ' on' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (m !== cameraMode) toggleCameraMode()
+            }}
+          >
+            {CAMERA_LABEL[m]}
           </button>
         ))}
       </div>
@@ -517,6 +548,7 @@ export default function Hud({ locked, isTouch }) {
               </p>
               <p className="keys">Grab the embers to stay warm — don&rsquo;t let the yeti reach you.</p>
               <DifficultyPicker />
+              <CameraModePicker />
               <button
                 type="button"
                 className="prompt-btn ghost"
@@ -540,6 +572,7 @@ export default function Hud({ locked, isTouch }) {
               ? 'Press Space or click Resume'
               : 'Click Resume to keep going'}
           </p>
+          <CameraModePicker />
           <div className="prompt-btns">
             <button type="button" className="prompt-btn" onClick={resume}>
               Resume
@@ -607,6 +640,7 @@ export default function Hud({ locked, isTouch }) {
             </p>
           </div>
           <DifficultyPicker />
+          <CameraModePicker />
           {isTouch ? (
             reviveUsed ? (
               <button type="button" className="prompt-btn" onClick={reset}>

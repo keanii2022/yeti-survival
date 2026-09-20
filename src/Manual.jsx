@@ -108,6 +108,7 @@ export default function Manual({ open, onClose }) {
             <li><kbd>Q</kbd> Use your first item — same as <kbd>1</kbd></li>
             <li><kbd>R</kbd> Drop your first item on the ground (while playing)</li>
             <li><kbd>Space</kbd> Jump — hops a low obstacle like a fallen log. It has its own small bar (under stamina) that has to refill before you can jump again, so you can't just spam it.</li>
+            <li><kbd>V</kbd> Switch between first-person and third-person view. Sticks until you switch back.</li>
             <li><kbd>R</kbd> Restart — on the game-over screen (nothing to drop there)</li>
             <li><kbd>Esc</kbd> Pause and release the mouse — click Resume (or press Space) to keep going</li>
           </ul>
@@ -118,7 +119,7 @@ export default function Manual({ open, onClose }) {
           <ul className="manual-keys">
             <li><strong>Left thumb</strong> Drag anywhere on the left to move. Push past the ring to lock a sprint.</li>
             <li><strong>Right thumb</strong> Drag to look around.</li>
-            <li><strong>Buttons, bottom-right</strong> Glance back, jump, and one button per item you're carrying — tap to use, long-press to drop.</li>
+            <li><strong>Buttons, bottom-right</strong> Glance back, jump, switch camera view, and one button per item you're carrying — tap to use, long-press to drop.</li>
             <li>Hold the phone in landscape. Tap once at the start to go fullscreen.</li>
           </ul>
         </section>

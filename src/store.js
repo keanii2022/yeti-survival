@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { LEVEL_COUNT, levelTarget } from './levels.js'
 import { nextFilledSlot } from './inventory.js'
 import { loadDifficulty, saveDifficulty } from './difficulty.js'
+import { loadCameraMode, saveCameraMode } from './cameraMode.js'
 
 // Game state. A live run tracks warmth, stamina, score, and — since 6.6 — a
 // level. The run is a climb: clear each level's ember target, take a calm
@@ -112,6 +113,17 @@ export const useGame = create((set) => ({
   // state, so reset() leaves it alone.
   isTouch: false,
   setTouch: () => set((s) => (s.isTouch ? {} : { isTouch: true })),
+
+  // 'first' | 'third'. V toggles it (App.jsx) whenever a run is live. A
+  // session preference like difficulty — persisted, and left alone by reset()
+  // / startNightfall() so the choice sticks across runs.
+  cameraMode: loadCameraMode(),
+  toggleCameraMode: () =>
+    set((s) => {
+      const next = s.cameraMode === 'first' ? 'third' : 'first'
+      saveCameraMode(next)
+      return { cameraMode: next }
+    }),
 
   // 'easy' | 'medium' | 'hard' (difficulty.js). Chosen from the start screen or
   // a game-over card, persisted to localStorage, and — like isTouch — a session

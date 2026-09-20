@@ -435,10 +435,11 @@
   color: #0b0e12;
 }
 
-/* Easy / Medium / Hard picker — on the start screen and every game-over card.
-   A labelled row of three segmented buttons; the active one is filled. Buttons
-   re-enable pointer events over the pointer-events:none HUD, same as .prompt-btn. */
-.difficulty {
+/* A labelled row of segmented buttons, the active one filled — the Easy /
+   Medium / Hard difficulty picker (start screen, every game-over card) and
+   the first-/third-person camera picker share this. Buttons re-enable pointer
+   events over the pointer-events:none HUD, same as .prompt-btn. */
+.opt-picker {
   margin-top: 1.1rem;
   display: flex;
   flex-direction: column;
@@ -446,19 +447,19 @@
   gap: 0.4rem;
 }
 
-.difficulty-label {
+.opt-picker-label {
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   opacity: 0.6;
 }
 
-.difficulty-opts {
+.opt-picker-opts {
   display: flex;
   gap: 0;
 }
 
-.difficulty-opt {
+.opt-picker-opt {
   padding: 0.45rem 1.1rem;
   border: 1px solid rgba(238, 244, 248, 0.5);
   border-right-width: 0;
@@ -473,22 +474,22 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.difficulty-opt:first-child {
+.opt-picker-opt:first-child {
   border-radius: 8px 0 0 8px;
 }
 
-.difficulty-opt:last-child {
+.opt-picker-opt:last-child {
   border-right-width: 1px;
   border-radius: 0 8px 8px 0;
 }
 
-.difficulty-opt.on {
+.opt-picker-opt.on {
   background: rgba(238, 244, 248, 0.92);
   border-color: rgba(238, 244, 248, 0.92);
   color: #0b0e12;
 }
 
-.difficulty-opt.on + .difficulty-opt {
+.opt-picker-opt.on + .opt-picker-opt {
   border-left-color: rgba(238, 244, 248, 0.92);
 }
 
@@ -1334,11 +1335,11 @@
     margin-top: 0;
   }
 
-  .difficulty {
+  .opt-picker {
     margin-top: 0.7rem;
   }
 
-  .difficulty-opt {
+  .opt-picker-opt {
     padding: 0.4rem 0.85rem;
     font-size: 0.72rem;
   }

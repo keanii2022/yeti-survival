@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { useGame } from './store.js'
@@ -13,6 +13,7 @@ import {
   WALL_HEIGHT,
   ROOF_RISE,
 } from './sheds.js'
+import { playerBody } from './playerBody.js'
 
 // Step 6.12: the sheds you can duck into. The layout, the wall colliders and
 // the "am I inside" test all live in sheds.js so this file is just the meshes
@@ -114,7 +115,6 @@ function Shed({ x, z, yaw, index }) {
 }
 
 export default function Sheds() {
-  const { camera } = useThree()
   const sheds = useMemo(() => generateSheds(), [])
 
   // Fresh scene: nobody's hiding yet, and clear it on the way out.
@@ -131,7 +131,7 @@ export default function Sheds() {
     }
     let idx = -1
     for (let i = 0; i < sheds.length; i++) {
-      if (pointInsideShed(sheds[i], camera.position.x, camera.position.z)) {
+      if (pointInsideShed(sheds[i], playerBody.x, playerBody.z)) {
         idx = i
         break
       }

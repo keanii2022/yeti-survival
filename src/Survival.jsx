@@ -1,11 +1,12 @@
 import { useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { shelter } from './shelter.js'
 import { campfireGlow, CAMPFIRE_REGEN_PER_SECOND } from './campfire.js'
 import { weather, intoWindFactor, GUST_DRAIN_MULT } from './weather.js'
 import { inControl } from './touch.js'
 import { difficultyMods } from './difficulty.js'
+import { playerBody } from './playerBody.js'
 
 // The survival clock. Warmth bleeds away the entire time you're out in the
 // arena; embers buy a little of it back. This also advances the run timer that
@@ -32,9 +33,8 @@ const SHED_DRAIN_FACTOR = 0.45
 const BLANKET_DRAIN_FACTOR = 0.3
 
 export default function Survival() {
-  const { camera } = useThree()
-  const lastX = useRef(camera.position.x)
-  const lastZ = useRef(camera.position.z)
+  const lastX = useRef(playerBody.x)
+  const lastZ = useRef(playerBody.z)
 
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
@@ -42,11 +42,11 @@ export default function Survival() {
     const delta = Math.min(rawDelta, 0.1)
     // 7.16: how much of this frame's move was straight into an active gust's
     // heading, before updating the tracked position for next frame.
-    const moveX = camera.position.x - lastX.current
-    const moveZ = camera.position.z - lastZ.current
+    const moveX = playerBody.x - lastX.current
+    const moveZ = playerBody.z - lastZ.current
     const into = weather.gustAmount > 0 ? intoWindFactor(moveX, moveZ) : 0
-    lastX.current = camera.position.x
-    lastZ.current = camera.position.z
+    lastX.current = playerBody.x
+    lastZ.current = playerBody.z
     // The run clock keeps counting through the 6.6 interlude, but warmth doesn't
     // drain during the breather — that's what makes it a breather.
     useGame.getState().tickTime(delta)

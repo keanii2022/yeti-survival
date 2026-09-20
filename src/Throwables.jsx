@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
 import { duck, resetDuck } from './duck.js'
@@ -8,6 +8,7 @@ import { flare, resetFlare, FLARE_RADIUS, FLARE_BURN_SECONDS } from './flare.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
 import { generateSheds, resolveShedCollision } from './sheds.js'
 import { ARENA_HALF } from './arena.js'
+import { playerBody, playerFacing } from './playerBody.js'
 
 // Step 7.8: the duck and poop throws. Both reuse 6.11's investigate-a-point
 // behaviour (via duck.js / poop.js — same off-React singleton shape as the
@@ -43,7 +44,6 @@ const FADE_TIME = 0.5 // fade / shrink once it's spent
 // Returns the group ref + mount state for the caller to render its own mesh
 // into.
 function useThrow(kind, singleton, reset, groundTime = MAX_GROUND_TIME) {
-  const { camera } = useThree()
   const trees = useMemo(() => generateTrees(), [])
   const sheds = useMemo(() => generateSheds(), [])
 
@@ -58,8 +58,9 @@ function useThrow(kind, singleton, reset, groundTime = MAX_GROUND_TIME) {
     return () => reset()
   }, [reset])
 
-  // The throw fires here (not App.jsx) because the arc needs the camera
-  // heading, which only lives inside the Canvas — same reasoning as Decoy.jsx.
+  // The throw fires here (not App.jsx) because it needs the player's own
+  // facing/position singletons, which only get written to inside the Canvas
+  // — same reasoning as Decoy.jsx.
   useEffect(() => {
     let seen = useGame.getState().throwReq
     return useGame.subscribe((s) => {
@@ -67,14 +68,9 @@ function useThrow(kind, singleton, reset, groundTime = MAX_GROUND_TIME) {
       seen = s.throwReq
       if (s.status !== 'playing' || s.pendingThrow !== kind) return
 
-      const fwd = new THREE.Vector3()
-      camera.getWorldDirection(fwd)
-      fwd.y = 0
-      if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1)
-      fwd.normalize()
-
-      let x = camera.position.x + fwd.x * THROW_DIST
-      let z = camera.position.z + fwd.z * THROW_DIST
+      const fwd = playerFacing
+      let x = playerBody.x + fwd.x * THROW_DIST
+      let z = playerBody.z + fwd.z * THROW_DIST
       const hit = { x: 0, z: 0 }
       resolveTreeCollision(trees, x, z, 0.5, hit)
       resolveShedCollision(sheds, hit.x, hit.z, 0.5, hit)
@@ -84,14 +80,14 @@ function useThrow(kind, singleton, reset, groundTime = MAX_GROUND_TIME) {
       fly.current = {
         stage: 'flying',
         t: 0,
-        fromX: camera.position.x,
-        fromZ: camera.position.z,
+        fromX: playerBody.x,
+        fromZ: playerBody.z,
         toX: x,
         toZ: z,
         ground: 0, // set to MAX_GROUND_TIME on landing
         fade: 1,
       }
-      setOrigin([camera.position.x, camera.position.z])
+      setOrigin([playerBody.x, playerBody.z])
       setVisible(true)
 
       singleton.x = x
@@ -99,7 +95,7 @@ function useThrow(kind, singleton, reset, groundTime = MAX_GROUND_TIME) {
       singleton.throwId += 1
       singleton.live = true
     })
-  }, [camera, trees, sheds, kind, singleton])
+  }, [trees, sheds, kind, singleton])
 
   useFrame((_, rawDelta) => {
     const f = fly.current

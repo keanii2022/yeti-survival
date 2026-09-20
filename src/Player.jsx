@@ -15,6 +15,7 @@ import { generateSheds, resolveShedCollision } from './sheds.js'
 import { generatePonds, pointInsidePond } from './pond.js'
 import { qualityFor } from './quality.js'
 import { ARENA_HALF } from './arena.js'
+import { playerBody, playerFacing, resetPlayerBody } from './playerBody.js'
 
 // First-person controller: mouse look via PointerLockControls, WASD movement
 // on the ground plane. No physics yet — the player floats at a fixed eye
@@ -59,6 +60,16 @@ const JUMP_RECHARGE_SECONDS = 1.6
 const ICE_IMMOBILIZE_SECONDS = 1
 const ICE_DIP_DEPTH = 0.5
 
+// Third-person follow camera (V toggles first/third — App.jsx, cameraMode.js).
+// It rides behind wherever you're actually looking, pitch included — like an
+// over-the-shoulder rig, so turning the mouse swings the view around the body
+// instead of it staying locked square behind your back. PlayerAvatar.jsx draws
+// the body itself; it's invisible (and this offset unused) in first person.
+const FOLLOW_DIST = 4.5
+const FOLLOW_LIFT = 1.1 // extra height stacked on top of the pure look-direction pullback
+const MIN_CAM_Y = 0.6 // keeps the camera from dipping underground on a steep look-down
+const CAMERA_RADIUS = 0.3 // nudges the follow camera out of a tree trunk it lands inside
+
 // 7.2: the look-behind glance (press L). You cut, then check — a coarse read on
 // whether the 7.1 turn-rate cap actually opened a gap. The camera snaps 180°,
 // mouse-look freezes, and you keep running the way you were already headed for
@@ -90,7 +101,15 @@ export default function Player() {
   const { camera } = useThree()
   const status = useGame((s) => s.status)
   const isTouch = useGame((s) => s.isTouch)
+  const cameraMode = useGame((s) => s.cameraMode)
   const over = status === 'caught' || status === 'frozen' || status === 'won'
+
+  // The true body position — what every other system (yeti, throws, sheds,
+  // ponds, footprints…) reads via the playerBody.js singleton. In first person
+  // this is also exactly where the camera sits (EYE_HEIGHT above it); in third
+  // person the camera pulls back from it instead. Seeded to match the <Canvas>
+  // camera prop in App.jsx (position: [0, 1.7, 8]).
+  const body = useRef({ x: 0, z: 8 })
 
   // 9.1 touch drag-look accumulator. `yaw`/`pitch` are the view angles the frame
   // loop writes onto the camera (there's no PointerLockControls doing it on
@@ -155,6 +174,9 @@ export default function Player() {
     jump.current.active = false
     jump.current.t = 0
     ice.current.frozen = 0
+    body.current.x = 0
+    body.current.z = 8
+    resetPlayerBody()
     camera.position.set(0, EYE_HEIGHT, 8)
     camera.rotation.set(0, 0, 0)
     look.current.yaw = 0
@@ -167,11 +189,13 @@ export default function Player() {
     resetMirror()
     resetTouchMove()
     resetInventory()
+    resetPlayerBody()
     document.documentElement.style.setProperty('--frost', '0')
     return () => {
       resetMirror()
       resetTouchMove()
       resetInventory()
+      resetPlayerBody()
       document.documentElement.style.setProperty('--frost', '0')
     }
   }, [])
@@ -327,6 +351,8 @@ export default function Player() {
       right: new THREE.Vector3(),
       move: new THREE.Vector3(),
       hit: { x: 0, z: 0 },
+      viewDir: new THREE.Vector3(),
+      camHit: { x: 0, z: 0 },
     }),
     [],
   )
@@ -397,6 +423,7 @@ export default function Player() {
       forward.normalize()
     }
     right.crossVectors(forward, camera.up).normalize()
+    playerFacing.copy(forward)
 
     // 9.2: on touch the joystick supplies an analog move vector + a latched
     // sprint flag; on desktop it's the WASD keys and Shift. `analog` (0..1)
@@ -441,7 +468,8 @@ export default function Player() {
       move
         .normalize()
         .multiplyScalar(speed * throttle * Math.min(delta, MAX_STEP))
-      camera.position.add(move)
+      body.current.x += move.x
+      body.current.z += move.z
     }
 
     // Burn stamina while sprinting, regenerate it any other time. The jump bar
@@ -469,11 +497,13 @@ export default function Player() {
     // pushes back while grounded; mid-hop it's skipped entirely, which is what
     // lets a log be hopped instead of bumped. Then keep the player pinned to
     // (eye height + the hop arc) and inside the arena bounds.
-    resolveTreeCollision(trees, camera.position.x, camera.position.z, PLAYER_RADIUS, hit)
+    resolveTreeCollision(trees, body.current.x, body.current.z, PLAYER_RADIUS, hit)
     if (!j.active) resolveLogCollision(logs, hit.x, hit.z, PLAYER_RADIUS, hit)
     resolveShedCollision(sheds, hit.x, hit.z, PLAYER_RADIUS, hit)
-    camera.position.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
-    camera.position.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
+    body.current.x = THREE.MathUtils.clamp(hit.x, -ARENA_HALF, ARENA_HALF)
+    body.current.z = THREE.MathUtils.clamp(hit.z, -ARENA_HALF, ARENA_HALF)
+    playerBody.x = body.current.x
+    playerBody.z = body.current.z
 
     // 7.13: sprinting this frame while standing on the ice cracks it — one
     // dunk per crossing, gated by frozenByIce so the 1s stuck-in-the-hole
@@ -481,7 +511,7 @@ export default function Player() {
     if (
       !frozenByIce &&
       sprinting &&
-      ponds.some((p) => pointInsidePond(p, camera.position.x, camera.position.z))
+      ponds.some((p) => pointInsidePond(p, body.current.x, body.current.z))
     ) {
       ice.current.frozen = ICE_IMMOBILIZE_SECONDS
       useGame.getState().crackThroughIce()
@@ -490,7 +520,25 @@ export default function Player() {
     const iceY = ice.current.frozen > 0
       ? -Math.sin((ice.current.frozen / ICE_IMMOBILIZE_SECONDS) * Math.PI) * ICE_DIP_DEPTH
       : 0
-    camera.position.y = EYE_HEIGHT + jumpY + iceY
+    playerBody.y = jumpY + iceY
+    const eyeY = EYE_HEIGHT + jumpY + iceY
+
+    if (cameraMode === 'third') {
+      // Over-the-shoulder: pull back along the full look direction (pitch
+      // included), then lift a bit more so the body reads below the lens
+      // instead of dead-centre on it.
+      const { viewDir, camHit } = scratch
+      camera.getWorldDirection(viewDir)
+      let camX = body.current.x - viewDir.x * FOLLOW_DIST
+      let camZ = body.current.z - viewDir.z * FOLLOW_DIST
+      resolveTreeCollision(trees, camX, camZ, CAMERA_RADIUS, camHit)
+      camX = THREE.MathUtils.clamp(camHit.x, -ARENA_HALF, ARENA_HALF)
+      camZ = THREE.MathUtils.clamp(camHit.z, -ARENA_HALF, ARENA_HALF)
+      const camY = Math.max(eyeY - viewDir.y * FOLLOW_DIST + FOLLOW_LIFT, MIN_CAM_Y)
+      camera.position.set(camX, camY, camZ)
+    } else {
+      camera.position.set(body.current.x, eyeY, body.current.z)
+    }
   })
 
   // No pointer lock on touch — iOS Safari won't grant it, and the drag-look

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame, SNACK_SECONDS, WATER_SECONDS } from './store.js'
 import { generateTrees, resolveTreeCollision } from './trees.js'
@@ -8,6 +8,7 @@ import { inControl } from './touch.js'
 import { hasFreeSlot } from './inventory.js'
 import { ARENA_HALF } from './arena.js'
 import { isNight } from './daylight.js'
+import { playerBody } from './playerBody.js'
 
 // Step 6.13: the two rare consumables — a snack and a blanket. Both scatter like
 // embers but far scarcer: up to two of each loose in the arena at a time (on
@@ -140,7 +141,6 @@ const LOOK = {
 // rides in `spot` ([x, z, kind]) so what the player sees and picks up stays in
 // sync; the fuse timing still keys off the family.
 function Pickup({ kind, slot }) {
-  const { camera } = useThree()
   const mesh = useRef()
   const glow = useRef()
   const beam = useRef()
@@ -159,8 +159,8 @@ function Pickup({ kind, slot }) {
   const rollSpot = () => {
     const ang = Math.random() * Math.PI * 2
     const rad = SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN)
-    const x = camera.position.x + Math.sin(ang) * rad
-    const z = camera.position.z + Math.cos(ang) * rad
+    const x = playerBody.x + Math.sin(ang) * rad
+    const z = playerBody.z + Math.cos(ang) * rad
     resolveTreeCollision(trees, x, z, 0.6, hit)
     resolveShedCollision(sheds, hit.x, hit.z, 0.6, hit)
     // Radial clamp (not per-axis) so the corners can't poke into the peaks.
@@ -197,8 +197,8 @@ function Pickup({ kind, slot }) {
     if (!spot) return // state lag: phase flipped, mesh not mounted yet
     age.current += delta
 
-    const dx = camera.position.x - spot[0]
-    const dz = camera.position.z - spot[1]
+    const dx = playerBody.x - spot[0]
+    const dz = playerBody.z - spot[1]
     const pdist = Math.hypot(dx, dz)
 
     // Stranded across the arena and forgotten — quietly move it back into reach.

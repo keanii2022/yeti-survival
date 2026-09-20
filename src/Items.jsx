@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
-import * as THREE from 'three'
+import { useFrame } from '@react-three/fiber'
 import { useGame, EMBER_SCORE, WARMTH_PER_EMBER } from './store.js'
 import { levelTarget } from './levels.js'
 import { ARENA_HALF } from './Player.jsx'
+import { playerBody, playerFacing } from './playerBody.js'
 
 // Embers to collect. Walk over one to grab it — score, plus a small warmth
 // top-up, so straying from safety toward the yeti is the price of staying warm.
@@ -30,16 +30,11 @@ const MIN_GAP_SQ = 36 // keep embers at least 6u apart
 // that points roughly toward the arena middle (which also keeps them off the
 // walls). Best-effort — after `guard` tries the remaining slots fill on bounds
 // alone so a level always has its full count.
-function makeWave(camera, level) {
+function makeWave(level) {
   const n = levelTarget(level)
-  const cx = camera.position.x
-  const cz = camera.position.z
-
-  const fwd = new THREE.Vector3()
-  camera.getWorldDirection(fwd)
-  fwd.y = 0
-  if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1)
-  fwd.normalize()
+  const cx = playerBody.x
+  const cz = playerBody.z
+  const fwd = playerFacing
 
   // Heading yaw uses the atan2(x, z) convention the yeti's movement code does.
   const towardCentre = Math.atan2(-cx, -cz)
@@ -72,11 +67,10 @@ function makeWave(camera, level) {
 // level advances, so the spot roll and the collected flags reset with a plain
 // useState initializer — no effect, no stale state to clear.
 function EmberWave({ level }) {
-  const { camera } = useThree()
   const groups = useRef([])
   const lights = useRef([])
   const orbs = useRef([])
-  const [spots] = useState(() => makeWave(camera, level))
+  const [spots] = useState(() => makeWave(level))
   const [collected, setCollected] = useState(() => spots.map(() => false))
   // Synchronous guard against double-counting: `collected` (React state) lags a
   // frame, so a slow walk over an ember keeps the loop seeing it as uncollected
@@ -99,8 +93,8 @@ function EmberWave({ level }) {
     for (let i = 0; i < spots.length; i++) {
       if (collected[i] || grabbed.current.has(i)) continue
 
-      const dx = camera.position.x - spots[i][0]
-      const dz = camera.position.z - spots[i][2]
+      const dx = playerBody.x - spots[i][0]
+      const dz = playerBody.z - spots[i][2]
       const dist2 = dx * dx + dz * dz
 
       // Bob and spin so the embers catch the eye through the fog.

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
 import { levelParams, effectiveLevel } from './levels.js'
 import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
+import { playerBody } from './playerBody.js'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
 import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
@@ -220,7 +221,6 @@ function YetiModel({ eyeRef }) {
 
 export default function Yeti() {
   const group = useRef()
-  const { camera } = useThree()
   const isTouch = useGame((s) => s.isTouch)
 
   // Rolled once per mount; the scene remounts on every run (App keys on runId),
@@ -322,9 +322,9 @@ export default function Yeti() {
 
     // Horizontal vector from yeti to player.
     toPlayer.set(
-      camera.position.x - g.position.x,
+      playerBody.x - g.position.x,
       0,
-      camera.position.z - g.position.z,
+      playerBody.z - g.position.z,
     )
     const dist = toPlayer.length()
 
@@ -334,7 +334,7 @@ export default function Yeti() {
 
     // --- detection state machine (with hysteresis) ---
     // Keep the last-known fix current for as long as it can actually see you.
-    if (a.mode === 'chase') a.lastKnown.set(camera.position.x, 0, camera.position.z)
+    if (a.mode === 'chase') a.lastKnown.set(playerBody.x, 0, playerBody.z)
 
     // Shed cooldowns recover whenever the run is live and not in the breather —
     // even mid-chase. The patrol clock itself only ticks while he's calm (idle
@@ -577,7 +577,7 @@ export default function Yeti() {
       a.wanderTimer -= delta
       toWander.set(a.wander.x - g.position.x, 0, a.wander.z - g.position.z)
       if (a.wanderTimer <= 0 || toWander.length() < 0.6) {
-        pickWander(a.wander, camera.position.x, camera.position.z, P.wanderRadius, interlude)
+        pickWander(a.wander, playerBody.x, playerBody.z, P.wanderRadius, interlude)
         a.wanderTimer = 5 + Math.random() * 4
       } else {
         dir.copy(toWander).normalize()

@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import World from './World.jsx'
 import Snow from './Snow.jsx'
 import Player from './Player.jsx'
+import PlayerAvatar from './PlayerAvatar.jsx'
 import Yeti from './Yeti.jsx'
 import Footprints from './Footprints.jsx'
 import Sheds from './Sheds.jsx'
@@ -95,6 +96,9 @@ export default function App() {
   //              game-over / win card: restart — the two never overlap in time
   //   1..4       use the item in that slot (also Numpad 1-4)
   //   Q          use your first carried item (slot 1) — a shorthand for "1"
+  //   V          toggle first-/third-person (cameraMode.js) — a view swap, not
+  //              a run action, so unlike the others it works any time, not just
+  //              mid-run; Player.jsx reads the mode off the store every frame
   //
   // The carried items always pack left with no gaps (store `compact`), so a
   // number always lines up with the chip it's under and "drop first" is
@@ -128,6 +132,8 @@ export default function App() {
           s.useSlot(i)
           lockWalk()
         }
+      } else if (e.code === 'KeyV' && !e.repeat) {
+        useGame.getState().toggleCameraMode()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -147,6 +153,7 @@ export default function App() {
         <World />
         <Snow />
         <Player />
+        <PlayerAvatar />
         <Yeti />
         <Footprints />
         <Sheds />

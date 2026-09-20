@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
 import { threat } from './threat.js'
 import { greenEmber } from './greenEmber.js'
 import { shelter } from './shelter.js'
 import { ARENA_HALF } from './Player.jsx'
+import { playerBody } from './playerBody.js'
 
 // Step 6.7: the green ember. Where the level waves (Items.jsx) are the safe-ish
 // forage, this is the greed play — one at a time, out by the yeti, worth a big
@@ -57,7 +58,6 @@ function rollOffset(out) {
 }
 
 export default function GreenEmber() {
-  const { camera } = useThree()
   const root = useRef()
   const orb = useRef()
   const light = useRef()
@@ -94,7 +94,7 @@ export default function GreenEmber() {
     rollOffset(offset.current)
     let x = threat.yetiX + offset.current.x
     let z = threat.yetiZ + offset.current.y
-    if (Math.hypot(x - camera.position.x, z - camera.position.z) < PLAYER_CLEAR) {
+    if (Math.hypot(x - playerBody.x, z - playerBody.z) < PLAYER_CLEAR) {
       offset.current.negate()
       x = threat.yetiX + offset.current.x
       z = threat.yetiZ + offset.current.y
@@ -195,8 +195,8 @@ export default function GreenEmber() {
     greenEmber.z = pos.current.z
     greenEmber.present = true
 
-    const pdx = camera.position.x - pos.current.x
-    const pdz = camera.position.z - pos.current.z
+    const pdx = playerBody.x - pos.current.x
+    const pdz = playerBody.z - pos.current.z
     const pdist2 = pdx * pdx + pdz * pdz
 
     // 6.12: no reaching the green ember from inside a shed — it's a risk play,

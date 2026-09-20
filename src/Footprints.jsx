@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGame } from './store.js'
+import { playerBody } from './playerBody.js'
 import {
   trail,
   stampPrint,
@@ -30,7 +31,6 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0)
 const FLAT = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0))
 
 export default function Footprints() {
-  const { camera } = useThree()
   const inst = useRef()
 
   const geom = useMemo(() => new THREE.CircleGeometry(PRINT_SIZE, 12), [])
@@ -75,8 +75,8 @@ export default function Footprints() {
     const delta = Math.min(rawDelta, 0.1)
 
     ageTrail(delta)
-    if (surfaceAt(camera.position.x, camera.position.z) === 'snow') {
-      stampPrint(camera.position.x, camera.position.z)
+    if (surfaceAt(playerBody.x, playerBody.z) === 'snow') {
+      stampPrint(playerBody.x, playerBody.z)
     }
 
     for (let i = 0; i < TRAIL_CAPACITY; i++) {
