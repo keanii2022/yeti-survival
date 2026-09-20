@@ -2,11 +2,12 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGame } from './store.js'
 import { inControl } from './touch.js'
-import { INTERLUDE_SECONDS } from './levels.js'
+import { INTERLUDE_SECONDS, NIGHTFALL_INTERLUDE_SECONDS } from './levels.js'
 
 // Step 6.6: runs the between-levels interlude clock. When collectItem() clears a
 // level it flips `interlude` on; this counts down INTERLUDE_SECONDS of real time
-// and then calls endInterlude(), which advances the level and lets Items spawn
+// (NIGHTFALL_INTERLUDE_SECONDS in nightfall — 8.6 wants a tighter climb) and
+// then calls endInterlude(), which advances the level and lets Items spawn
 // the next wave. Warmth drain is paused elsewhere (Survival.jsx) while it runs.
 //
 // The countdown is seeded and ticked entirely inside useFrame — an effect can't
@@ -19,10 +20,12 @@ export default function Levels() {
   const wasInterlude = useRef(false)
 
   useFrame((_, rawDelta) => {
-    const { interlude, status, isTouch, endInterlude } = useGame.getState()
+    const { interlude, status, isTouch, nightfall, endInterlude } = useGame.getState()
 
     // Edge: the interlude just began — start the clock.
-    if (interlude && !wasInterlude.current) timer.current = INTERLUDE_SECONDS
+    if (interlude && !wasInterlude.current) {
+      timer.current = nightfall ? NIGHTFALL_INTERLUDE_SECONDS : INTERLUDE_SECONDS
+    }
     wasInterlude.current = interlude
 
     if (!interlude) return

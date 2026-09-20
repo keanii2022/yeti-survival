@@ -121,15 +121,21 @@ describe('Hud', () => {
     expect(screen.getByText(/Press N/)).toBeInTheDocument()
   })
 
-  it('shows a distinct win screen for clearing nightfall, with no further N prompt', () => {
-    useGame.setState({ status: 'won', nightfall: true, level: 8, score: 9000, embersTotal: 90 })
+  it('8.6: the game-over card reads nightfall as an endless climb, not a win', () => {
+    // nightfall never reaches `status: 'won'` anymore (store.js) — it only
+    // ever ends caught or frozen, with the level reached as the score.
+    useGame.setState({
+      status: 'caught',
+      nightfall: true,
+      level: 14,
+      score: 9000,
+      embersTotal: 90,
+      reviveUsed: true,
+    })
     render(<Hud locked={true} />)
 
-    expect(
-      screen.getByRole('heading', { name: 'The night is over' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/Press N/)).not.toBeInTheDocument()
-    expect(screen.getByText('Press R to start over')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'The yeti caught you' })).toBeInTheDocument()
+    expect(screen.getByText('Nightfall — level 14')).toBeInTheDocument()
   })
 
   it('offers a tap-to-restart button on the game-over card on touch', () => {

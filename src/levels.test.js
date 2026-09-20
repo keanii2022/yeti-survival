@@ -218,11 +218,9 @@ describe('effectiveLevel (nightfall)', () => {
     expect(effectiveLevel(2, true)).toBe(2 + NIGHTFALL_OFFSET)
   })
 
-  it('never lets nightfall climb past level 10 — the hardest already beaten', () => {
-    for (let L = 1; L <= LEVEL_COUNT; L++) {
-      expect(effectiveLevel(L, true)).toBeLessThanOrEqual(LEVEL_COUNT)
-    }
-    expect(effectiveLevel(LEVEL_COUNT, true)).toBe(LEVEL_COUNT)
+  it('8.6: keeps climbing past LEVEL_COUNT with no ceiling', () => {
+    expect(effectiveLevel(LEVEL_COUNT, true)).toBe(LEVEL_COUNT + NIGHTFALL_OFFSET)
+    expect(effectiveLevel(LEVEL_COUNT + 10, true)).toBe(LEVEL_COUNT + 10 + NIGHTFALL_OFFSET)
   })
 
   it('starts nightfall at a real mid-curve difficulty, not level 1 again', () => {

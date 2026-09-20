@@ -1,7 +1,9 @@
 // Step 8.3: the Guardian — the second yeti, active from effective level 5
-// onward (levels.js caps effectiveLevel at LEVEL_COUNT, so in practice this is
-// just L5 and L6 of the curve, nightfall included since its offset already
-// starts a run there).
+// onward (nightfall's offset already starts a run there — see levels.js).
+// 8.6 removed nightfall's level ceiling, so effectiveLevel can climb well
+// past 6 in an endless run; guardianParams' second lerp (t2 below) is what
+// keeps the Guardian escalating gently alongside that instead of flatlining
+// at its old L6 values forever.
 //
 // Unlike the Hunter (Yeti.jsx — the original AI, unchanged, running its own
 // full 6.6-11 dial), the Guardian has one job: hold a patrol post near the
@@ -24,25 +26,31 @@ export const guardian = {
 
 export const GUARDIAN_MIN_LEVEL = 5
 
-// The Guardian's own short ramp: effectiveLevel only ever hands it 5 or 6
-// (levels.js pins nightfall's offset so it never climbs further), so this is
-// a straight lerp between an L5 floor and an L6-and-up ceiling rather than a
-// long curve like levelParams.
+// The Guardian's own ramp: a straight lerp between an L5 floor and an L6
+// ceiling (t1) for the base game, same as the original 8.3 tuning — plus a
+// slower, bounded creep past L6 (t2) that only ever engages in nightfall's
+// endless climb (8.6), so a long run keeps getting harder instead of
+// flatlining at its old ceiling forever.
 export function guardianParams(curveLevel) {
-  const t = Math.min(1, Math.max(0, curveLevel - GUARDIAN_MIN_LEVEL))
+  const t1 = Math.min(1, Math.max(0, curveLevel - GUARDIAN_MIN_LEVEL))
+  const t2 = Math.max(0, curveLevel - (GUARDIAN_MIN_LEVEL + 1))
   return {
     // Wider than its own patrol turf on purpose — you're spotted well before
     // you're standing on the ember, which is the warning that it's his turf.
-    aggroRadius: 22 + t * 8,
+    aggroRadius: 22 + t1 * 8 + t2 * 1.4,
     // Tight leash on the wander — a sentinel holding a post, not roaming.
-    patrolRadius: 16 - t * 4,
+    // Floored well above zero: a patrol radius of 0 would just be a yeti
+    // nailed to one spot, which reads as broken, not harder.
+    patrolRadius: Math.max(8, 16 - t1 * 4 - t2 * 0.5),
     // "Peels off to chase briefly before returning to post" — a hard cap, not
-    // a lose-sight condition like the Hunter's search state.
-    chaseCap: 3 + t * 3,
+    // a lose-sight condition like the Hunter's search state. Capped well
+    // under the Hunter's full commitment even at the far end of the creep.
+    chaseCap: Math.min(9, 3 + t1 * 3 + t2 * 0.6),
     // Deliberately a notch under the Hunter's own sustained speed at these
     // levels (levels.js's chaseSpeed is ~9 by L5) — the Hunter is still the
     // real threat; the Guardian just makes lingering near the ember costly.
-    speed: 5.6 + t,
+    // Clamped below the player's own sprint (10) so it's never unbeatable.
+    speed: Math.min(9.3, 5.6 + t1 + t2 * 0.25),
   }
 }
 

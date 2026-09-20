@@ -245,8 +245,11 @@ export const useGame = create((set) => ({
 
   // Grab an ember: score + counts, a small warmth top-up, and — when it's the
   // one that clears the level — the transition. Clearing the final level wins
-  // the run (the first win, or the end of nightfall); any earlier level opens
-  // the interlude. Same in both modes.
+  // the base game, unlocking nightfall; any earlier level opens the
+  // interlude. 8.6: nightfall itself never wins — it's a genuinely endless
+  // climb past LEVEL_COUNT, so every level clear there just opens the next
+  // (shorter) interlude, forever, until the run ends by being caught or
+  // freezing.
   collectItem: (value, warmthBonus = 0) =>
     set((s) => {
       if (s.status !== 'playing') return {}
@@ -261,7 +264,7 @@ export const useGame = create((set) => ({
         warmth: Math.min(START_WARMTH, s.warmth + warmthBonus),
       }
       if (itemsCollected >= s.itemsTotal) {
-        if (s.level >= LEVEL_COUNT) next.status = 'won'
+        if (s.level >= LEVEL_COUNT && !s.nightfall) next.status = 'won'
         else next.interlude = true
       }
       return next

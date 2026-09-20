@@ -18,10 +18,20 @@ describe('guardianParams', () => {
     expect(p.speed).toBeGreaterThan(5.6)
   })
 
-  it('clamps at the ceiling rather than climbing past one level above the floor', () => {
+  it('8.6: keeps creeping past one level above the floor instead of flatlining', () => {
     const oneAbove = guardianParams(GUARDIAN_MIN_LEVEL + 1)
     const wayAbove = guardianParams(GUARDIAN_MIN_LEVEL + 5)
-    expect(wayAbove).toEqual(oneAbove)
+    expect(wayAbove.aggroRadius).toBeGreaterThan(oneAbove.aggroRadius)
+    expect(wayAbove.patrolRadius).toBeLessThan(oneAbove.patrolRadius)
+    expect(wayAbove.chaseCap).toBeGreaterThan(oneAbove.chaseCap)
+    expect(wayAbove.speed).toBeGreaterThan(oneAbove.speed)
+  })
+
+  it('8.6: still bounds every value even arbitrarily deep into an endless run', () => {
+    const p = guardianParams(GUARDIAN_MIN_LEVEL + 500)
+    expect(p.patrolRadius).toBeGreaterThanOrEqual(8)
+    expect(p.chaseCap).toBeLessThanOrEqual(9)
+    expect(p.speed).toBeLessThanOrEqual(9.3)
   })
 
   it('never goes below the floor for a level under the minimum', () => {

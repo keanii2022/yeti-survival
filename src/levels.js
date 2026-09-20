@@ -5,9 +5,11 @@
 //
 // Each level = clear `levelTarget` embers (spawned off-screen around the
 // player), then a calm INTERLUDE_SECONDS breather, then the next level spawns
-// and the yeti re-aggros. Clear LEVEL_COUNT levels for the win screen; past
-// that the run continues in endless "nightfall" mode (no interludes, the curve
-// keeps climbing — `levelParams` is defined for any level).
+// and the yeti re-aggros. Clear LEVEL_COUNT levels for the win screen, which
+// unlocks nightfall (8.6) — a genuinely endless replay: the curve keeps
+// climbing past LEVEL_COUNT for as long as the run lasts, `levelParams` and
+// guardianParams are defined for any level, and there's no second win screen.
+// Score — how far you got — is the only measure.
 //
 // `levelParams` also takes a difficulty (difficulty.js). The numbers below are
 // the HARD curve; 'medium' / 'easy' scale the yeti's speed, its detection range
@@ -19,8 +21,9 @@ import { difficultyMods } from './difficulty.js'
 // Playtest walked this 10 → 6 → 8 → 6. Eight had two levels almost nobody was
 // reaching — the family playtest kept stalling around L2–3 — so the win line is
 // back at six, a climb that can actually be finished. The curve itself is
-// unchanged (levelParams is defined for any level); this is only where the run
-// ends. Everything keyed to LEVEL_COUNT or the level number tracks it.
+// unchanged (levelParams is defined for any level); this is only where the
+// base game ends and nightfall unlocks. Everything keyed to LEVEL_COUNT or the
+// level number tracks it.
 export const LEVEL_COUNT = 6
 
 // Seconds of calm between clearing a level and the next wave. Warmth stops
@@ -29,18 +32,24 @@ export const LEVEL_COUNT = 6
 // breathe, short enough not to drag.
 export const INTERLUDE_SECONDS = 8
 
-// Nightfall (unlocked by clearing every level) replays the same climb, but every
-// level is pinned this many rungs higher on the curve — nightfall L1 already
-// bites like normal L5, and it holds at LEVEL_COUNT once the offset would push
-// past it, the hardest you've already beaten. It never climbs past that: the
-// point is a tougher run, not a yeti you can't run from. Interludes and the win
-// screen still happen; it just ends on its own "night is over" card.
+// 8.6: nightfall's breather is shorter — the whole mode is a tighter, faster
+// climb than the base game, and a long calm beat undercuts that.
+export const NIGHTFALL_INTERLUDE_SECONDS = 4
+
+// Nightfall (unlocked by clearing every level) pins every level this many
+// rungs higher on the curve — nightfall L1 already bites like normal L5 — and,
+// as of 8.6, just keeps climbing from there with no ceiling: the point is
+// letting the yeti(s) climb past the base game's peak, with Step 7's agility
+// tools (jump, mirror, night consumables) as the counterplay that earns
+// surviving further into it. There's no second win screen; the run ends when
+// you're caught or freeze, same as the base game, and the level you reached
+// is the score that matters.
 export const NIGHTFALL_OFFSET = 4
 
 // The curve rung a run-level actually plays at, given the mode.
 export function effectiveLevel(level, nightfall) {
   const L = Math.max(1, level)
-  return nightfall ? Math.min(LEVEL_COUNT, L + NIGHTFALL_OFFSET) : L
+  return nightfall ? L + NIGHTFALL_OFFSET : L
 }
 
 // Embers to clear per level: 7 through L3, 8 from L4 on. Bumped from 6 in a

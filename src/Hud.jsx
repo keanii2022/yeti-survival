@@ -484,14 +484,14 @@ export default function Hud({ locked, isTouch }) {
         </div>
       )}
 
+      {/* 8.6: nightfall never reaches `won` anymore — it's an endless climb
+          that only ends by being caught or freezing, same as the game-over
+          card below. This screen is only ever the base game's first clear,
+          the one that unlocks nightfall. */}
       {won && (
         <div className="prompt won">
-          <h1>{nightfall ? 'The night is over' : 'Dawn breaks'}</h1>
-          <p className="final">
-            {nightfall
-              ? `You cleared the nightfall — all ${level} again`
-              : `You made it out — ${level} levels cleared`}
-          </p>
+          <h1>Dawn breaks</h1>
+          <p className="final">You made it out — {level} levels cleared</p>
           <div className="tally">
             <p>
               <span>Survived</span>
@@ -526,25 +526,19 @@ export default function Hud({ locked, isTouch }) {
           </div>
           {isTouch ? (
             <div className="prompt-btns">
-              {!nightfall && (
-                <button
-                  type="button"
-                  className="prompt-btn ghost"
-                  onClick={startNightfall}
-                >
-                  Nightfall
-                </button>
-              )}
+              <button
+                type="button"
+                className="prompt-btn ghost"
+                onClick={startNightfall}
+              >
+                Nightfall
+              </button>
               <button type="button" className="prompt-btn" onClick={reset}>
                 Start over
               </button>
             </div>
           ) : (
-            <p>
-              {nightfall
-                ? 'Press R to start over'
-                : 'Press N for the nightfall — the same ten, harder · R to start over'}
-            </p>
+            <p>Press N for the nightfall — endless, and harder every level · R to start over</p>
           )}
         </div>
       )}

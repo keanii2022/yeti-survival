@@ -670,7 +670,7 @@ describe('levels (6.6)', () => {
     expect(get().interlude).toBe(false)
   })
 
-  it('nightfall runs the same climb structure — interlude on early levels, win on the last', () => {
+  it('8.6: nightfall opens an interlude on early levels like the base game', () => {
     useGame.setState({
       nightfall: true,
       level: 3,
@@ -680,15 +680,29 @@ describe('levels (6.6)', () => {
     get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
     expect(get().interlude).toBe(true)
     expect(get().status).toBe('playing')
+  })
 
+  it('8.6: nightfall never wins, even clearing past LEVEL_COUNT — it just keeps climbing', () => {
     useGame.setState({
+      nightfall: true,
       interlude: false,
       level: LEVEL_COUNT,
       itemsCollected: levelTarget(LEVEL_COUNT) - 1,
       itemsTotal: levelTarget(LEVEL_COUNT),
     })
     get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
-    expect(get().status).toBe('won')
+    expect(get().status).toBe('playing')
+    expect(get().interlude).toBe(true)
+
+    useGame.setState({
+      interlude: false,
+      level: LEVEL_COUNT + 10,
+      itemsCollected: levelTarget(LEVEL_COUNT + 10) - 1,
+      itemsTotal: levelTarget(LEVEL_COUNT + 10),
+    })
+    get().collectItem(EMBER_SCORE, WARMTH_PER_EMBER)
+    expect(get().status).toBe('playing')
+    expect(get().interlude).toBe(true)
   })
 
   it('startNightfall only fires from a non-nightfall win and carries score forward', () => {
