@@ -277,11 +277,14 @@ Within a group the exact order is playtest-driven, like 6.10–6.14. All of Step
 (7.1–7.16) has shipped; it needs a full father-and-son playtest before Step 8
 starts.
 
-## Step 8 — AI escalation & replay (not started)
+## Step 8 — AI escalation & replay (8.1-8.6 implemented, needs playtest)
 
 Split out of the Step 7 backlog because it's the biggest design risk and wants
 everything in Step 7 — plus a full father-and-son playtest of it — settled first.
-Same one-item-per-commit discipline.
+Normally one-item-per-commit *and* one playtest between each; built back-to-back
+here instead, per the user's own call ("going to finish the steps, play and
+polish later") — still one commit per sub-step, just no pause for a playtest
+between them. Needs that full playtest + polish pass before it's really done.
 
 - **8.1 Distracted feeding** — the yeti occasionally stops to feed, fully blind
   for a few seconds. Spawns near a level's **final** ember cluster, so the last

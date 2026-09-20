@@ -33,7 +33,7 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
 
 ## Build order (one Claude Code session per step; use /clear between steps)
 
-**Current status: Steps 1-6 complete (including all 6.1-6.14 sub-steps). Step 9 (Mobile/touch) complete (9.1-9.6), pulled forward ahead of the rest of Step 7 per the note above. Step 7 complete (7.1-7.16, all sub-steps shipped) — needs a full father-and-son playtest before Step 8 starts per the Step 8 note below. Step 8 not started.**
+**Current status: Steps 1-6 complete (including all 6.1-6.14 sub-steps). Step 9 (Mobile/touch) complete (9.1-9.6). Step 7 complete (7.1-7.16, all sub-steps shipped). Step 8 (AI escalation & replay, 8.1-8.6) implemented in full — distracted feeding, roar/stun, the Hunter+Guardian pair from L5, the daily seed, per-level modifiers, and the endless nightfall rework — built back-to-back in one batch per the user's own call to defer the usual per-sub-step playtest; needs a full father-and-son playtest + polish pass before calling it done.**
 1. Empty 3D world — ground plane, sky, lighting, fog. Just prove it renders at localhost.
 2. Player movement + camera controller.
 3. One yeti with basic chase-detection AI.
