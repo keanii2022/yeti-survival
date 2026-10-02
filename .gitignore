@@ -26,3 +26,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets / credentials (added in secrets audit)
+!.env.example
+credentials.json
+client_secret*.json
+token.json
+*token*.json
+secrets.json
+*.pem
+*.key
+*.p12
+.netrc
+.claude/settings.local.json
