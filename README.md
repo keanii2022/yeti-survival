@@ -1,5 +1,7 @@
 # Yeti Survival
 
+[![tests and deploy](https://github.com/keanii2022/yeti-survival/actions/workflows/deploy.yml/badge.svg)](https://github.com/keanii2022/yeti-survival/actions/workflows/deploy.yml)
+
 **▶ Play it: [keanii2022.github.io/yeti-survival](https://keanii2022.github.io/yeti-survival/)**
 
 ## What it does
@@ -36,8 +38,10 @@ full phone/touch controls, and music that reacts to the chase.
 
 ## How I know it works
 
-321 automated tests across 28 files (Vitest), covering the game rules,
-the yeti's decision-making helpers, levels, and controls. The 3D scene
+321 automated tests across 28 files (Vitest). They run on every push,
+and a failing test stops the game from deploying (badge above). They
+cover the game rules, the yeti's decision-making helpers, levels, and
+controls. The 3D scene
 itself is checked by playtesting. A few real test names from the output:
 
 ```

@@ -40,24 +40,24 @@ possible, rack up a high score. Full-page standalone app — not tailored for an
 4. Items + survival meter + scoring + game-over screen.
 5. Atmosphere — snowfall particles, ambient/scary audio, proximity stingers.
 6. Polish / stretch — playtest-scoped after steps 1–5. One session and one commit
-   per sub-step; playtest between each; no batching. Full detail in the README's
+   per sub-step; playtest between each; no batching. Full detail in NOTES.md's
    "Step 6" section; order within the 6.10–6.14 hide-and-seek group is set by
    playtest, not fixed.
 7. Chase-fair + toolkit — fix the linear chase (yeti turn-rate cap → look-behind
    mirror → footprints), then the inventory / consumables system, control-map
    cleanup, and world mechanics (frozen pond, campfire, shed extension, weather
    events). Same one-session / one-commit / one-playtest / no-batching rule.
-   Full detail in the README's "Step 7" section.
+   Full detail in NOTES.md's "Step 7" section.
 8. AI escalation & replay — distracted feeding, roar / stun, two yetis (Hunter +
    Guardian), daily seed, per-level modifiers, nightfall rework. Needs Step 7
-   shipped and fully playtested first. Full detail in the README's "Step 8"
+   shipped and fully playtested first. Full detail in NOTES.md's "Step 8"
    section.
 9. Mobile / touch — pulled forward ahead of Step 7's remainder so the game is
    playable on a phone. Coarse-pointer devices get a swapped-in touch layer
    (drag-look, thumb joystick with a sprint detent, on-screen action buttons,
    responsive HUD, a mobile performance tier, landscape / fullscreen); desktop
    keyboard/mouse is unchanged. Same one-session / one-commit / one-playtest /
-   no-batching rule. Full detail in the README's "Step 9" section.
+   no-batching rule. Full detail in NOTES.md's "Step 9" section.
 
 ### Step 6 sub-steps
 
