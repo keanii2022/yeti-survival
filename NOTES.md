@@ -309,6 +309,51 @@ between them. Needs that full playtest + polish pass before it's really done.
   parked — Step 7's agility tools (jump, mirror, night consumables) are that
   counterplay.
 
+**First playtest (2026-10-03) — fixes.** The father-and-son pass on 8.1–8.6
+turned up no confirmed bugs, just five things that didn't land: three features
+nobody noticed (feeding, the roar, nightfall), a yeti that's hard to see, and a
+second yeti that arrives later than most runs reach. Back to the usual
+discipline for these: one session and one commit per fix, a playtest between
+each, push after each.
+
+- **8.7 Feeding, earlier and obvious** *(tuning — 8.1)* — never noticed in
+  play. It only rolls once a level is down to its last 3 embers, at 60%, and
+  while he eats there's no sound and no pose — he just stands there. Move the
+  roll up to early in every level, raise the odds, and give it a tell you can't
+  miss: a crunching / snuffling sound and an eating pose (hunched, head down).
+  Still fully blind while he eats.
+- **8.8 A roar you actually hear** *(tuning — 8.2; a bug if it isn't firing)* —
+  never heard. It only fires after 9–15 s of unbroken chase, so a chase you
+  shake off early never gets one, and the windup is a soft filtered whoosh that
+  sits under the chase strings. First confirm it fires at all — if it doesn't,
+  this becomes a bug fix. Then cut the wait to a few seconds of chase and make
+  it a real roar: lower, louder, the music ducking for a beat under it. Ducking
+  behind a tree or into a shed still dodges it.
+- **8.9 The yeti from the son's drawing** *(tuning — look; also fixes "blends
+  into the snow")* — his fur is near-white on white snow, so at range he
+  disappears. Rebuild his look from the drawing — shape, colours, features —
+  still out of simple 3D shapes like today's `YetiModel.jsx`. Wherever the
+  drawing leaves him pale, add contrast (darker shading, the glowing eyes) so he
+  reads against snow at dusk and at night. The Guardian gets its own colourway
+  of the same design so the two stay easy to tell apart. Needs a photo of the
+  drawing at build time.
+- **8.10 Two yetis from level 1** *(tuning — 8.3)* — the Guardian only appears
+  at L5. Bring it in from L1 on every difficulty. Its ramp is anchored to L5
+  today (`GUARDIAN_MIN_LEVEL`), so re-spread it across the climb: a gentle
+  Guardian at L1 growing into today's L5–L6 strength by the last level.
+- **8.11 Nightfall that feels different** *(tuning — 8.6, needs 8.10)* — the son
+  played it and only noticed the sky change. Two reasons: nightfall L1 sits at
+  normal L5 on the curve (`NIGHTFALL_OFFSET` 4) — easier than the L6 you just
+  beat to unlock it — and once 8.10 lands, "both yetis present" stops being a
+  nightfall-only thing. Start it above where the base game ends, and give it at
+  least one change you see and feel in the first minute — e.g. shorter sight in
+  the dark, the yetis' eyes burning brighter, the water bottle out from the
+  first level. The exact twist gets picked together at build time.
+
+Order: 8.10 before 8.11 — nightfall's difference has to be found once the
+second yeti is already in the base game. 8.9 waits on the drawing. The rest is
+playtest-driven, like 6.10–6.14.
+
 ## Step 9 — Mobile / touch
 
 Pulled forward ahead of Step 7's remainder: the game is deployed and playable on
