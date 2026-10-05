@@ -187,9 +187,9 @@ export default function Sound() {
     if (iceCrackReq > prevIceCrack.current) eng.iceCrack()
     prevIceCrack.current = iceCrackReq
 
-    // 8.2: a rising growl the instant he plants for the windup, regardless of
-    // whether it goes on to land — that's the whole point of a telegraph.
-    // Then a separate, heavier cue only if it actually connects.
+    // 8.2 / 8.8: the roar itself the instant he plants for the windup,
+    // regardless of whether it goes on to land — that's the whole point of a
+    // telegraph. Then a separate, heavier cue only if it actually connects.
     const roarWindingUp = roar.telegraph > 0
     if (roarWindingUp && !prevRoarWindup.current) eng.roarWindup()
     prevRoarWindup.current = roarWindingUp

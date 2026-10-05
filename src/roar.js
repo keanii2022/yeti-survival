@@ -7,6 +7,12 @@
 // whole point: it punishes standing still in the open, not being chased per
 // se.
 //
+// 8.8: the first playtest never heard one. It wasn't broken — it needed 9–15 s
+// of unbroken chase, and at L1 a sprint shakes him in two or three — so the
+// first roar of a chase now comes after a few seconds (ROAR_FIRST_*), and
+// Sound.jsx plays it as a real roar with the music ducking under it. The
+// longer ROAR_REPEAT_* gap only spaces out a second roar in the same chase.
+//
 // Same off-React singleton pattern as threat.js / greenEmber.js / decoy.js:
 // Yeti.jsx writes `telegraph` (0→1 through the windup, back to 0 once it
 // resolves) so Sound.jsx / Hud.jsx can layer a rising warning cue, and sets
@@ -17,6 +23,15 @@ export const roar = { telegraph: 0, stunTimer: 0, shakeTimer: 0 }
 export const ROAR_SLOW_MULT = 0.55 // movement speed multiplier while stunTimer is running
 export const ROAR_STUN_SECONDS = 2.5
 export const ROAR_SHAKE_SECONDS = 0.6
+
+// How long he stands planted mid-roar before it resolves, how much unbroken
+// chase it takes before the first roar, and the longer gap before another in
+// the same chase. Both waits only tick while a chase is actually live.
+export const ROAR_WINDUP = 1.2
+export const ROAR_FIRST_MIN = 2.5
+export const ROAR_FIRST_VAR = 1.5
+export const ROAR_REPEAT_MIN = 9
+export const ROAR_REPEAT_VAR = 6
 
 // Canopy radius (before a tree's own `scale`) that blocks the roar — wider
 // than trees.js's collideR (the physical trunk you bump), matching the
@@ -58,4 +73,48 @@ export function resetRoar() {
   roar.telegraph = 0
   roar.stunTimer = 0
   roar.shakeTimer = 0
+}
+
+// The yeti's own roar clock, one per yeti (Yeti.jsx keeps it on its AI ref).
+// wasChasing tracks the chase edge so a freshly begun chase rolls a fresh
+// first-roar wait instead of inheriting whatever was left from an earlier one.
+export function createRoarTimer() {
+  return { phase: 'idle', t: 0, cooldown: 0, wasChasing: false }
+}
+
+// Advance one frame. `chasing` is whether he's in an active chase right now.
+// Returns true on the one frame the windup completes — the caller resolves it
+// against the sightline. A chase broken off mid-windup cancels it outright.
+// Pure apart from `timer`, like feeding.js, so it's easy to test in isolation.
+export function stepRoar(timer, chasing, delta, rng = Math.random) {
+  if (chasing && !timer.wasChasing) {
+    timer.phase = 'idle'
+    timer.cooldown = ROAR_FIRST_MIN + rng() * ROAR_FIRST_VAR
+  }
+  timer.wasChasing = chasing
+  if (!chasing) {
+    timer.phase = 'idle'
+    return false
+  }
+  if (timer.phase === 'idle') {
+    timer.cooldown -= delta
+    if (timer.cooldown <= 0) {
+      timer.phase = 'windup'
+      timer.t = 0
+    }
+    return false
+  }
+  timer.t += delta
+  if (timer.t >= ROAR_WINDUP) {
+    timer.phase = 'idle'
+    timer.cooldown = ROAR_REPEAT_MIN + rng() * ROAR_REPEAT_VAR
+    return true
+  }
+  return false
+}
+
+// 0→1 through the windup, 0 otherwise — what Yeti.jsx publishes as
+// roar.telegraph.
+export function roarTelegraph(timer) {
+  return timer.phase === 'windup' ? Math.min(1, timer.t / ROAR_WINDUP) : 0
 }

@@ -51,6 +51,12 @@ class Atmosphere {
     this.master.connect(this.out)
     this.out.connect(this.ctx.destination)
 
+    // 8.8: the music beds (drone, calm, strings, darkness) share one bus so the
+    // roar can duck them all for a beat. The wind, the heartbeat and every
+    // one-shot cue still go straight to `master`.
+    this.music = this.ctx.createGain()
+    this.music.connect(this.master)
+
     this._buildWind()
     this._buildDrone()
     this._buildCalm()
@@ -122,7 +128,7 @@ class Atmosphere {
     const { ctx } = this
     const gain = ctx.createGain()
     gain.gain.value = 0
-    gain.connect(this.master)
+    gain.connect(this.music)
     ;[55, 55.5, 82.5].forEach((f) => {
       const o = ctx.createOscillator()
       o.type = 'sine'
@@ -140,7 +146,7 @@ class Atmosphere {
     const { ctx } = this
     const gain = ctx.createGain()
     gain.gain.value = 0
-    gain.connect(this.master)
+    gain.connect(this.music)
 
     // Open-fifth pad (F2 / C3 / A3), gently detuned so it breathes.
     ;[87.31, 130.81, 220].forEach((f, i) => {
@@ -186,7 +192,7 @@ class Atmosphere {
     const { ctx } = this
     const gate = ctx.createGain()
     gate.gain.value = 0
-    gate.connect(this.master)
+    gate.connect(this.music)
 
     const lp = ctx.createBiquadFilter()
     lp.type = 'lowpass'
@@ -226,7 +232,7 @@ class Atmosphere {
     const { ctx } = this
     const gate = ctx.createGain()
     gate.gain.value = 0
-    gate.connect(this.master)
+    gate.connect(this.music)
 
     const lp = ctx.createBiquadFilter()
     lp.type = 'lowpass'
@@ -471,41 +477,144 @@ class Atmosphere {
     })
   }
 
-  // 8.2: the roar windup — a rising rumble as he plants, building over about a
-  // second so the freeze reads as a telegraphed threat rather than a glitch.
-  // A noise swell under a slow-rising sawtooth drone, both climbing pitch and
-  // volume together toward the moment it resolves.
+  // 8.2 / 8.8: the roar itself, played the moment he plants for the windup.
+  // 8.2's version was a soft filtered whoosh that sat under the chase strings
+  // and nobody heard. This is a bellow: two detuned saws over a square an
+  // octave down, driven into soft clipping for grit, with a throat flutter on
+  // top and open "raah" formants so it carries on a laptop or phone speaker,
+  // not just as sub-bass. It swells to a peak right as the windup resolves
+  // (roar.js ROAR_WINDUP), pitch rising into it and sagging after as he runs
+  // out of air, with a ragged breath over the top. The music ducks under it.
   roarWindup() {
     const { ctx } = this
     const t = ctx.currentTime
-    const dur = 1.1
+    const peak = t + 1.15
+    const end = t + 2.1
 
+    this._duckMusic(t, 0.15, 0.3, 1.2, 0.9)
+
+    // Pitch wobble shared by every voice, in cents so the sub moves with them.
+    const wob = ctx.createOscillator()
+    wob.frequency.value = 6.5
+    const wobAmt = ctx.createGain()
+    wobAmt.gain.value = 28
+    wob.connect(wobAmt)
+
+    const pre = ctx.createGain()
+    pre.gain.value = 0.4
+    ;[
+      ['sawtooth', 1, -14],
+      ['sawtooth', 1, 14],
+      ['square', 0.5, 0],
+    ].forEach(([type, mul, detune]) => {
+      const o = ctx.createOscillator()
+      o.type = type
+      o.detune.value = detune
+      o.frequency.setValueAtTime(62 * mul, t)
+      o.frequency.exponentialRampToValueAtTime(105 * mul, peak)
+      o.frequency.exponentialRampToValueAtTime(58 * mul, end)
+      wobAmt.connect(o.detune)
+      o.connect(pre)
+      o.start(t)
+      o.stop(end + 0.05)
+    })
+
+    const shaper = ctx.createWaveShaper()
+    shaper.curve = this._growlCurve()
+    shaper.oversample = '2x'
+
+    // Throat flutter: a fast amplitude tremble, the gargle in a growl.
+    const rasp = ctx.createGain()
+    rasp.gain.value = 0.65
+    const flutter = ctx.createOscillator()
+    flutter.frequency.value = 31
+    const flutterAmt = ctx.createGain()
+    flutterAmt.gain.value = 0.35
+    flutter.connect(flutterAmt).connect(rasp.gain)
+    pre.connect(shaper).connect(rasp)
+
+    const env = ctx.createGain()
+    env.gain.setValueAtTime(0.0001, t)
+    env.gain.exponentialRampToValueAtTime(0.1, t + 0.25)
+    env.gain.exponentialRampToValueAtTime(0.6, peak)
+    env.gain.exponentialRampToValueAtTime(0.45, peak + 0.3)
+    env.gain.exponentialRampToValueAtTime(0.0001, end)
+    env.connect(this.master)
+
+    // Chest body plus two open-mouth formants, the first opening up into the
+    // peak ("rrr-AAH") and closing again on the tail.
+    const body = ctx.createBiquadFilter()
+    body.type = 'lowpass'
+    body.frequency.value = 420
+    body.Q.value = 0.7
+    const bodyG = ctx.createGain()
+    bodyG.gain.value = 0.6
+    rasp.connect(body).connect(bodyG).connect(env)
+
+    const f1 = ctx.createBiquadFilter()
+    f1.type = 'bandpass'
+    f1.Q.value = 5
+    f1.frequency.setValueAtTime(450, t)
+    f1.frequency.exponentialRampToValueAtTime(720, peak)
+    f1.frequency.exponentialRampToValueAtTime(500, end)
+    const f1G = ctx.createGain()
+    f1G.gain.value = 1.4
+    rasp.connect(f1).connect(f1G).connect(env)
+
+    const f2 = ctx.createBiquadFilter()
+    f2.type = 'bandpass'
+    f2.Q.value = 6
+    f2.frequency.setValueAtTime(1100, t)
+    f2.frequency.exponentialRampToValueAtTime(1250, peak)
+    const f2G = ctx.createGain()
+    f2G.gain.value = 0.9
+    rasp.connect(f2).connect(f2G).connect(env)
+
+    wob.start(t)
+    wob.stop(end + 0.05)
+    flutter.start(t)
+    flutter.stop(end + 0.05)
+
+    // Ragged breath riding over the voice.
     const n = ctx.createBufferSource()
-    n.buffer = this._noiseBuffer(dur + 0.1)
+    n.buffer = this._noiseBuffer(end - t + 0.1)
     const bp = ctx.createBiquadFilter()
     bp.type = 'bandpass'
-    bp.frequency.setValueAtTime(90, t)
-    bp.frequency.exponentialRampToValueAtTime(340, t + dur)
-    bp.Q.value = 0.9
+    bp.frequency.value = 1400
+    bp.Q.value = 0.8
     const ng = ctx.createGain()
     ng.gain.setValueAtTime(0.0001, t)
-    ng.gain.exponentialRampToValueAtTime(0.35, t + dur * 0.85)
-    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08)
+    ng.gain.exponentialRampToValueAtTime(0.04, t + 0.25)
+    ng.gain.exponentialRampToValueAtTime(0.22, peak)
+    ng.gain.exponentialRampToValueAtTime(0.0001, end - 0.1)
     n.connect(bp).connect(ng).connect(this.master)
     n.start(t)
-    n.stop(t + dur + 0.1)
+    n.stop(end)
+  }
 
-    const o = ctx.createOscillator()
-    o.type = 'sawtooth'
-    o.frequency.setValueAtTime(52, t)
-    o.frequency.exponentialRampToValueAtTime(95, t + dur)
-    const og = ctx.createGain()
-    og.gain.setValueAtTime(0.0001, t)
-    og.gain.exponentialRampToValueAtTime(0.22, t + dur * 0.85)
-    og.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08)
-    o.connect(og).connect(this.master)
-    o.start(t)
-    o.stop(t + dur + 0.1)
+  // 8.8: soft-clip curve for the roar's grit, built once and reused.
+  _growlCurve() {
+    if (!this.growlCurve) {
+      const size = 1024
+      const curve = new Float32Array(size)
+      for (let i = 0; i < size; i++) {
+        const x = (i / (size - 1)) * 2 - 1
+        curve[i] = Math.tanh(3 * x) / Math.tanh(3)
+      }
+      this.growlCurve = curve
+    }
+    return this.growlCurve
+  }
+
+  // 8.8: dip the music bus to `depth` over `attack` seconds, hold it there,
+  // then ease it back up over `release` — the beat of quiet a roar sits in.
+  _duckMusic(t, depth, attack, hold, release) {
+    const g = this.music.gain
+    g.cancelScheduledValues(t)
+    g.setValueAtTime(g.value, t)
+    g.linearRampToValueAtTime(depth, t + attack)
+    g.setValueAtTime(depth, t + attack + hold)
+    g.linearRampToValueAtTime(1, t + attack + hold + release)
   }
 
   // 8.2: the roar landing — a heavier, lower cousin of the lock-on stinger,

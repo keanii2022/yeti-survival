@@ -9,7 +9,15 @@ import { playerBody } from './playerBody.js'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
 import { createFeed, beginFeed, stepFeed, rollFeed, feedDelay } from './feeding.js'
 import { emberField } from './embers.js'
-import { roar, sightlineBlocked, ROAR_STUN_SECONDS, ROAR_SHAKE_SECONDS } from './roar.js'
+import {
+  roar,
+  sightlineBlocked,
+  createRoarTimer,
+  stepRoar,
+  roarTelegraph,
+  ROAR_STUN_SECONDS,
+  ROAR_SHAKE_SECONDS,
+} from './roar.js'
 import { dailyRandom } from './dailySeed.js'
 import { trailToFollow } from './footprints.js'
 import { decoy } from './decoy.js'
@@ -55,9 +63,9 @@ import { YetiModel } from './YetiModel.jsx'
 // while Sound.jsx plays the crunching off threat.eating.
 //
 // Step 8.2: roar / stun is not a mode either — it layers on top of an active
-// chase (roar.js). Sustained pursuit periodically plants him for a windup;
-// breaking sightline (a tree canopy, a shed) before it resolves dodges it,
-// standing in the open eats a brief slow and a screen shake.
+// chase (roar.js). A few seconds into a chase (8.8) he plants for a windup and
+// roars; breaking sightline (a tree canopy, a shed) before it resolves dodges
+// it, standing in the open eats a brief slow and a screen shake.
 //
 // Each run the yeti spawns somewhere random in the arena, always far enough
 // from the player's start that no run begins already in a chase. It idles by
@@ -100,12 +108,6 @@ const DECOY_LOOK_TIME = 3
 // than a lure you can spoil by lingering.
 const DUCK_LOOK_TIME = 1.5
 const POOP_LOOK_TIME = 4.5
-// 8.2: how long he stands planted mid-roar before it resolves, and how long
-// the sustained-chase cooldown runs between one roar and the next chance at
-// another. The cooldown only ticks while a chase is actually live.
-const ROAR_WINDUP = 1.2
-const ROAR_COOLDOWN_MIN = 9
-const ROAR_COOLDOWN_VAR = 6
 // Body circle for the 6.9 trunk push-out. Wider than the player's — he's a
 // brute — so he can't tuck fully behind a thin trunk, but still just a collider:
 // he doesn't steer around trees, he bumps off them and keeps grinding forward.
@@ -237,13 +239,7 @@ export default function Yeti() {
     feedClockLevel: 0, // 8.7: the level feedWait was rolled for
     feedWait: 0, // seconds of that level left before the feed roll
     hunch: 0, // 0..1 eased blend into the eating pose
-    // 8.2: roar / stun. wasChasing tracks the chase edge so a freshly begun
-    // chase rolls a fresh cooldown instead of inheriting whatever was left
-    // ticking from an earlier one.
-    roarPhase: 'idle', // 'idle' | 'windup'
-    roarT: 0,
-    roarCooldown: 0,
-    wasChasing: false,
+    roarTimer: createRoarTimer(), // 8.2 / 8.8: windup + wait clock, see roar.js
   })
   const eyeRef = useRef([null, null])
   const poseRef = useRef([null, null]) // 8.7: [upper body, head] for the eating hunch
@@ -275,8 +271,7 @@ export default function Yeti() {
     a.shedTarget = -1
     a.probe.active = false
     a.feed.active = false
-    a.roarPhase = 'idle'
-    a.wasChasing = false
+    a.roarTimer = createRoarTimer()
     roar.telegraph = 0
     roar.stunTimer = 0
     roar.shakeTimer = 0
@@ -397,8 +392,7 @@ export default function Yeti() {
       poop.live = false
       // 8.2: a roar mid-windup when the level clears shouldn't carry into the
       // breather or resolve against a player who's already safe.
-      a.roarPhase = 'idle'
-      a.wasChasing = false
+      a.roarTimer = createRoarTimer()
       roar.telegraph = 0
     } else if (a.mode === 'chase') {
       // Lost sight — over the lose ring, or he ducked into a shed. Don't reset;
@@ -534,43 +528,16 @@ export default function Yeti() {
       }
     }
 
-    // --- 8.2 roar / stun: only progresses while actively chasing ---
-    const chasingNow = a.mode === 'chase'
-    if (chasingNow && !a.wasChasing) {
-      // A freshly begun chase rolls its own cooldown rather than inheriting
-      // whatever was left ticking from an earlier one.
-      a.roarPhase = 'idle'
-      a.roarCooldown = ROAR_COOLDOWN_MIN + dailyRandom() * ROAR_COOLDOWN_VAR
-    }
-    a.wasChasing = chasingNow
-    if (chasingNow) {
-      if (a.roarPhase === 'idle') {
-        a.roarCooldown -= delta
-        if (a.roarCooldown <= 0) {
-          a.roarPhase = 'windup'
-          a.roarT = 0
-          roar.telegraph = 0
-        }
-      } else {
-        a.roarT += delta
-        roar.telegraph = Math.min(1, a.roarT / ROAR_WINDUP)
-        if (a.roarT >= ROAR_WINDUP) {
-          // Resolves against the sightline right now: hidden (a shed) or a
-          // tree canopy between them dodges it outright.
-          if (!hidden && !sightlineBlocked(trees, g.position.x, g.position.z, playerBody.x, playerBody.z)) {
-            roar.stunTimer = ROAR_STUN_SECONDS
-            roar.shakeTimer = ROAR_SHAKE_SECONDS
-          }
-          roar.telegraph = 0
-          a.roarPhase = 'idle'
-          a.roarCooldown = ROAR_COOLDOWN_MIN + dailyRandom() * ROAR_COOLDOWN_VAR
-        }
+    // --- 8.2 roar / stun: only progresses while actively chasing (roar.js) ---
+    if (stepRoar(a.roarTimer, a.mode === 'chase', delta, dailyRandom)) {
+      // Resolves against the sightline right now: hidden (a shed) or a tree
+      // canopy between them dodges it outright.
+      if (!hidden && !sightlineBlocked(trees, g.position.x, g.position.z, playerBody.x, playerBody.z)) {
+        roar.stunTimer = ROAR_STUN_SECONDS
+        roar.shakeTimer = ROAR_SHAKE_SECONDS
       }
-    } else if (a.roarPhase !== 'idle') {
-      // Chase broken off mid-windup — cancel outright, nothing to resolve.
-      a.roarPhase = 'idle'
-      roar.telegraph = 0
     }
+    roar.telegraph = roarTelegraph(a.roarTimer)
 
     // Publish the readout the audio engine / vignette poll each frame. 6.7 adds
     // the yeti's position so the green ember can spawn close to it.
@@ -614,7 +581,7 @@ export default function Yeti() {
       // 8.2: planted mid-roar-windup — no movement. That stillness is the
       // telegraph, and it's the window a hard cut or a dive behind a trunk
       // dodges the roar in.
-      if (a.roarPhase !== 'windup') {
+      if (a.roarTimer.phase !== 'windup') {
         dir.copy(toPlayer).normalize()
         speed = dist < BURST_RADIUS ? P.burstSpeed : P.chaseSpeed
         moving = true
