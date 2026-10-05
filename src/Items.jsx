@@ -5,6 +5,7 @@ import { levelTarget } from './levels.js'
 import { ARENA_HALF } from './Player.jsx'
 import { playerBody, playerFacing } from './playerBody.js'
 import { emberField } from './embers.js'
+import { threat } from './threat.js'
 import { dailyRandom } from './dailySeed.js'
 
 // Embers to collect. Walk over one to grab it — score, plus a small warmth
@@ -86,24 +87,22 @@ function EmberWave({ level }) {
     const t = performance.now() * 0.002
 
     // How many embers are still out there — the last one gets an extra beacon.
-    // 8.1: also the centroid of what's left, published for the yeti's
-    // distracted-feeding roll (feeding.js) once the wave thins to its final
-    // cluster.
+    // 8.7: also the one nearest the yeti, published for his distracted-feeding
+    // roll (feeding.js) — that's where he heads when he breaks off to eat.
     let remaining = 0
-    let clusterX = 0
-    let clusterZ = 0
+    let nearD2 = Infinity
     for (let i = 0; i < spots.length; i++) {
       if (collected[i] || grabbed.current.has(i)) continue
       remaining++
-      clusterX += spots[i][0]
-      clusterZ += spots[i][2]
+      const d2 = (spots[i][0] - threat.yetiX) ** 2 + (spots[i][2] - threat.yetiZ) ** 2
+      if (d2 < nearD2) {
+        nearD2 = d2
+        emberField.nearX = spots[i][0]
+        emberField.nearZ = spots[i][2]
+      }
     }
     emberField.level = level
     emberField.remaining = remaining
-    if (remaining > 0) {
-      emberField.clusterX = clusterX / remaining
-      emberField.clusterZ = clusterZ / remaining
-    }
 
     let justGrabbed = -1
     for (let i = 0; i < spots.length; i++) {

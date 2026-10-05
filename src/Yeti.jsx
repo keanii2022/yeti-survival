@@ -7,7 +7,7 @@ import { threat } from './threat.js'
 import { ARENA_HALF } from './Player.jsx'
 import { playerBody } from './playerBody.js'
 import { createProbe, beginProbe, stepProbe } from './investigate.js'
-import { createFeed, beginFeed, stepFeed, rollFeed } from './feeding.js'
+import { createFeed, beginFeed, stepFeed, rollFeed, feedDelay } from './feeding.js'
 import { emberField } from './embers.js'
 import { roar, sightlineBlocked, ROAR_STUN_SECONDS, ROAR_SHAKE_SECONDS } from './roar.js'
 import { dailyRandom } from './dailySeed.js'
@@ -45,12 +45,14 @@ import { YetiModel } from './YetiModel.jsx'
 // along the edge instead of crossing it.
 //
 // Step 8.1: 'feed' is an idle-only detour, not a divert like decoy/duck/poop —
-// once a level's ember wave thins to its last few (embers.js), there's a
-// one-shot per-level chance (feeding.js) he ambles over to the cluster and
-// stops, fully blind, for a few seconds. No detection check runs at all while
-// he's feeding, same as 'poop' — the last embers of a level are genuinely
-// safe to grab right next to him, as long as you don't walk into
-// CATCH_RADIUS.
+// a few seconds into each level there's a one-shot chance (feeding.js) he
+// ambles over to the ember nearest him (embers.js) and stops, fully blind,
+// for a few seconds. No detection check runs at all while he's eating, same
+// as 'poop' — that ember is genuinely safe to grab right next to him, as long
+// as you don't walk into CATCH_RADIUS. 8.7: the walk over is still idle as far
+// as his eyes go — cross his sightline on the way and he'll commit as usual —
+// and once he's eating he hunches over, head bobbing (the YetiModel poseRef),
+// while Sound.jsx plays the crunching off threat.eating.
 //
 // Step 8.2: roar / stun is not a mode either — it layers on top of an active
 // chase (roar.js). Sustained pursuit periodically plants him for a windup;
@@ -118,6 +120,12 @@ const INTERLUDE_MIN_DIST = 52 // how far off the player his interlude waypoint s
 // juking still doesn't bite; the close-range lunge (BURST_RADIUS) may later want
 // its own harder pivot so cornered-and-close stays deadly.
 const MAX_TURN_RATE = 2.6 // radians/sec the yeti's heading can swing
+// 8.7: the eating pose — how far the upper body pitches forward at the hips,
+// how far the head dips on top of that, and the chewing nod riding on it.
+const HUNCH_BODY = 0.6 // radians
+const HUNCH_HEAD = 0.45
+const CHEW_NOD = 0.09
+const CHEW_RATE = 9 // radians/sec of the nod's sine — a bit under 1.5 chews a second
 
 // Detection range at level 1 — the ring randomSpawn() places the yeti outside.
 // Deeper levels only widen it (levelParams.detectRadius), so a level-1 spawn is
@@ -226,6 +234,9 @@ export default function Yeti() {
     poopId: 0, // the poop.throwId he's already diverted for (7.8)
     feed: createFeed(), // 8.1: travel-then-stationary state for distracted feeding
     fedLevel: 0, // the level rollFeed has already resolved (feed or skip)
+    feedClockLevel: 0, // 8.7: the level feedWait was rolled for
+    feedWait: 0, // seconds of that level left before the feed roll
+    hunch: 0, // 0..1 eased blend into the eating pose
     // 8.2: roar / stun. wasChasing tracks the chase edge so a freshly begun
     // chase rolls a fresh cooldown instead of inheriting whatever was left
     // ticking from an earlier one.
@@ -235,6 +246,7 @@ export default function Yeti() {
     wasChasing: false,
   })
   const eyeRef = useRef([null, null])
+  const poseRef = useRef([null, null]) // 8.7: [upper body, head] for the eating hunch
 
   // Reused every frame so the chase loop allocates nothing.
   const scratch = useMemo(
@@ -324,6 +336,17 @@ export default function Yeti() {
       for (let i = 0; i < a.shedCooldowns.length; i++) {
         if (a.shedCooldowns[i] > 0) a.shedCooldowns[i] -= delta
       }
+    }
+
+    // 8.7: the feed roll's clock — a fresh delay each level, ticking from the
+    // moment the wave is in play whatever he's doing, so a chase early in the
+    // level doesn't push the roll back (it just waits for him to calm down).
+    if (!interlude && a.fedLevel !== level) {
+      if (a.feedClockLevel !== level) {
+        a.feedClockLevel = level
+        a.feedWait = feedDelay(dailyRandom)
+      }
+      a.feedWait -= delta
     }
 
     // 6.14: a freshly thrown decoy trumps every other state, a live chase
@@ -448,20 +471,20 @@ export default function Yeti() {
         a.spotTimer = 0
       }
     } else {
-      // idle.
-      // 8.1: once per level, as soon as the ember wave has thinned to its
-      // final cluster, roll whether he breaks off to feed on it. Checked
-      // first, ahead of detection — deep levels tighten his wander leash
-      // toward wherever you last were (P.wanderRadius), which otherwise
-      // could keep him "detecting" you for most of a thinned-out level and
-      // starve this roll of ever seeing an undetected idle tick. A fresh
-      // level can't roll twice (a.fedLevel latches it).
+      // idle (and 'feed', which lands here too).
+      // 8.1: once per level, as soon as the level's feed delay has run down
+      // (8.7), roll whether he breaks off to feed on the ember nearest him.
+      // Checked first, ahead of detection — deep levels tighten his wander
+      // leash toward wherever you last were (P.wanderRadius), which otherwise
+      // could keep him "detecting" you for much of a level and starve this
+      // roll of ever seeing an undetected idle tick. A fresh level can't roll
+      // twice (a.fedLevel latches it).
       if (a.fedLevel !== level) {
-        const roll = rollFeed(level, emberField, dailyRandom)
+        const roll = rollFeed(level, emberField, a.feedWait, dailyRandom)
         if (roll !== 'pending') {
           a.fedLevel = level
           if (roll === 'feed') {
-            beginFeed(a.feed, emberField.clusterX, emberField.clusterZ)
+            beginFeed(a.feed, emberField.nearX, emberField.nearZ)
             a.mode = 'feed'
             a.spotTimer = 0
             a.shedTarget = -1
@@ -471,14 +494,19 @@ export default function Yeti() {
 
       // Commit delay: the player has to sit inside detection range for
       // P.commitDelay seconds before the chase locks on — long enough at L1
-      // to dart across his sightline, gone by the deep levels. Skipped
-      // outright if the feed roll above just switched him off idle.
-      if (a.mode === 'idle' && !hidden && dist < detectR) {
+      // to dart across his sightline, gone by the deep levels. 8.7: the walk
+      // over to feed spots you the same as idle (and abandons the feed); only
+      // the eating itself is blind.
+      const canSpot = a.mode === 'idle' || (a.mode === 'feed' && a.feed.phase === 'travel')
+      if (canSpot && !hidden && dist < detectR) {
         a.spotTimer += delta
         if (a.spotTimer >= P.commitDelay) {
+          a.feed.active = false
           a.mode = 'chase'
           a.spotTimer = 0
         }
+      } else if (a.mode === 'feed') {
+        a.spotTimer = 0
       } else if (a.mode === 'idle') {
         a.spotTimer = 0
         // Nothing doing — count down to the next shed patrol. When it fires,
@@ -550,6 +578,7 @@ export default function Yeti() {
     threat.mode = a.mode
     threat.yetiX = g.position.x
     threat.yetiZ = g.position.z
+    threat.eating = a.mode === 'feed' && a.feed.phase === 'eat'
 
     // 6.12: publish how close the yeti is to the shed that matters, so Sound.jsx
     // can pace the door-knock tell and the HUD can flip to "he's at the door".
@@ -712,11 +741,21 @@ export default function Yeti() {
     for (const m of eyeRef.current) {
       if (m) m.emissiveIntensity += (glow - m.emissiveIntensity) * Math.min(delta * 6, 1)
     }
+
+    // 8.7: hunch over to eat — ease the upper body forward and the head down,
+    // with a chewing nod on top, then straighten back up when he's done.
+    a.hunch += ((threat.eating ? 1 : 0) - a.hunch) * Math.min(delta * 4, 1)
+    const [body, head] = poseRef.current
+    if (body) body.rotation.x = a.hunch * HUNCH_BODY
+    if (head) {
+      head.rotation.x =
+        a.hunch * (HUNCH_HEAD + Math.sin(performance.now() * 0.001 * CHEW_RATE) * CHEW_NOD)
+    }
   })
 
   return (
     <group ref={group} position={spawn}>
-      <YetiModel eyeRef={eyeRef} />
+      <YetiModel eyeRef={eyeRef} poseRef={poseRef} />
     </group>
   )
 }

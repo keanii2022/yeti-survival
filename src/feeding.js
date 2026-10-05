@@ -1,22 +1,28 @@
 // Step 8.1: distracted feeding.
 //
-// Once a level's ember wave has thinned to its final handful, there's a
-// chance the yeti breaks off his idle wander, ambles over to where they're
-// clustered, and stops there — fully blind for a few seconds. He doesn't
-// react to the player at all while this runs (no detection check, same as
-// 7.8's poop divert), so the last few embers of a level are safe to grab as
-// long as you don't walk into him — but he's standing right where you need
-// to go, which is the tension the step is chasing.
+// Early in a level there's a chance the yeti breaks off his idle wander,
+// ambles over to the ember nearest him, and stops there — fully blind for a
+// few seconds. He doesn't react to the player at all while he eats (no
+// detection check, same as 7.8's poop divert), so an ember right next to him
+// is safe to grab as long as you don't walk into him — but he's standing
+// right where you need to go, which is the tension the step is chasing.
 //
-// One roll per level: as soon as the ember field thins to FEED_CLUSTER_SIZE
-// or fewer, rollFeed decides once (feed or skip) and Yeti.jsx doesn't ask
-// again until the next level's wave forms.
+// 8.7: the first playtest never noticed it — it only rolled once a level was
+// down to its last 3 embers, at 60%, and while he ate there was nothing to
+// see or hear. Now it rolls a few seconds into every level (FEED_DELAY_*) at
+// much higher odds, and Yeti.jsx / Sound.jsx give him a hunched eating pose
+// and a crunching / snuffling sound you can hear from well outside his sight.
+//
+// One roll per level: once the level's feed delay has run down, rollFeed
+// decides once (feed or skip) and Yeti.jsx doesn't ask again until the next
+// level's wave forms.
 //
 // Pure and framework-free, like investigate.js, so it's cheap every frame
 // and easy to test in isolation.
 
-export const FEED_CLUSTER_SIZE = 3 // embers remaining at or below this counts as "the final cluster"
-export const FEED_CHANCE = 0.6 // odds he actually takes the bait once the cluster forms
+export const FEED_DELAY_MIN = 5 // seconds into a level before he can break off to feed
+export const FEED_DELAY_VAR = 7 // ...plus up to this much more, rolled per level
+export const FEED_CHANCE = 0.85 // odds he actually takes the bait once the delay is up
 const FEED_TRAVEL_SPEED = 2.4 // an unhurried amble — slower than idle wander, he's not hunting
 const FEED_DURATION = 6 // seconds spent stationary and blind once he arrives
 const ARRIVE_DIST = 1.6
@@ -25,7 +31,12 @@ export function createFeed() {
   return { active: false, phase: 'travel', x: 0, z: 0, timer: 0 }
 }
 
-// Arm the feed: walk to (x, z) — the ember cluster's centroid — then stop.
+// How long into a fresh level before the feed roll happens.
+export function feedDelay(rng = Math.random) {
+  return FEED_DELAY_MIN + rng() * FEED_DELAY_VAR
+}
+
+// Arm the feed: walk to (x, z) — the ember nearest him — then stop.
 export function beginFeed(feed, x, z) {
   feed.active = true
   feed.phase = 'travel'
@@ -59,14 +70,13 @@ export function stepFeed(feed, pos, delta) {
   return { done: false, moving: false, speed: 0, aimX: pos.x, aimZ: pos.z }
 }
 
-// The once-per-level roll. `field` is the embers.js readout (level, remaining,
-// clusterX/Z). Returns 'pending' while the wave hasn't thinned to the final
-// cluster yet (keep checking next frame), or the resolved 'feed' / 'skip' —
-// the caller latches the level once it sees anything but 'pending' so the
-// roll only ever fires once per level.
-export function rollFeed(level, field, rng = Math.random) {
-  if (field.level !== level || field.remaining <= 0 || field.remaining > FEED_CLUSTER_SIZE) {
-    return 'pending'
-  }
+// The once-per-level roll. `field` is the embers.js readout (level,
+// remaining, nearX/Z); `wait` is how much of the level's feed delay is still
+// left to run. Returns 'pending' while the delay hasn't run out or there's no
+// live wave to feed on (keep checking next frame), or the resolved 'feed' /
+// 'skip' — the caller latches the level once it sees anything but 'pending'
+// so the roll only ever fires once per level.
+export function rollFeed(level, field, wait, rng = Math.random) {
+  if (field.level !== level || field.remaining <= 0 || wait > 0) return 'pending'
   return rng() < FEED_CHANCE ? 'feed' : 'skip'
 }

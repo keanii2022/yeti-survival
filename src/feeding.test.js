@@ -1,10 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { createFeed, beginFeed, stepFeed, rollFeed, FEED_CLUSTER_SIZE } from './feeding.js'
+import {
+  createFeed,
+  beginFeed,
+  stepFeed,
+  rollFeed,
+  feedDelay,
+  FEED_DELAY_MIN,
+  FEED_DELAY_VAR,
+} from './feeding.js'
 
 const fixedRng = (v) => () => v
 
 describe('beginFeed', () => {
-  it('arms the feed in the travel phase aimed at the cluster', () => {
+  it('arms the feed in the travel phase aimed at the ember', () => {
     const f = createFeed()
     beginFeed(f, 10, -4)
     expect(f.active).toBe(true)
@@ -15,7 +23,7 @@ describe('beginFeed', () => {
 })
 
 describe('stepFeed — travel phase', () => {
-  it('steers toward the cluster while still far away', () => {
+  it('steers toward the ember while still far away', () => {
     const f = createFeed()
     beginFeed(f, 20, 0)
     const r = stepFeed(f, { x: 0, z: 0 }, 0.1)
@@ -67,29 +75,35 @@ describe('stepFeed — inactive', () => {
   })
 })
 
+describe('feedDelay', () => {
+  it('lands a few seconds into the level, inside the rolled window', () => {
+    expect(feedDelay(fixedRng(0))).toBe(FEED_DELAY_MIN)
+    expect(feedDelay(fixedRng(0.999))).toBeLessThan(FEED_DELAY_MIN + FEED_DELAY_VAR)
+  })
+})
+
 describe('rollFeed', () => {
-  const eligibleField = { level: 3, remaining: FEED_CLUSTER_SIZE, clusterX: 1, clusterZ: 2 }
+  const liveField = { level: 3, remaining: 7, nearX: 1, nearZ: 2 }
 
   it('stays pending while the field is for a different level', () => {
-    const field = { ...eligibleField, level: 2 }
-    expect(rollFeed(3, field, fixedRng(0))).toBe('pending')
+    const field = { ...liveField, level: 2 }
+    expect(rollFeed(3, field, 0, fixedRng(0))).toBe('pending')
   })
 
-  it('stays pending while more than the cluster size remains', () => {
-    const field = { ...eligibleField, remaining: FEED_CLUSTER_SIZE + 1 }
-    expect(rollFeed(3, field, fixedRng(0))).toBe('pending')
+  it('stays pending while the level\'s feed delay is still running', () => {
+    expect(rollFeed(3, liveField, 2, fixedRng(0))).toBe('pending')
   })
 
   it('stays pending once the wave is fully cleared', () => {
-    const field = { ...eligibleField, remaining: 0 }
-    expect(rollFeed(3, field, fixedRng(0))).toBe('pending')
+    const field = { ...liveField, remaining: 0 }
+    expect(rollFeed(3, field, 0, fixedRng(0))).toBe('pending')
   })
 
-  it('resolves to feed when the roll beats the odds', () => {
-    expect(rollFeed(3, eligibleField, fixedRng(0))).toBe('feed')
+  it('rolls early in the level — a full wave still out is fine', () => {
+    expect(rollFeed(3, liveField, 0, fixedRng(0))).toBe('feed')
   })
 
   it('resolves to skip when the roll misses', () => {
-    expect(rollFeed(3, eligibleField, fixedRng(0.999))).toBe('skip')
+    expect(rollFeed(3, liveField, 0, fixedRng(0.999))).toBe('skip')
   })
 })

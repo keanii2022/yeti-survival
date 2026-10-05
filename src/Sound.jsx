@@ -28,6 +28,9 @@ const NEAR = 30
 // red HUD frame (see .lunge in App.css). Matches the yeti's BURST_RADIUS with a
 // hair of lead-in.
 const LUNGE_RANGE = 7
+// 8.7: how far off you can still hear him eating — well past his sight range,
+// so the crunching is a cue you can act on before he'd ever spot you.
+const FEED_HEAR = 50
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 
@@ -46,6 +49,7 @@ export default function Sound() {
   const prevIceCrack = useRef(0)
   const prevRoarWindup = useRef(false) // 8.2
   const prevRoarStun = useRef(false)
+  const feedChewPhase = useRef(0) // 8.7: countdown between feeding crunches
 
   // Wake the audio engine on the first pointer interaction (the click that grabs
   // pointer-lock is one); the pointerlockchange is a belt-and-braces fallback.
@@ -66,12 +70,14 @@ export default function Sound() {
     threat.mode = 'idle'
     threat.yetiX = 0
     threat.yetiZ = 0
+    threat.eating = false
     prevMode.current = 'idle'
     prevStatus.current = 'playing'
     prevItems.current = 0
     prevGreen.current = 0
     prevEscapes.current = 0
     shedTellPhase.current = 0
+    feedChewPhase.current = 0
     prevSheltered.current = false
     prevSnack.current = false
     prevWater.current = false
@@ -190,6 +196,19 @@ export default function Sound() {
     const roarHit = roar.stunTimer > 0
     if (roarHit && !prevRoarStun.current) eng.roarLanded()
     prevRoarStun.current = roarHit
+
+    // 8.7: he's stopped over an ember, eating — crunch and snuffle on a loose
+    // chewing cadence, louder the closer you are, so a blind yeti is something
+    // you hear before you see.
+    if (threat.eating && threat.distance < FEED_HEAR) {
+      feedChewPhase.current -= delta
+      if (feedChewPhase.current <= 0) {
+        eng.feedCrunch(clamp((FEED_HEAR - threat.distance) / (FEED_HEAR - 5), 0, 1))
+        feedChewPhase.current = 0.8 + Math.random() * 0.4
+      }
+    } else {
+      feedChewPhase.current = 0
+    }
 
     // Shed audio (6.12). Entering: a one-shot warm chime, then the wind bed
     // muffles for as long as you're inside — the "cold's eased" cue for the

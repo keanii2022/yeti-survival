@@ -10,4 +10,7 @@
 //
 // yetiX / yetiZ (6.7) are the yeti's world position, published so the green
 // ember can spawn a short walk from wherever it currently is.
-export const threat = { distance: Infinity, mode: 'idle', yetiX: 0, yetiZ: 0 }
+//
+// eating (8.7) is true while he's stopped and blind over an ember in 'feed'
+// mode — not on the walk over — so the audio engine knows when to crunch.
+export const threat = { distance: Infinity, mode: 'idle', yetiX: 0, yetiZ: 0, eating: false }

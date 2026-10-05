@@ -648,6 +648,74 @@ class Atmosphere {
     tremLfo.stop(t + 1.45)
   }
 
+  // 8.7: one chew of the yeti feeding — two or three gritty crunches (short
+  // bandpassed noise bursts, teeth through packed snow) over a low jaw knock,
+  // then a fluttering snuffle in through the nose. Sound.jsx fires it on a
+  // loose cadence while he's stopped over an ember; `near` (0..1) swells it as
+  // you close, so you can hear he's busy from well outside his sight.
+  feedCrunch(near = 0) {
+    const { ctx } = this
+    const t = ctx.currentTime
+    const v = 0.06 + 0.3 * Math.max(0, Math.min(1, near))
+
+    const bites = Math.random() < 0.5 ? 2 : 3
+    let bt = t
+    for (let k = 0; k < bites; k++) {
+      const n = ctx.createBufferSource()
+      n.buffer = this._noiseBuffer(0.1)
+      const bp = ctx.createBiquadFilter()
+      bp.type = 'bandpass'
+      bp.frequency.value = 900 + Math.random() * 900
+      bp.Q.value = 1.2
+      const ng = ctx.createGain()
+      ng.gain.setValueAtTime(0.0001, bt)
+      ng.gain.exponentialRampToValueAtTime(v, bt + 0.006)
+      ng.gain.exponentialRampToValueAtTime(0.0001, bt + 0.08)
+      n.connect(bp).connect(ng).connect(this.master)
+      n.start(bt)
+      n.stop(bt + 0.1)
+
+      const o = ctx.createOscillator()
+      o.type = 'sine'
+      o.frequency.setValueAtTime(95, bt)
+      o.frequency.exponentialRampToValueAtTime(48, bt + 0.09)
+      const og = ctx.createGain()
+      og.gain.setValueAtTime(0.0001, bt)
+      og.gain.exponentialRampToValueAtTime(v * 0.6, bt + 0.01)
+      og.gain.exponentialRampToValueAtTime(0.0001, bt + 0.12)
+      o.connect(og).connect(this.master)
+      o.start(bt)
+      o.stop(bt + 0.13)
+
+      bt += 0.11 + Math.random() * 0.06
+    }
+
+    const st = bt + 0.08
+    const sn = ctx.createBufferSource()
+    sn.buffer = this._noiseBuffer(0.5)
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.setValueAtTime(750, st)
+    lp.frequency.exponentialRampToValueAtTime(320, st + 0.4)
+    const sg = ctx.createGain()
+    sg.gain.setValueAtTime(0.0001, st)
+    sg.gain.exponentialRampToValueAtTime(v * 0.6, st + 0.14)
+    sg.gain.exponentialRampToValueAtTime(0.0001, st + 0.45)
+    const flutter = ctx.createGain()
+    flutter.gain.value = 0.6
+    const lfo = ctx.createOscillator()
+    lfo.type = 'sine'
+    lfo.frequency.value = 15
+    const lfoAmt = ctx.createGain()
+    lfoAmt.gain.value = 0.4
+    lfo.connect(lfoAmt).connect(flutter.gain)
+    sn.connect(lp).connect(flutter).connect(sg).connect(this.master)
+    sn.start(st)
+    sn.stop(st + 0.5)
+    lfo.start(st)
+    lfo.stop(st + 0.5)
+  }
+
   // 6.12: stepping into a shed. A brief warm rising triad — the "out of the
   // wind, the cold's eased" beat — paired with setSheltered() / the shelterMix
   // cross-fade so the shed bed and the slower warmth drain read by ear.

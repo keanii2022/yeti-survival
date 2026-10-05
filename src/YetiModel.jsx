@@ -8,6 +8,13 @@
 // looming. Modelled facing +Z so `rotation.y = atan2(dx, dz)` aims it at a
 // target. `eyeRef` is a ref to a 2-slot array the caller drives per frame
 // (emissiveIntensity) for the "spotted you" glow.
+//
+// 8.7: `poseRef` (optional) is a 2-slot array the same way — [upper body,
+// head] groups, pivoted at the hips and the neck, that the caller pitches
+// forward (rotation.x) for the feeding hunch. At rotation 0 every part sits
+// exactly where it always has.
+const HIP_Y = 1.3
+const NECK_Y = 2.35
 const DEFAULT_PALETTE = {
   legFur: '#e9eef2',
   torsoFur: '#f2f6fa',
@@ -17,7 +24,7 @@ const DEFAULT_PALETTE = {
   eyeGlow: '#ff2a1a',
 }
 
-export function YetiModel({ eyeRef, palette }) {
+export function YetiModel({ eyeRef, poseRef, palette }) {
   const p = { ...DEFAULT_PALETTE, ...palette }
   return (
     <group>
@@ -31,47 +38,55 @@ export function YetiModel({ eyeRef, palette }) {
         <meshStandardMaterial color={p.legFur} roughness={1} />
       </mesh>
 
-      {/* torso */}
-      <mesh position={[0, 1.85, 0]} castShadow>
-        <capsuleGeometry args={[0.85, 1.1, 4, 10]} />
-        <meshStandardMaterial color={p.torsoFur} roughness={1} />
-      </mesh>
+      {/* upper body, pivoting at the hips (8.7) */}
+      <group position={[0, HIP_Y, 0]} ref={poseRef && ((g) => (poseRef.current[0] = g))}>
+        {/* torso */}
+        <mesh position={[0, 1.85 - HIP_Y, 0]} castShadow>
+          <capsuleGeometry args={[0.85, 1.1, 4, 10]} />
+          <meshStandardMaterial color={p.torsoFur} roughness={1} />
+        </mesh>
 
-      {/* arms, hanging slightly forward */}
-      <mesh position={[-1.0, 1.8, 0.15]} rotation={[0.3, 0, 0.15]} castShadow>
-        <cylinderGeometry args={[0.24, 0.2, 1.5, 6]} />
-        <meshStandardMaterial color={p.armFur} roughness={1} />
-      </mesh>
-      <mesh position={[1.0, 1.8, 0.15]} rotation={[0.3, 0, -0.15]} castShadow>
-        <cylinderGeometry args={[0.24, 0.2, 1.5, 6]} />
-        <meshStandardMaterial color={p.armFur} roughness={1} />
-      </mesh>
+        {/* arms, hanging slightly forward */}
+        <mesh position={[-1.0, 1.8 - HIP_Y, 0.15]} rotation={[0.3, 0, 0.15]} castShadow>
+          <cylinderGeometry args={[0.24, 0.2, 1.5, 6]} />
+          <meshStandardMaterial color={p.armFur} roughness={1} />
+        </mesh>
+        <mesh position={[1.0, 1.8 - HIP_Y, 0.15]} rotation={[0.3, 0, -0.15]} castShadow>
+          <cylinderGeometry args={[0.24, 0.2, 1.5, 6]} />
+          <meshStandardMaterial color={p.armFur} roughness={1} />
+        </mesh>
 
-      {/* head */}
-      <mesh position={[0, 2.75, 0.05]} castShadow>
-        <dodecahedronGeometry args={[0.55, 0]} />
-        <meshStandardMaterial color={p.headFur} roughness={1} flatShading />
-      </mesh>
+        {/* head, pivoting at the neck (8.7) */}
+        <group
+          position={[0, NECK_Y - HIP_Y, 0]}
+          ref={poseRef && ((g) => (poseRef.current[1] = g))}
+        >
+          <mesh position={[0, 2.75 - NECK_Y, 0.05]} castShadow>
+            <dodecahedronGeometry args={[0.55, 0]} />
+            <meshStandardMaterial color={p.headFur} roughness={1} flatShading />
+          </mesh>
 
-      {/* eyes — emissive so they can glow brighter the instant it spots you */}
-      <mesh position={[-0.2, 2.82, 0.5]}>
-        <sphereGeometry args={[0.09, 8, 8]} />
-        <meshStandardMaterial
-          ref={(m) => (eyeRef.current[0] = m)}
-          color={p.eyeBase}
-          emissive={p.eyeGlow}
-          emissiveIntensity={0.15}
-        />
-      </mesh>
-      <mesh position={[0.2, 2.82, 0.5]}>
-        <sphereGeometry args={[0.09, 8, 8]} />
-        <meshStandardMaterial
-          ref={(m) => (eyeRef.current[1] = m)}
-          color={p.eyeBase}
-          emissive={p.eyeGlow}
-          emissiveIntensity={0.15}
-        />
-      </mesh>
+          {/* eyes — emissive so they can glow brighter the instant it spots you */}
+          <mesh position={[-0.2, 2.82 - NECK_Y, 0.5]}>
+            <sphereGeometry args={[0.09, 8, 8]} />
+            <meshStandardMaterial
+              ref={(m) => (eyeRef.current[0] = m)}
+              color={p.eyeBase}
+              emissive={p.eyeGlow}
+              emissiveIntensity={0.15}
+            />
+          </mesh>
+          <mesh position={[0.2, 2.82 - NECK_Y, 0.5]}>
+            <sphereGeometry args={[0.09, 8, 8]} />
+            <meshStandardMaterial
+              ref={(m) => (eyeRef.current[1] = m)}
+              color={p.eyeBase}
+              emissive={p.eyeGlow}
+              emissiveIntensity={0.15}
+            />
+          </mesh>
+        </group>
+      </group>
     </group>
   )
 }
