@@ -331,7 +331,10 @@ each, push after each.
   sits under the chase strings. First confirm it fires at all — if it doesn't,
   this becomes a bug fix. Then cut the wait to a few seconds of chase and make
   it a real roar: lower, louder, the music ducking for a beat under it. Ducking
-  behind a tree or into a shed still dodges it.
+  behind a tree or into a shed still dodges it. *Built — needs playtest:* it
+  did fire, just almost never (a sprint shakes him in 2–3 s at L1). The first
+  roar of a chase now comes 2.5–4 s in (a second one still waits 9–15 s), it's
+  a growling bellow peaking as it lands, and the music drops to ~15% under it.
 - **8.9 The yeti from the son's drawing** *(tuning — look; also fixes "blends
   into the snow")* — his fur is near-white on white snow, so at range he
   disappears. Rebuild his look from the drawing — shape, colours, features —
