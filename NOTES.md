@@ -321,7 +321,10 @@ each, push after each.
   while he eats there's no sound and no pose — he just stands there. Move the
   roll up to early in every level, raise the odds, and give it a tell you can't
   miss: a crunching / snuffling sound and an eating pose (hunched, head down).
-  Still fully blind while he eats.
+  Still fully blind while he eats. *Built — needs playtest:* rolls 5–12 s into
+  each level at 85%, he walks to the ember nearest him (the walk over can still
+  spot you; only the eating is blind), hunches with a chewing nod, and the
+  crunch carries ~50 m.
 - **8.8 A roar you actually hear** *(tuning — 8.2; a bug if it isn't firing)* —
   never heard. It only fires after 9–15 s of unbroken chase, so a chase you
   shake off early never gets one, and the windup is a soft filtered whoosh that
