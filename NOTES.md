@@ -347,6 +347,13 @@ each, push after each.
   at L5. Bring it in from L1 on every difficulty. Its ramp is anchored to L5
   today (`GUARDIAN_MIN_LEVEL`), so re-spread it across the climb: a gentle
   Guardian at L1 growing into today's L5–L6 strength by the last level.
+  *Built — needs playtest:* he's in every run from the first frame, on every
+  difficulty. At L1 he's slower than the Hunter (5 vs 5.2), spots you at 16 m,
+  waits 0.6 s before committing and gives up after 2 s; he reaches the old L5
+  numbers at L5 and the old L6 ones at L6, and nightfall is unchanged. Easy and
+  medium now soften him the same way they soften the Hunter, the getaway bonus
+  after a green-ember grab counts whichever yeti is nearer, and the manual
+  mentions him.
 - **8.11 Nightfall that feels different** *(tuning — 8.6, needs 8.10)* — the son
   played it and only noticed the sky change. Two reasons: nightfall L1 sits at
   normal L5 on the curve (`NIGHTFALL_OFFSET` 4) — easier than the L6 you just
