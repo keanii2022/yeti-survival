@@ -156,6 +156,11 @@ export default function Manual({ open, onClose }) {
             Past level 5 you can't out-run it any more — you have to break line
             of sight (trees, sheds, corners) and lose it.
           </p>
+          <p>
+            There's a second yeti too. It guards the green ember: it stays
+            near its spot, chases you for a few seconds if you get close, then
+            goes back. It gets bolder every level.
+          </p>
         </section>
 
         <section>

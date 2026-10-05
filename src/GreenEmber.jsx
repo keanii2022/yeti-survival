@@ -25,9 +25,12 @@ import { dailyRandom } from './dailySeed.js'
 // it — no camping it through the breather — and it re-appears next to him a
 // little way into the next level.
 //
-// Step 8.3: once the Guardian exists (curveLevel 5+), it — not the Hunter —
-// is what the ember trails. That's the whole reframe: raid the Guardian's
-// turf while the Hunter is still on you, rather than just skirting one yeti.
+// Step 8.3: once the Guardian exists (every level since 8.10), it — not the
+// Hunter — is what the ember trails. That's the whole reframe: raid the
+// Guardian's turf while the Hunter is still on you, rather than just skirting
+// one yeti. The getaway bonus counts the nearer of the two, so it's earned by
+// clearing the Guardian you just robbed, not handed out because the Hunter
+// happens to be off across the arena.
 //
 // Beacon: the arena is 120u across and the fog shuts at 70u, so it carries a
 // soft fog-immune shaft of light that reads through the murk and brightens a
@@ -132,7 +135,8 @@ export default function GreenEmber() {
     // pays the getaway bonus once.
     if (esc.current.timer > 0) {
       esc.current.timer -= delta
-      if (!esc.current.done && !interlude && threat.distance > ESCAPE_CLEAR_DIST) {
+      const nearest = guardian.present ? Math.min(threat.distance, guardian.distance) : threat.distance
+      if (!esc.current.done && !interlude && nearest > ESCAPE_CLEAR_DIST) {
         esc.current.done = true
         useGame.getState().greenEscape()
       }

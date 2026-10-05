@@ -17,7 +17,8 @@ import { dailyRandom } from './dailySeed.js'
 
 // Step 8.3: the second yeti. Always mounted (so a level-up doesn't have to
 // remount the scene), but a no-op — parked far below the world, publishing
-// nothing — until effectiveLevel(level, nightfall) reaches GUARDIAN_MIN_LEVEL.
+// nothing — until effectiveLevel(level, nightfall) reaches GUARDIAN_MIN_LEVEL,
+// which since 8.10 is level 1: he drops in on the first frame of every run.
 //
 // Deliberately much simpler than the Hunter (Yeti.jsx): no search memory, no
 // shed patrols, no feeding, no roar. Three states only —
@@ -35,7 +36,6 @@ const ARRIVE_DIST = 1.8
 const EDGE_MARGIN = 2
 const POST_MIN_DIST = 20 // the post rolls this far from the player at activation...
 const POST_MAX_DIST = 45 // ...to this far, so it never drops in on top of you
-const COMMIT_DELAY = 0.3 // a beat shorter than the Hunter's L1 delay — he's already alert to his own turf
 const LOSE_MARGIN = 6 // hysteresis on the aggro ring, same reasoning as the Hunter's loseRadius
 const PATROL_SPEED = 1.6
 const RETURN_SPEED_MULT = 0.75
@@ -84,6 +84,7 @@ export default function Guardian() {
     spotTimer: 0,
     chaseTimer: 0,
     curveLevel: 0,
+    difficulty: null, // difficulty the params below were built for
     params: guardianParams(GUARDIAN_MIN_LEVEL),
   })
 
@@ -119,7 +120,7 @@ export default function Guardian() {
   useFrame((_, rawDelta) => {
     if (useGame.getState().status !== 'playing') return
     const delta = Math.min(rawDelta, 0.1)
-    const { level, nightfall, interlude } = useGame.getState()
+    const { level, nightfall, interlude, difficulty } = useGame.getState()
     const curveLevel = effectiveLevel(level, nightfall)
     const gi = g.current
     const grp = group.current
@@ -148,9 +149,10 @@ export default function Guardian() {
       gi.active = true
     }
 
-    if (curveLevel !== gi.curveLevel) {
+    if (curveLevel !== gi.curveLevel || difficulty !== gi.difficulty) {
       gi.curveLevel = curveLevel
-      gi.params = guardianParams(curveLevel)
+      gi.difficulty = difficulty
+      gi.params = guardianParams(curveLevel, difficulty)
     }
     const P = gi.params
 
@@ -167,7 +169,7 @@ export default function Guardian() {
     } else if (gi.mode === 'patrol') {
       if (!hidden && dist < P.aggroRadius) {
         gi.spotTimer += delta
-        if (gi.spotTimer >= COMMIT_DELAY) {
+        if (gi.spotTimer >= P.commitDelay) {
           gi.mode = 'chase'
           gi.spotTimer = 0
           gi.chaseTimer = P.chaseCap
